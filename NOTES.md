@@ -38,10 +38,20 @@ Done (FACT):
   Windows copy of system.apfs). Further candidates, not touched: ~/ios-work in WSL (35 GB of jasmine work incl. the
   16.7.16 IPSW: the user's, ask), ~/vayu/sysimage rootfs + dyld (5.7 GB, only needed to rebuild system.apfs).
 
+- Phone (FACT, 2026-11-05 ~18:45; full dumps in `../device-info/` outside git: getprop.txt, fastboot-getvar-all.txt):
+  vayu_global M2102J20SG, MIUI V14.0.3.0.TJUMIXM (Android 13), hwc GLOBAL, hwversion 6.19.0, hw-revision 20002,
+  board msmnile, dynamic partitions, no A/B slots (has its own `recovery`), bootloader locked, verified boot green,
+  **anti:2** (anti-rollback index: never flash a ROM/firmware with a lower index), vendor.panel.display 6,
+  vendor.panel.touch_vendor 4. Partition sizes: userdata 0x38905FB000 (~226 GB: a 256 GB unit), super 8.5 GB,
+  boot/recovery 128 MB each, modem 320 MB, persist 64 MB (+ persistbak), modemst1/2 + fsg 8 MB each,
+  xbl/abl/devcfg each with a *bak copy, logdump 64 MB (HakiOS's loader writes its log there).
+- Firmware pull (FACT): `pull-firmware.sh` from Git Bash got 0 files. Two causes: (1) MSYS path conversion turned
+  /vendor/... into C:/Program Files/Git/vendor/... (fixed in f8d2cb6: MSYS_NO_PATHCONV=1); (2) on this ROM the adb
+  shell gets "Permission denied" on /vendor/firmware and /vendor/firmware_mnt/image: **root is needed**, so the
+  pull moves to day 1 (the unlock wipe keeps /vendor and modem).
+
 Next:
-1. Phone still locked, on Android: `getprop`, `fastboot getvar all`, `devices/poco-x3-pro/pull-firmware.sh`
-   (phone was not on USB as of 16:16), then rebuild root.apfs.
-2. Day 1: unlock, back up partitions (temp root boot), copy kernel/loader/UEFI FD/images to the Windows checkout,
+1. Day 1: unlock, back up partitions (temp root boot), copy kernel/loader/UEFI FD/images to the Windows checkout,
    `./xl enter`, `./xl ramdisk userland/system.apfs`, `./xl run` with the device README's boot args.
 
 ## Decision: base on HakiOS vayu (2026-11-05)
