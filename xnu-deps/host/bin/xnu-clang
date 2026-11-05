@@ -6,11 +6,13 @@
 HB="$(cd "$(dirname "$0")" && pwd)"
 case "$(basename "$0")" in *++) drv=clang++; extra=(-fno-use-cxa-atexit);; *) drv=clang; extra=();; esac
 args=()
+# clang 14/15 require the gate below for -ftrivial-auto-var-init=zero; clang 16 made it optional and
+# clang 18 removed it (an unknown argument there): keep it only for clang < 16.
+major=$(/usr/bin/$drv -dumpversion 2>/dev/null); major=${major%%.*}
 for a in "$@"; do
   case "$a" in
-    # Linux clang 14 requires this gate for -ftrivial-auto-var-init=zero;
-    # do not drop it (Apple's clang does not need it, but this wrapper is Linux-only).
-    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang) args+=("$a");;
+    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang)
+      [ "${major:-14}" -lt 16 ] && args+=("$a");;
     -fapple-kext-vtable-verify|-Wno-vla-cxx-extension) ;;
     -Werror|-Werror=*|-Weverything|-pedantic-errors) ;;
     *) args+=("$a");;
