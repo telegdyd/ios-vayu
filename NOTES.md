@@ -11,13 +11,27 @@ Done (FACT):
   @ 397750d (reference only; its history was rewritten, no common history with this fork).
 - WSL packages: 7zip 25.01, clang 19, lld, lz4, python3-venv, git, make (passwordless sudo works).
 - Disk: pruned 949 old jasmine build outputs (~18 GB) -> C: 26 GB free.
+- Toolchain in WSL: theos at ~/theos (L1ghtmann iOSToolchain, sdks/iPhoneOS16.5.sdk), `xnu/apply.sh` (xnu-8796.121.2
+  + 80 changed / 202 new files), `xnu-deps/setup.sh` stage 1 + 2.
+- Host fixes needed on Debian 13 / clang 19 (the author builds with clang 14 + older glibc), all on vayu-dev:
+  bab9b97 hostcompat.h strlcpy/strlcat only for glibc < 2.38; bb653c1 xnu-clang drops the
+  `-enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang` gate on clang >= 16; 852fd53 xnu-clang keeps
+  implicit-function-declaration/int-conversion/... as warnings on clang >= 16 (17 such sites in vayu_*.c,
+  loader_return.c); 2a197eb uefi/build.sh inits Mu_Basecore submodules one level + system nasm without Mono.
+- Kernel: `./xnu-build.sh -j12 -k` rc=2 (normal: export check), 0 compile errors,
+  `mach.development.bcm2837` 16525952 bytes sha256 d4d61ee2b573421e5783a3fdc6cfabff529f33eb06138d9e30c5745a85bc13b8,
+  arm64 Mach-O, 988 `vayu_` strings; copied to `~/vayu/hakios-kernel`. Built from 852fd53 (= author b49864a + host fixes).
+- UEFI: `devices/poco-x3-pro/uefi/build.sh` -> Mu-Silicium/Build/vayuPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd,
+  3145728 bytes, sha256 c8d2a573a0269077d18c3b6301c6fe29c6fd237c528ea26bb93b3d01d25e0158 (reproduced by a rerun at 2a197eb).
+- IPSW: user approved downloading iOS 16.5 20F66 iPhone X members from Apple's CDN; `sysimage/fetch.sh` started
+  (log ~/fetch.log in WSL).
 
 Next:
-1. `make doctor`, `xnu-deps/setup.sh`, kernel (`xnu-build.sh`), `make loader`, `devices/poco-x3-pro/uefi/build.sh` in WSL.
-2. iOS 16.5 IPSW (iPhone X, 20F66) -> `sysimage/unpack.sh` -> `DEVICE=poco-x3-pro REST=1 userland/build.sh`
-   (ask the user before downloading).
-3. Phone still locked, on Android: `getprop`, `fastboot getvar all`, `devices/poco-x3-pro/pull-firmware.sh`.
-4. Day 1: unlock, back up partitions (temp root boot), `./xl enter`, `./xl ramdisk`, `./xl run`.
+1. After fetch.sh: `make loader` (identity from the IPSW), `DEVICE=poco-x3-pro REST=1 userland/build.sh` (check root
+   image mode 040755, the author's umask pitfall).
+2. Phone still locked, on Android: `getprop`, `fastboot getvar all`, `devices/poco-x3-pro/pull-firmware.sh`
+   (phone was not on USB at 15:15).
+3. Day 1: unlock, back up partitions (temp root boot), `./xl enter`, `./xl ramdisk`, `./xl run`.
 
 ## Decision: base on HakiOS vayu (2026-11-05)
 
