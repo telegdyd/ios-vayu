@@ -29,6 +29,18 @@ fi
 cd "$MU"
 # top-level submodules only; stuart --update brings what the build needs
 git submodule update --init --depth 1
+# Mu_Basecore's own submodules, one level (MdePkg.dec / SecurityPkg.dec name include paths inside them:
+# mipisyst, libfdt, brotli, libspdm, ...); their nested OpenSSL/test trees are still left out
+git -C Mu_Basecore submodule update --init --depth 1
+
+# mu_nasm comes through NuGet, which needs Mono; without Mono use the system nasm (../../poco-x5-pro/uefi/README.md)
+if ! command -v mono >/dev/null 2>&1; then
+	command -v nasm >/dev/null || { echo "build.sh: install nasm (or Mono)" >&2; exit 1; }
+	D=Mu_Basecore/BaseTools/Bin/mu_nasm_extdep
+	mkdir -p "$D/Linux-x86-64"
+	echo 'version: 20016.1.1' > "$D/extdep_state.yaml"
+	ln -sf "$(command -v nasm)" "$(command -v ndisasm)" "$D/Linux-x86-64/"
+fi
 
 # Mu-Silicium's RequiredSubmodule second argument is "recursive", not "required": keep the test-only
 # OpenSSL/SPDM trees out of the update
