@@ -72,7 +72,9 @@ static inline mode_t getmode(const void *set, mode_t omode) { (void)omode; retur
 /*
  * Apple's libc has strlcpy/strlcat; glibc does not. XNU's SETUP tools use
  * them (replacecontents), so provide the small BSD implementations here.
+ * glibc 2.38 and later have both: then they must not be declared again.
  */
+#if !(defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 38)))
 static inline size_t
 strlcpy(char *dst, const char *src, size_t size)
 {
@@ -96,4 +98,5 @@ strlcat(char *dst, const char *src, size_t size)
 	}
 	return dlen + strlcpy(dst + dlen, src, size - dlen);
 }
+#endif /* glibc < 2.38 */
 #endif
