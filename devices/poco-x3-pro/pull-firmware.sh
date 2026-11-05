@@ -4,6 +4,9 @@
 # flat into the image's fw/, where the vayu_* drivers look for it. Missing files are told, not fatal; the
 # paths are those of the stock vayu ROM and are the first thing to check if a file is not found.
 set -e
+# Git Bash (MSYS) rewrites arguments that look like POSIX paths (/vendor/...) into Windows paths before
+# they reach adb.exe; keep them as they are
+export MSYS_NO_PATHCONV=1
 cd "$(dirname "$0")/../.."
 OUT=fw-poco-x3-pro
 mkdir -p $OUT
