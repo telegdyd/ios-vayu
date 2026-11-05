@@ -18,5 +18,11 @@ for a in "$@"; do
     *) args+=("$a");;
   esac
 done
+# clang 16 made these errors by default; clang 14 (the author's) only warns, and the tree relies on that
+# (vayu_* drivers call kernel functions without their prototypes). Keep clang 14's behaviour.
+if [ "${major:-14}" -ge 16 ]; then
+  extra+=(-Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion
+          -Wno-error=incompatible-function-pointer-types)
+fi
 exec /usr/bin/$drv -include "$HB/../../hostinc/xnu_clang_compat.h" -target arm64-apple-ios${XNU_SDK_VERSION:-16.5} --ld-path="$HB/ld64" \
   -w "${extra[@]}" "${args[@]}"
