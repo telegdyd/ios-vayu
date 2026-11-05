@@ -23,15 +23,25 @@ Done (FACT):
   arm64 Mach-O, 988 `vayu_` strings; copied to `~/vayu/hakios-kernel`. Built from 852fd53 (= author b49864a + host fixes).
 - UEFI: `devices/poco-x3-pro/uefi/build.sh` -> Mu-Silicium/Build/vayuPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd,
   3145728 bytes, sha256 c8d2a573a0269077d18c3b6301c6fe29c6fd237c528ea26bb93b3d01d25e0158 (reproduced by a rerun at 2a197eb).
-- IPSW: user approved downloading iOS 16.5 20F66 iPhone X members from Apple's CDN; `sysimage/fetch.sh` started
-  (log ~/fetch.log in WSL).
+- IPSW: user approved downloading iOS 16.5 20F66 iPhone X members from Apple's CDN; `sysimage/fetch.sh` done in
+  41 min: 3.0G rootfs, 26M cryptex, 11M App cryptex, 2.6G dyld shared cache (sysimage/ 5.7 GB; dmgs not kept).
+- Loader: `xnuloader/build.sh` -> loader.efi 86528 bytes sha256 f5ede4ca00272d5442a0671b2db0334c6449e794a3ffe26433d834e02fa64d98
+  (identity.h from DeviceTree.d22ap.im4p, 33694 bytes from the CDN).
+- Userland: `DEVICE=poco-x3-pro REST=1 userland/build.sh` rc=0 in 5 min: Mesa 25.0.7 (softpipe,freedreno) libOSMesa
+  14.8 MB, root.apfs 6483968 bytes, system.apfs 2511761408 bytes; root.apfs `/` is 040755 (umask pitfall OK).
+  **Built without firmware** (`fw/: 0 files`): rebuild root.apfs after `pull-firmware.sh` fills ../fw-poco-x3-pro
+  (userland/build.sh copies it into root/fw; system.apfs need not be rebuilt for that).
+- **Disk: C: down to 3.4 GB free** (WSL ext4.vhdx grew ~14 GB; it does not shrink by itself). Needed before day 1:
+  space for the partition backups and a Windows-side copy of system.apfs (2.5 GB) for `xl` in Git Bash.
+  Candidates: WSL sparse vhdx (`wsl --manage Debian --set-sparse true`), ~/ios-work in WSL (35 GB of jasmine work,
+  incl. the 16.7.16 IPSW: the user's, ask), sysimage/rootfs + dyld (5.7 GB, only needed to rebuild system.apfs).
 
 Next:
-1. After fetch.sh: `make loader` (identity from the IPSW), `DEVICE=poco-x3-pro REST=1 userland/build.sh` (check root
-   image mode 040755, the author's umask pitfall).
+1. Free disk space (user's decision).
 2. Phone still locked, on Android: `getprop`, `fastboot getvar all`, `devices/poco-x3-pro/pull-firmware.sh`
-   (phone was not on USB at 15:15).
-3. Day 1: unlock, back up partitions (temp root boot), `./xl enter`, `./xl ramdisk`, `./xl run`.
+   (phone was not on USB as of 16:16), then rebuild root.apfs.
+3. Day 1: unlock, back up partitions (temp root boot), copy kernel/loader/UEFI FD/images to the Windows checkout,
+   `./xl enter`, `./xl ramdisk userland/system.apfs`, `./xl run` with the device README's boot args.
 
 ## Decision: base on HakiOS vayu (2026-11-05)
 
