@@ -31,16 +31,17 @@ Done (FACT):
   14.8 MB, root.apfs 6483968 bytes, system.apfs 2511761408 bytes; root.apfs `/` is 040755 (umask pitfall OK).
   **Built without firmware** (`fw/: 0 files`): rebuild root.apfs after `pull-firmware.sh` fills ../fw-poco-x3-pro
   (userland/build.sh copies it into root/fw; system.apfs need not be rebuilt for that).
-- **Disk: C: down to 3.4 GB free** (WSL ext4.vhdx grew ~14 GB; it does not shrink by itself). Needed before day 1:
-  space for the partition backups and a Windows-side copy of system.apfs (2.5 GB) for `xl` in Git Bash.
-  Candidates: WSL sparse vhdx (`wsl --manage Debian --set-sparse true`), ~/ios-work in WSL (35 GB of jasmine work,
-  incl. the 16.7.16 IPSW: the user's, ask), sysimage/rootfs + dyld (5.7 GB, only needed to rebuild system.apfs).
+- Disk: C: was down to 3.4 GB free (WSL ext4.vhdx grew ~14 GB). User chose the sparse WSL disk:
+  `wsl --shutdown; wsl --manage Debian --set-sparse true` (WSL 3.0.3; it warns sparse is experimental), then
+  `sudo fstrim -av` inside -> C: 9.2 GB free (vhdx logical size stays 57.8 GB, `fsutil sparse queryflag` = sparse).
+  From now on space freed inside WSL returns to Windows after `fstrim`. Still tight for day 1 (backups + a 2.5 GB
+  Windows copy of system.apfs). Further candidates, not touched: ~/ios-work in WSL (35 GB of jasmine work incl. the
+  16.7.16 IPSW: the user's, ask), ~/vayu/sysimage rootfs + dyld (5.7 GB, only needed to rebuild system.apfs).
 
 Next:
-1. Free disk space (user's decision).
-2. Phone still locked, on Android: `getprop`, `fastboot getvar all`, `devices/poco-x3-pro/pull-firmware.sh`
+1. Phone still locked, on Android: `getprop`, `fastboot getvar all`, `devices/poco-x3-pro/pull-firmware.sh`
    (phone was not on USB as of 16:16), then rebuild root.apfs.
-3. Day 1: unlock, back up partitions (temp root boot), copy kernel/loader/UEFI FD/images to the Windows checkout,
+2. Day 1: unlock, back up partitions (temp root boot), copy kernel/loader/UEFI FD/images to the Windows checkout,
    `./xl enter`, `./xl ramdisk userland/system.apfs`, `./xl run` with the device README's boot args.
 
 ## Decision: base on HakiOS vayu (2026-11-05)
