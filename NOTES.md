@@ -51,7 +51,11 @@ Done (FACT):
   pull moves to day 1 (the unlock wipe keeps /vendor and modem).
 
 Next:
-1. Day 1: unlock, back up partitions (temp root boot), copy kernel/loader/UEFI FD/images to the Windows checkout,
+1. Day 1: unlock (Mi Unlock, wipes userdata) -> a root shell without flashing: `fastboot boot` a vayu recovery (the
+   author uses PBRP on `recovery`; download needs the user's OK) or a Magisk-patched stock boot.img of
+   V14.0.3.0.TJUMIXM -> dd every partition except userdata/super/cust to the PC (~1.2 GB) -> pull firmware as root
+   (GPU a630_sqe/a640_gmu/a640_zap.*, NT36675 j20s_novatek_ts_fw0*, adsp/modem/slpi_vy mdt+bNN, wlanmdsp.mbn,
+   bdwlan.bin, BT crbtfw/crnv) -> rebuild root.apfs -> copy kernel/loader/UEFI FD/images to the Windows checkout ->
    `./xl enter`, `./xl ramdisk userland/system.apfs`, `./xl run` with the device README's boot args.
 
 ## Decision: base on HakiOS vayu (2026-11-05)
