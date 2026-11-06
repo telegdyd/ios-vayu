@@ -113,8 +113,12 @@ is_loader() { in_fastboot && fb getvar product | grep -q 'product: xnuloader'; }
 state() {
 	if is_loader; then echo loader
 	elif in_fastboot; then echo fastboot
-	elif [ "$(adb get-state 2>/dev/null)" = device ]; then echo android
-	else echo absent; fi
+	else case "$(adb get-state 2>/dev/null | tr -d '\r')" in
+		device) echo android ;;
+		recovery) echo recovery ;;   # (a recovery booted with fastboot boot, as for day 1's backups)
+		*) echo absent ;;
+		esac
+	fi
 }
 wait_for() { # wait_for <state> <seconds>
 	local i
@@ -125,7 +129,7 @@ wait_for() { # wait_for <state> <seconds>
 enter() {
 	case "$(state)" in
 	loader) return 0 ;;
-	android) adb reboot bootloader; wait_for fastboot 60 || { echo "xl: phone did not reach fastboot"; return 1; } ;;
+	android|recovery) adb reboot bootloader; wait_for fastboot 60 || { echo "xl: phone did not reach fastboot"; return 1; } ;;
 	fastboot) ;;
 	absent) echo "xl: waiting for the phone (Android or fastboot)..."
 		local i; for ((i = 0; i < 180; i += 3)); do [ "$(state)" != absent ] && break; sleep 3; done
