@@ -1,6 +1,48 @@
 # ios-vayu notes
 
-## Active handoff (2026-11-06 evening, day 1: unlocked, iOS boots to the home screen with GPU and touch)
+## Active handoff (2026-11-06 late: iOS volume installed on the phone's flash, boots with root on flash)
+
+User's goal (2026-11-06): iOS as the phone's main OS, Android gone; not for daily use yet. Install work
+comes before features.
+
+Done (FACT):
+- GPT of LUN 0: entry 32 `userdata` is now `darwin` (type APFS, unique 1756c529-8738-41c3-ba3a-8f263332c072,
+  LBA 2851328..62162938, 226 GiB, same place). Table was full (32/32), so retyped in place rather than adding a
+  33rd entry like the author's phone. Made offline by `devices/poco-x3-pro/tools/gpt-plan.py retype` from the
+  day-1 backup (only the two headers and table blocks change); written from PBRP by
+  `devices/poco-x3-pro/tools/darwin-install.sh gpt` after checking LUN 0's ends were byte-identical to the
+  backup; read back. New table: `../backup-vayu/gpt-darwin/{head,tail}.bin`; **undo = the old
+  `../backup-vayu/20261106/gpt-sda.{head,tail}.bin`** (user has a copy off the PC). fastboot now reports
+  `partition-type:darwin raw`, no userdata. Android no longer has a data partition.
+- `darwin` contents (redwood's layout), each written by `darwin-install.sh write` from WSL through adb.exe
+  with PBRP root, read back by sha256 after drop_caches (logs/darwin-install.log):
+  block 0 rootfs.apfs 5628755968 B sha256 9f430a58... (187 s, 28 MB/s); block 1374208 OS cryptex
+  096-04666-078.dmg 2726297600 B 2279bf44... (156 s); block 2039808 App cryptex 10485760 B 6b9d1f09....
+  All three hashes equal the author's. Source images deleted from WSL afterwards (re-fetch: fetch-from-ipsw.py
+  096-04088-077.dmg + tools/apfs/dmg.py extract --apfs with the pip `lzfse` module; 096-04666-078.dmg as is).
+- Loader: darwin_vayu identity updated (56f0a3a). Built with Debian clang 19: loader.efi 103424 B sha256
+  4c00a1e7... The day-0 loader was 86528 B from the same source (INFERENCE: another clang in PATH that day);
+  the new one boots fine.
+- Flash images: `DEVICE=poco-x3-pro CRYPTEXES=flash FLASHBOOT=1 REST=1 userland/build.sh` -> flashboot.apfs
+  4 MB (d5f85341...) and a flash root.apfs 7 MB (394bf373..., kept as userland/root-flash.apfs on Windows,
+  ~/root-flash.apfs in WSL; userland/root.apfs stays the RAM-boot one).
+- **Run 225353 (FACT):** `./xl ramdisk userland/flashboot.apfs` (4 MB, 1 s), then
+  `XL_RAMDISK=userland/root-flash.apfs XL_SECS=180 XL_CMDLINE="root_apfs=ufs_darwin ufs=2 bootcpu=7 cpus=8
+  fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1 gpu=1 vayu_gpu=1 vayu_keep=1" ./xl run`:
+  init "the iOS root volume on /dev/ufs_darwin as the root", OS/App cryptexes from /dev/ufs_darwin,c=1/c=2,
+  SpringBoard, the user opened Maps (logs/flash1.png). Reads go through the loader (no ufs_native=1: untested
+  on vayu). No 2.5 GB upload any more.
+- darwin-install.sh root check fixed (`sh_phone "id -u"`).
+
+Next:
+1. Standalone boot: the loader reads kernel + flashboot.apfs + root from darwin (past block 2042368, below
+   2097152 = var_store) instead of USB; then the loader/UEFI image into `boot` (backup has boot.img).
+2. Persistence: var_store=1 ufs_write=1 (writes only from block 2097152 of darwin), test carefully.
+3. watchdog FFFF line; idle loader resets the phone to Android after a while.
+4. DSP firmware (modem/adsp/slpi/venus/wlanmdsp) not in any image yet: could go on darwin's iOS side later.
+5. The Windows copy userland/system.apfs (2.5 GB) is only needed for RAM boots now.
+
+## Earlier handoff (2026-11-06 evening, day 1: unlocked, iOS boots to the home screen with GPU and touch)
 
 Done (FACT):
 - Bootloader unlocked (fastboot `unlocked: yes`). PBRP 4.0 booted from RAM (`day1.sh root`), adb root "direct".

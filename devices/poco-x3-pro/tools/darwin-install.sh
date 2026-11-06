@@ -56,7 +56,7 @@ print(name, str(uuid.UUID(bytes_le=e[:16])).upper(), str(uuid.UUID(bytes_le=e[16
 
 check() {
 	[ "$(state)" = recovery ] || die "the phone is not in the recovery (adb: $(state))"
-	[ "$(sh_phone id -u)" = 0 ] || die "adb is not root"
+	[ "$(sh_phone "id -u")" = 0 ] || die "adb is not root"
 	local g want facts
 	g=$(gpt_entry) || die "GPT: $g"
 	want="darwin $TYPE $UNIQ $FIRST $LAST 0"
