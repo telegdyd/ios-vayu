@@ -23,7 +23,7 @@ for f in $K xnuloader/loader.efi $FD userland/root.apfs userland/system.apfs; do
 	[ -f "$f" ] || { echo "stage: $f missing: build it first (see NOTES.md)" >&2; exit 1; }
 done
 # root.apfs carries the firmware (userland/build.sh copies ../fw-poco-x3-pro into root/fw): say if it has none
-fw=$(ls ../fw-poco-x3-pro 2>/dev/null | wc -l)
+fw=$({ ls -A ../fw-poco-x3-pro 2>/dev/null || true; } | wc -l)
 [ "$fw" -gt 0 ] || echo "stage: note: ../fw-poco-x3-pro is empty, so root.apfs carries no firmware" >&2
 
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
