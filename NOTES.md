@@ -1,6 +1,49 @@
 # ios-vayu notes
 
-## Active handoff (2026-11-05, day 0: bootloader still locked, unlock expected ~2026-11-06)
+## Active handoff (2026-11-06 evening, day 1: unlocked, iOS boots to the home screen with GPU and touch)
+
+Done (FACT):
+- Bootloader unlocked (fastboot `unlocked: yes`). PBRP 4.0 booted from RAM (`day1.sh root`), adb root "direct".
+- Backup: `../backup-vayu/20261106/` (outside git), 99 images, 3.8 GB, every one sha256-checked against the
+  phone, DONE file, GPT head/tail of sda..sdf. Critical ones (persist, persistbak, modemst1/2, fsg, fsc, devinfo)
+  all present. **Still to do: copy it off this PC.**
+  Fix e28c537: PBRP links whole UFS units sda..sdf into /dev/block/by-name (counted 248 GB): skipped.
+- Firmware: 96 files in fw-poco-x3-pro/ (e28c537). On MIUI 14 the Novatek touch firmware is built into the
+  kernel (no file on vendor/odm/modem): `devices/poco-x3-pro/tools/nvt-fw.py` takes j20s_novatek_ts_fw01/02
+  (and mp01/02) out of boot.img with vayu_nvt.c's checks; fw01 v202 sha256 b1bf0bff..., fw02 v200 f716707b....
+  bdwlan.bin is on the modem partition (/image), now grabbed there.
+- **This phone's panel is dsi_j20s_36_02_0a** (cmdline msm_drm.dsi_display0), not the author's 42_02_0b:
+  touch needs **`nvt_fw=1`** (the driver defaults to fw02). Both panels use the PM8150L WLED.
+- Windows: the loader enumerates as USB\VID_18D1&PID_D00D\XNULOADER; Windows bound no driver (Problem 28) until
+  the user picked "Android Bootloader Interface" by hand in Device Manager (one time; remembered).
+  A loader that sat without a driver for minutes stopped answering (AdbWriteEndpointSync timeout): reboot it.
+- Payload limit (FACT): the loader's max-download-size is 0x3f00000 (63 MB); kernel + root.apfs with all firmware
+  was 123 MB -> "bad size". 84c9fe0: day1.sh image now leaves modem/adsp/slpi_vy/venus/wlanmdsp out of root.apfs
+  (FW_BIG); root.apfs 6 MB. hakios_image_file() also searches md1 (resident system image): the DSP images belong
+  in system.apfs /fw (MODEM=1 SYSTEM=1 path of userland/build.sh, not done yet) before modem/adsp/Wi-Fi runs.
+- Smoke run 214701 (`-v`, kernel b4e9d065): XNU, launchd, backboardd, spinner; returned to the loader at 60 s.
+- Baseline run 214825 panicked: SError ("Unhandled implementation specific error", cpu 0) right after
+  "vayu: step 1: look up the GPU's supply rails" in vayu_adreno.c cmd_db_find().
+  Fix 25c356b: read the AOP pointer at 0xc3f000c (two u32: address, size; msm-4.14 cmd-db.c) through a 4 KiB
+  device mapping, map what it names; fixed places only with vayu_cmd_db_probe=1. Result: pointer says
+  0x85f20000 size 0x1148, magic matches. INFERENCE: the SError came from the old 128 KB write-combined (normal
+  memory) mapping of AOP message RAM at 0xc3f0000 (speculative reads into protected neighbours), not from
+  0x85f20000 itself (which is where the database is).
+  Kernel c329096e... (xnu-src synced by hand: **edits in xnu/files must be copied into ~/vayu/xnu-src** before
+  xnu-build.sh; it built in 7 s).
+- Baseline run 220243 (cmdline: bootcpu=7 cpus=8 fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1
+  gpu=1 vayu_gpu=1 vayu_keep=1, 120 s): Apple logo -> lock screen -> **home screen** (logs/day1-baseline.png).
+  GL: OpenGL ES 3.2 Mesa 25.0.7 FD640, HakiosGPU submissions. Touch: fw01 downloaded in 872 ms, 240 Hz polling,
+  user swiped (screen finger 1, 23 samples). Volume up/down seen by the buttons driver. ~10 fps in S5FPS stats.
+- Loader screen line "watchdog: status ret=FFFF..." on every boot: not looked at yet.
+
+Next:
+1. Copy ../backup-vayu/20261106 off this PC.
+2. day1.sh boot baseline: pass nvt_fw=1 when the panel is 36_02_0a (or make it the vayu default here).
+3. DSP firmware into system.apfs (/fw), then Wi-Fi (`wifi=1`, needs fw-wifi network/PMK), audio, modem.
+4. Look at the watchdog line, the 10 fps, and install-to-userdata (the user's goal).
+
+## Earlier handoff (2026-11-05, day 0: bootloader still locked, unlock expected ~2026-11-06)
 
 Goal: iOS on the POCO X3 Pro, installed on the phone eventually. Continue from the author's vayu work
 rather than porting our jasmine stack (decision below).
