@@ -1,6 +1,22 @@
 # ios-vayu notes
 
-## Active handoff (2026-11-06 late: iOS volume installed on the phone's flash, boots with root on flash)
+## Active handoff (2026-11-06 night: iOS installed and flashed into `boot`: the phone starts iOS by itself)
+
+Standalone boot (FACT unless marked):
+- Loader 2.2 (546ac05, loader.efi 103936 B sha256 539ed29f...): a payload entry "resident" is copied to the
+  resident address before the run; in one-shot mode (no "usb" entry) a kernel without loader_return_after gets
+  no time limit (the loader feeds the watchdog while the kernel's heartbeat lives; a hung or returning kernel
+  ends in a reset, which boots the same image again). The loader's on-screen log stops at 24 s (NOTE_SECONDS).
+- `devices/poco-x3-pro/tools/standalone.sh build|try|flash` (Git Bash, stock fastboot): payload = loader.efi +
+  kernel (c329096e...) + ramdisk root-flash.apfs + resident flashboot.apfs + cmdline `sb_delay=8` + the run
+  225353 args; payload 28090800 B, xnu-standalone.img 13846528 B (sha256 e23696a7...). Log: logs/standalone.log.
+  No reads from darwin's spare area were needed: everything fits in the 128 MiB boot partition.
+- `try` (fastboot boot, RAM): home screen. Then `FLASH_BOOT=yes ... flash`: **the image is in `boot`**, Android's
+  kernel is gone from it. **Undo: `fastboot flash boot ../backup-vayu/20261106/boot.img`.** Stock fastboot
+  (volume down + power) is Xiaomi's ABL and unaffected. Updating iOS = rebuild + `standalone.sh flash`.
+- The first power-on boot from flash: see the next commit / ask the user (it was booting when this was written).
+
+## Earlier handoff (2026-11-06 late: iOS volume installed on the phone's flash, boots with root on flash)
 
 User's goal (2026-11-06): iOS as the phone's main OS, Android gone; not for daily use yet. Install work
 comes before features.
@@ -35,8 +51,7 @@ Done (FACT):
 - darwin-install.sh root check fixed (`sh_phone "id -u"`).
 
 Next:
-1. Standalone boot: the loader reads kernel + flashboot.apfs + root from darwin (past block 2042368, below
-   2097152 = var_store) instead of USB; then the loader/UEFI image into `boot` (backup has boot.img).
+1. (done: standalone boot, see the active handoff)
 2. Persistence: var_store=1 ufs_write=1 (writes only from block 2097152 of darwin), test carefully.
 3. watchdog FFFF line; idle loader resets the phone to Android after a while.
 4. DSP firmware (modem/adsp/slpi/venus/wlanmdsp) not in any image yet: could go on darwin's iOS side later.
