@@ -89,10 +89,33 @@ done
 # database (vayu_wifi.c; regdb.bin is optional)
 grab "$MFW" 1 wlanmdsp.mbn
 grab "$VFW" 3 bdwlan.bin regdb.bin
+grab "$MFW" 1 bdwlan.bin regdb.bin             # MIUI 14 keeps the board data on the modem partition
 grab "$VROOT" 4 wlanmdsp.mbn bdwlan.bin
 # Bluetooth controller firmware (vayu_bt.c): the bluetooth partition, else wherever vendor has it
 grab "$BT" 1 'crbtfw*.tlv' 'crnv*.bin'
 grab "$VROOT" 4 'crbtfw*.tlv' 'crnv*.bin'
+# touch, again: MIUI 14's kernel has the Novatek images built in (no file anywhere on vendor/odm/modem).
+# Read boot (checked by sha256) and take them out of its kernel (tools/nvt-fw.py).
+if ! ls "$OUT"/j20s_novatek_ts_fw0*.bin >/dev/null 2>&1; then
+	PY=
+	for p in python3 python "py -3"; do
+		$p -c 'import sys; sys.exit(sys.version_info[0] != 3)' >/dev/null 2>&1 && { PY=$p; break; }
+	done
+	tmp=$(mktemp -d)
+	want=$(rline "sha256sum /dev/block/by-name/boot 2>/dev/null" | cut -d' ' -f1)
+	rsh "cat /dev/block/by-name/boot 2>/dev/null" > "$tmp/boot.img"
+	if [ -z "$PY" ]; then
+		echo "pull-firmware.sh: no Python 3 for tools/nvt-fw.py (touch firmware)"
+	elif [ -n "$want" ] && [ "$want" = "$(sha256sum "$tmp/boot.img" | cut -d' ' -f1)" ] &&
+		$PY -I devices/poco-x3-pro/tools/nvt-fw.py "$(cygpath -w "$tmp" 2>/dev/null || echo "$tmp")/boot.img" \
+		    "$(cygpath -w "$tmp" 2>/dev/null || echo "$tmp")/nvt"; then
+		cp "$tmp"/nvt/j20s_novatek_ts_fw0*.bin "$OUT"/ && pulled=$((pulled + $(ls "$tmp"/nvt/j20s_novatek_ts_fw0*.bin | wc -l)))
+	else
+		echo "pull-firmware.sh: the touch firmware is not in boot's kernel either (or boot could not be read)"
+		failed=$((failed + 1))
+	fi
+	rm -rf "$tmp"
+fi
 
 (cd "$OUT" && sha256sum -- *) > "$OUT.sha256" 2>/dev/null || true
 echo "pull-firmware.sh: $pulled pulled, $failed failed; $OUT: $(ls -1 "$OUT" | wc -l | tr -d ' ') files (list: $OUT.sha256)"

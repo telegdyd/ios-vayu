@@ -125,6 +125,8 @@ backup() {
 	for n in $CRITICAL; do printf '%s\n' "${names[@]}" | grep -qx "$n" && order+=("$n"); done
 	for n in "${names[@]}"; do
 		[[ $skip == *" $n "* ]] && continue
+		# PBRP links the whole UFS units (sda..sdf) into by-name too: they hold everything else (and userdata)
+		[[ $n =~ ^sd[a-z]$ ]] && continue
 		[[ " ${order[*]} " == *" $n "* ]] || order+=("$n")
 	done
 	for n in "${order[@]}"; do
