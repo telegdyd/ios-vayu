@@ -95,9 +95,18 @@ Done (FACT):
 
 Next:
 1. Day 1 (each step checks the phone first; see the head of day1.sh):
-   - Mi Unlock (wipes userdata). Choose a vayu recovery image to `fastboot boot` (the author uses PBRP;
-     downloading one needs the user's OK; a recovery avoids Android setup and Magisk's su prompt).
-   - `devices/poco-x3-pro/tools/day1.sh root IMG` -> `day1.sh backup` (to ../backup-vayu/<date>/, then copy it off
+   - Mi Unlock (wipes userdata).
+   - Recovery (FACT, 2026-11-06, downloaded with the user's OK): official PBRP 4.0 for vayu,
+     sourceforge.net/projects/pbrp/files/vayu/PBRP-vayu-4.0-20251016-0805-OFFICIAL.zip, 65110536 bytes, MD5
+     36e15129d5558055008834f24c95787d = SourceForge's published one, sha256 1ac7fc0c...7069f. In
+     `../downloads/pbrp/` (outside git). Only its recovery.img was extracted (the zip's installer would flash the
+     recovery partition: not run): `../downloads/pbrp/pbrp-vayu-4.0-20251016-recovery.img`, 134217728 bytes, sha256
+     506797f046020804327c2721dba4d8b11a6d1ec3149a511c236dbb8b17d423f5; boot header v2, page 4096, arm64 Image 42 MB +
+     gzip ramdisk 27 MB + recovery_dtbo + dtb, AVB footer, cmdline selinux=permissive buildvariant=eng (adb root).
+     Device tree (android_device_xiaomi_vayu-pbrp, android-12.1): dynamic partitions (qti_dynamic_partitions:
+     product vendor system system_ext odm), vendor ext4, FBE decryption. INFERENCE: `fastboot boot` of it works on
+     vayu (the usual method); if refused, the fallback is flashing `recovery`: ask the user first.
+   - `devices/poco-x3-pro/tools/day1.sh root ../downloads/pbrp/pbrp-vayu-4.0-20251016-recovery.img` -> `day1.sh backup` (to ../backup-vayu/<date>/, then copy it off
      this PC) -> `day1.sh firmware` -> `day1.sh image` -> `day1.sh boot smoke` -> `day1.sh boot baseline`
      -> `./xl reboot`.
 
