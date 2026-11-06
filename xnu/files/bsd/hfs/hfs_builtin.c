@@ -18,10 +18,16 @@
 bool panic_on_assert = false;
 #endif
 
+/*
+ * vayu: the data volume on darwin's slice (/dev/ufs_var) is "ejectable" for HFS's sake -- that is what turns on
+ * its own syncer (hfs_mountfs: HFS_RUN_SYNCER), which commits the journal 0.1-5 s after a change. This kernel has no
+ * periodic sync of its own (sync_thread runs on power events only), so without it a change waited in memory until
+ * something else flushed it, and a hard reset lost it. Any other device is not.
+ */
 int
-hfs_is_ejectable(__unused const char *cdev_name)
+hfs_is_ejectable(const char *cdev_name)
 {
-	return 0;
+	return cdev_name != NULL && strcmp(cdev_name, "/dev/ufs_var") == 0;
 }
 
 void

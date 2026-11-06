@@ -1139,6 +1139,52 @@ prefix:
  * out leaves what the skeleton made, and the boot goes on either way -- so a bad store cannot
  * keep the phone from starting.
  */
+/*
+ * With the data volume on the flash: a process of init's that calls sync() every SYNC_SECONDS for the whole run,
+ * so what iOS wrote is on the flash within seconds, journal and file contents both -- this kernel has no periodic
+ * sync of its own, and a hard reset (the buttons, a hang) does not unmount. sync() costs nothing when nothing is
+ * dirty. And a count of the boots in VAR_BOOTS, written without fsync: that the next boot sees it one higher is
+ * the proof that a write made after the start reached the flash without an unmount.
+ */
+#define SYNC_SECONDS 3
+#define VAR_BOOTS "/private/var/.hakios-var-boots"
+
+static void
+keep_var(void)
+{
+	char text[32];
+	ssize_t n;
+	long boots = 0;
+	int fd;
+	pid_t pid;
+
+	if (var_volume == VAR_IN_MEMORY) {
+		return;
+	}
+	fd = open(VAR_BOOTS, O_RDONLY, 0);
+	if (fd >= 0) {
+		n = read(fd, text, sizeof(text) - 1);
+		text[n > 0 ? n : 0] = 0;
+		boots = (long)parse_number(text, 10);
+		close(fd);
+	}
+	boots++;
+	fd = open(VAR_BOOTS, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd >= 0) {
+		dprintf(fd, "%ld\n", boots);
+		close(fd);
+	}
+	printf("  data volume on the flash: boot %ld of it\n", boots);
+	pid = fork();
+	if (pid == 0) {
+		for (;;) {
+			usleep(SYNC_SECONDS * 1000000);
+			sync();
+		}
+	}
+	check(pid > 0, "start the data volume's syncer (sync() every few seconds)");
+}
+
 static void
 restore_var(void)
 {
@@ -1658,6 +1704,7 @@ main(int argc, char **argv, char **envp)
 	show_system();
 	mount_writable();
 	restore_var();
+	keep_var();
 	test_files();
 	test_writable();
 	test_memory();
