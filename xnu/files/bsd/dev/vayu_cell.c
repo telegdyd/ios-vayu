@@ -76,6 +76,8 @@
 #include <sys/vayu_cell_data.h>
 #include <sys/vayu_pas.h>
 
+extern kern_return_t thread_terminate(thread_t thread);
+
 extern void loader_log_putc(char c);
 
 #define VAYU_CELL_DEVICE        "vayu-cell"

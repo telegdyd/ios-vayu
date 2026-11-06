@@ -67,6 +67,8 @@
 #include <sys/vayu_gnss_qmi.h>
 #include <sys/vayu_pas.h>
 
+extern kern_return_t thread_terminate(thread_t thread);
+
 extern void loader_log_putc(char c);
 
 #define VAYU_GNSS_DEVICE         "vayu-gnss"

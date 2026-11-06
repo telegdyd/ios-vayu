@@ -18,6 +18,7 @@
 #include <kern/startup.h>
 #include <kern/thread_call.h>
 #include <kern/clock.h>
+#include <kern/machine.h>
 #include <arm/cpu_internal.h>
 #include <arm/machine_routines.h>
 #include <arm64/psci_smp.h>

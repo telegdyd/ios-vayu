@@ -49,6 +49,16 @@ Done (FACT):
   /vendor/... into C:/Program Files/Git/vendor/... (fixed in f8d2cb6: MSYS_NO_PATHCONV=1); (2) on this ROM the adb
   shell gets "Permission denied" on /vendor/firmware and /vendor/firmware_mnt/image: **root is needed**, so the
   pull moves to day 1 (the unlock wipe keeps /vendor and modem).
+- Implicit declarations (FACT, 2026-11-06): the build runs `-w`, so they never showed. `XNU_CLANG_DIAG=1 ./xnu-build.sh`
+  (462bb33) shows only implicit-declaration/int-pointer diagnostics. Our files had 16 sites: 8x `printf` in
+  vayu_wifi_scan.c (no libkern.h: a **real bug** on Darwin arm64, where an undeclared function is called as
+  non-variadic, its arguments go in registers while printf reads them from the stack -> garbage or a fault on `%s`;
+  INFERENCE: the author's w24 EAPOL log lines printed garbage), 6x `thread_terminate`, `ml_get_interrupts_enabled`,
+  `vayu_ipa_firmware_up` (bool, no prototype anywhere), `halt_all_cpus` (loader_return.c); those return int/void/bool, so no
+  truncation, only a missing prototype. All fixed in the commit after 462bb33. Rebuilt with DIAG: 0 diagnostics in our files (the
+  remaining 7 casts in model_dep.c/kern_sysctl.c are Apple's own code), rc=2 (export check as before),
+  `mach.development.bcm2837` 16525904 bytes sha256 b4e9d065d50ddaebd46bcf0a3567898c965ea5e6d95980f2c2823cb42a70dd58,
+  copied to `~/vayu/hakios-kernel` (replaces d4d61ee2...). Not yet run on the phone.
 
 Next:
 1. Day 1: unlock (Mi Unlock, wipes userdata) -> a root shell without flashing: `fastboot boot` a vayu recovery (the

@@ -37,6 +37,8 @@
 #include <sys/vayu_ipa_data.h>
 #include <sys/vayu_pas.h>
 
+extern kern_return_t thread_terminate(thread_t thread);
+
 #define DATA_REPLY_MS           5000
 #define DATA_STOP_MS            40000
 #define DATA_HANDLE_MAX         4096

@@ -18,6 +18,8 @@ void vayu_ipa_start(struct vayu_qrtr *q);
 void vayu_ipa_stop(void);
 void vayu_ipa_prepare_stop(void);
 bool vayu_ipa_smmu_enable(void);
+/* Called from vayu_pas.c's SMP2P setup (vayu_ipa=1): IPA firmware and the modem's SMEM filter table. */
+bool vayu_ipa_firmware_up(void);
 /* SMP2P "ipa" entries: ours (item 428) and the modem's (item 435), found by name. */
 void vayu_ipa_smp2p_read(bool *ours_found, uint32_t *ours, bool *theirs_found, uint32_t *theirs);
 /* True only after this boot's MPSS SMP2P verification, never from stale Android SMEM. */

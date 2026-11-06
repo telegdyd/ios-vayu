@@ -44,6 +44,7 @@
 #include <vm/vm_kern.h>
 #include <pexpert/pexpert.h>
 #include <kern/locks.h>
+#include <libkern/libkern.h>
 #include <sys/vayu_wifi_net.h>
 #include <sys/vayu_wifi_rsn.h>
 #include <sys/vayu_wifi_scan.h>

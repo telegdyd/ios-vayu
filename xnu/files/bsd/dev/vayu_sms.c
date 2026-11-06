@@ -63,6 +63,8 @@
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/vayu_pas.h>
+
+extern kern_return_t thread_terminate(thread_t thread);
 #include <sys/vayu_sms.h>
 #include <sys/vayu_sms_qmi.h>
 

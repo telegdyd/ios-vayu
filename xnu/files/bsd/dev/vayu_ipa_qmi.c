@@ -36,6 +36,8 @@
 #include <sys/vayu_ipa_qmi.h>
 #include <sys/vayu_pas.h>
 
+extern kern_return_t thread_terminate(thread_t thread);
+
 extern void loader_log_putc(char c);
 extern bool vayu_ipa_firmware_ready(void);
 

@@ -41,8 +41,12 @@
 #include <sys/vnode_internal.h>
 #include <sys/vayu_pas.h>
 #include <sys/vayu_scm.h>
+#include <sys/vayu_ipa.h>
+#include <machine/machine_routines.h>
 #include <vm/memory_types.h>
 #include <vm/vm_kern.h>
+
+extern kern_return_t thread_terminate(thread_t thread);
 
 extern vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
 extern vm_offset_t ml_io_map_unmappable(vm_offset_t phys_addr, vm_size_t size, unsigned int flags);
