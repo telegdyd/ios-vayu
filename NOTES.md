@@ -75,14 +75,31 @@ Done (FACT):
   (Android, adb) = `android`. Not tested: real fastboot (locked bootloader refuses `fastboot boot` until day 1),
   USB transfer speed of the 2.5 GB `xl ramdisk`. Windows has no `dtc`: verify-bootimg.py's last DTB check needs WSL.
   Re-stage after any rebuild: `devices/poco-x3-pro/tools/stage-windows.sh` (SKIP_SYSTEM=1 skips system.apfs).
+- Day-1 script (FACT, 2026-11-06, 9a9946c): `devices/poco-x3-pro/tools/day1.sh` status | root IMG | backup | firmware |
+  image | boot [smoke|baseline], from Git Bash; nothing flashed or written on the phone. `pull-firmware.sh` rewritten
+  for root (recovery: adb root, vendor/modem/bluetooth mounted read-only under /mnt/fw-* and unmounted; Android: su),
+  each file sha256-checked against the phone; now also venus, ipa_fws (both loaded via vayu_pas_load), regdb.bin.
+  Shared helper `devices/poco-x3-pro/tools/adbroot.sh`. xl knows `recovery` (state, and enter reboots it to fastboot).
+  The partitions without userdata/super/cust total ~2.5 GB (getvar dump), not 1.2; backup adds logical vendor+odm.
+  Tested: real phone (stock Android, no root): status, backup refuses, pull-firmware reports no root. Fake phone
+  (scratchpad fake adb running the commands on a file tree): root refuses locked / non-ANDROID! image / "n";
+  backup critical-first, a corrupted read caught by sha256 and retried alone on rerun, contents byte-identical,
+  GPT head/tail per LUN; firmware in recovery (mount, 34 files identical, unmount), Android+su same set; boot from
+  recovery -> fastboot -> loader -> one system.apfs upload -> smoke run; second boot reuses the resident image.
+  Real `day1.sh image`: WSL pull + root.apfs rebuild + restage in 33 s (system.apfs unchanged, skipped).
+  Not testable before the unlock: a real recovery (`ls /dev/block/mapper/vendor`, its toybox/busybox `blockdev`,
+  `sha256sum`, `mount -o ro,noload`), exec-out throughput for the backup, Magisk's su prompt.
+  The pull list does not cover what the author built privately: fw/sensors.pak (vayu_fastrpc.c) and the MCFG tree
+  served over TFTP (vayu_wifi.c, /readonly/firmware/image/modem_pr/...): the backup's modem.img and
+  logical-vendor.img hold their sources.
 
 Next:
-1. Day 1: unlock (Mi Unlock, wipes userdata) -> a root shell without flashing: `fastboot boot` a vayu recovery (the
-   author uses PBRP on `recovery`; download needs the user's OK) or a Magisk-patched stock boot.img of
-   V14.0.3.0.TJUMIXM -> dd every partition except userdata/super/cust to the PC (~1.2 GB) -> pull firmware as root
-   (GPU a630_sqe/a640_gmu/a640_zap.*, NT36675 j20s_novatek_ts_fw0*, adsp/modem/slpi_vy mdt+bNN, wlanmdsp.mbn,
-   bdwlan.bin, BT crbtfw/crnv) -> rebuild root.apfs -> `devices/poco-x3-pro/tools/stage-windows.sh` in WSL ->
-   `./xl enter`, `./xl ramdisk userland/system.apfs`, `./xl run` with the device README's boot args.
+1. Day 1 (each step checks the phone first; see the head of day1.sh):
+   - Mi Unlock (wipes userdata). Choose a vayu recovery image to `fastboot boot` (the author uses PBRP;
+     downloading one needs the user's OK; a recovery avoids Android setup and Magisk's su prompt).
+   - `devices/poco-x3-pro/tools/day1.sh root IMG` -> `day1.sh backup` (to ../backup-vayu/<date>/, then copy it off
+     this PC) -> `day1.sh firmware` -> `day1.sh image` -> `day1.sh boot smoke` -> `day1.sh boot baseline`
+     -> `./xl reboot`.
 
 ## Decision: base on HakiOS vayu (2026-11-05)
 
