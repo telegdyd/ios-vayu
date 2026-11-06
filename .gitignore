@@ -96,3 +96,7 @@ __pycache__/
 !/xnuloader/im4p.py
 !/xnuloader/mkidentity.sh
 /fw-*/
+
+# vayu: the UEFI pieces devices/poco-x3-pro/tools/stage-windows.sh copies in (the FD holds the vendor's binaries)
+/devices/poco-x3-pro/prebuilt/*
+!/devices/poco-x3-pro/prebuilt/device-tree.dtb

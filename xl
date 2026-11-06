@@ -46,6 +46,16 @@
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 # On a Mac: flock, GNU timeout and stat, and Android's platform-tools, from tools/macos-bin (see its README)
 [ "$(uname)" = Darwin ] && PATH=$PWD/tools/macos-bin:$PWD/tools/macos-bin/platform-tools:$PATH
+# This fork is the vayu one: mkxnuimg.py and enter() read devices/$DEVICE/ (their own default is the X5 Pro,
+# whose UEFI would only drop a vayu back into Android)
+export DEVICE=${DEVICE:-poco-x3-pro}
+# Python scripts are run as "$PY script", not through their #! line: on Windows "python3" is often only
+# the Microsoft Store's stub, which prints a message and fails
+PY=
+for p in python3 python "py -3"; do
+	$p -c 'import sys; sys.exit(sys.version_info[0] != 3)' >/dev/null 2>&1 && { PY=$p; break; }
+done
+[ -n "$PY" ] || { echo "xl: no Python 3 (tried python3, python, py -3)" >&2; exit 1; }
 # the kernel and the loader built here, or else the ones that come with the repository
 K=xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
 [ -f $K ] || K=prebuilt/mach.development.bcm2837
@@ -56,8 +66,46 @@ mkdir -p logs
 # outside all of them.
 PHONE=${XDG_RUNTIME_DIR:-/tmp}/darwin-hakios-phone
 
-# one fastboot at a time (a run in one terminal, "xl screenshot" in another): each takes the lock for itself
-fb() { flock -w 90 $PHONE.lock timeout "${FB_TIMEOUT:-10}" fastboot "$@" 2>&1; }
+# Git for Windows has no flock(1). Its stand-in: a directory beside the lock file, made atomically by mkdir,
+# with the holder's PID in it; one whose holder is gone is stale and the next taker removes it. Only the
+# three forms used here: "flock -w S FILE CMD...", "flock -n FILE CMD..." and "exec 8> $PHONE.run; flock -n 8".
+if ! command -v flock >/dev/null 2>&1; then
+	lock_take() { # lock_take <file> <seconds to wait> <holder pid>
+		local d=$1.d pid n=0
+		until mkdir "$d" 2>/dev/null; do
+			pid=$(cat "$d/pid" 2>/dev/null)
+			# (no pid yet: the holder is between its mkdir and its echo, so it is not stale)
+			if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then rm -rf "$d"; continue; fi
+			[ $n -ge $(( $2 * 5 )) ] && return 1
+			sleep 0.2; n=$(( n + 1 ))
+		done
+		echo "$3" > "$d/pid"
+	}
+	flock() {
+		local wait=0 target rc
+		while :; do case $1 in -w) wait=$2; shift 2 ;; -n) wait=0; shift ;; *) break ;; esac; done
+		target=$1; shift
+		if [[ $target =~ ^[0-9]+$ ]]; then   # the run lock, held until this xl exits
+			lock_take "$PHONE.run" "$wait" $$ || return 1
+			trap 'rm -rf "$PHONE.run.d"' EXIT
+			return 0
+		fi
+		lock_take "$target" "$wait" $BASHPID || return 1
+		"$@"; rc=$?
+		rm -rf "$target.d"
+		return $rc
+	}
+fi
+
+# one fastboot at a time (a run in one terminal, "xl screenshot" in another): each takes the lock for itself.
+# (\r removed: Windows' fastboot ends its lines with CR LF, and a "result: ...\r" echoed below would put the
+# log name over the start of the line)
+fb() {
+	local out rc
+	out=$(flock -w 90 $PHONE.lock timeout "${FB_TIMEOUT:-10}" fastboot "$@" 2>&1); rc=$?
+	[ -n "$out" ] && printf '%s\n' "${out//$'\r'/}"
+	return $rc
+}
 # does the loader answer while its kernel runs (0.5 and later)? an older one answers only when the run is over
 live_loader() { fb getvar version | grep -Eq 'version: (0\.([5-9]|[1-9][0-9])|[1-9][0-9]*\.[0-9]+)'; }
 in_fastboot() { fastboot devices 2>/dev/null | grep -q fastboot; }
@@ -86,8 +134,9 @@ enter() {
 	esac
 	# DEVICE=<name> (default poco-x5-pro): devices/<name>/boot.conf may name the loader's PLATFORM
 	local platform; platform=$(sed -n 's/^PLATFORM=//p' "devices/${DEVICE:-poco-x5-pro}/boot.conf" 2>/dev/null | head -1)
-	xnuloader/mkpayload.py -o usb-payload.bin loader.efi=$L --usb ${platform:+--platform $platform} >/dev/null &&
-		./mkxnuimg.py -p usb-payload.bin -o xnu-usb.img >/dev/null || { echo "xl: image build failed"; return 1; }
+	case $L in prebuilt/*) echo "xl: no loader built here, using $L (devices/poco-x3-pro/tools/stage-windows.sh copies ours)" >&2 ;; esac
+	$PY xnuloader/mkpayload.py -o usb-payload.bin loader.efi=$L --usb ${platform:+--platform $platform} >/dev/null &&
+		$PY mkxnuimg.py -p usb-payload.bin -o xnu-usb.img >/dev/null || { echo "xl: image build failed"; return 1; }
 	# Right after the phone enters fastboot the first "boot" is sometimes not taken: try twice.
 	local try
 	for try in 1 2; do
@@ -144,7 +193,7 @@ run() { # run <oem command> <label>
 		case " $args " in
 		*" wifi="*|*" wifi_step="*) [ -s fw-wifi/mac ] && args="$args wifi_mac=$(tr -d ' \n\r' < fw-wifi/mac)" ;;
 		esac
-		xnuloader/mkpayload.py -o run-payload.bin kernel=$K ${rd:+ramdisk=$rd} --cmdline "loader_return_after=${XL_SECS:-8} epoch=$(date +%s) sb_delay=${XL_SB_DELAY:-8} $args" >/dev/null || return 1
+		$PY xnuloader/mkpayload.py -o run-payload.bin kernel=$K ${rd:+ramdisk=$rd} --cmdline "loader_return_after=${XL_SECS:-8} epoch=$(date +%s) sb_delay=${XL_SB_DELAY:-8} $args" >/dev/null || return 1
 		FB_TIMEOUT=30 fb stage run-payload.bin | grep -q OKAY || { echo "xl: upload failed"; return 1; }
 	fi
 	local live=; live_loader && live=1
@@ -198,7 +247,7 @@ recording() { # recording [file.mp4]
 	fb oem recording | grep -q OKAY || { echo "xl: the last run left no recording (boot-arg rec_secs=N)"; return 1; }
 	FB_TIMEOUT=120 fb get_staged logs/recording.raw >/dev/null
 	# (XL_REC_KEEP=1: the recording itself stays in logs/recording.raw, for tools/recording.py --frames)
-	tools/recording.py logs/recording.raw "$out" && { [ -n "$XL_REC_KEEP" ] || rm -f logs/recording.raw; }
+	$PY tools/recording.py logs/recording.raw "$out" && { [ -n "$XL_REC_KEEP" ] || rm -f logs/recording.raw; }
 }
 
 sound() { # sound [file.wav]
@@ -206,7 +255,7 @@ sound() { # sound [file.wav]
 	local out=${1:-logs/sound.wav}
 	fb oem sound | grep -q OKAY || { echo "xl: the last run left no sound recording (boot-arg rec_sound=N)"; return 1; }
 	FB_TIMEOUT=120 fb get_staged logs/sound.raw >/dev/null
-	tools/sound.py logs/sound.raw "$out" && rm -f logs/sound.raw
+	$PY tools/sound.py logs/sound.raw "$out" && rm -f logs/sound.raw
 }
 
 camera() { # camera [prefix]: the frames the last run's camera left (boot-arg cam=3 and up), as pictures
@@ -214,7 +263,7 @@ camera() { # camera [prefix]: the frames the last run's camera left (boot-arg ca
 	local out=${1:-logs/camera}
 	fb oem recording | grep -q OKAY || { echo "xl: the last run left no frames (boot-arg cam=3)"; return 1; }
 	FB_TIMEOUT=120 fb get_staged logs/camera.raw >/dev/null
-	tools/camraw.py logs/camera.raw "$out"
+	$PY tools/camraw.py logs/camera.raw "$out"
 }
 
 ramdisk() { # ramdisk [<file>|none]
@@ -247,7 +296,7 @@ screenshot() { # screenshot [file.png]
 	geom=$(fb getvar screen | sed -n 's/^screen: //p')
 	[ -n "$geom" ] && fb oem screenshot | grep -q OKAY || { echo "xl: the loader has no display"; return 1; }
 	FB_TIMEOUT=60 fb get_staged logs/screen.raw >/dev/null
-	python3 - logs/screen.raw "$out" $geom <<'PY' && rm -f logs/screen.raw && echo "xl: $out ($geom)"
+	$PY - logs/screen.raw "$out" $geom <<'PY' && rm -f logs/screen.raw && echo "xl: $out ($geom)"
 import struct, sys, zlib
 raw, out, width, height, stride = sys.argv[1], sys.argv[2], *map(int, sys.argv[3:6])
 data = open(raw, 'rb').read()
