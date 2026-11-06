@@ -24,5 +24,13 @@ if [ "${major:-14}" -ge 16 ]; then
   extra+=(-Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion
           -Wno-error=incompatible-function-pointer-types)
 fi
+# The build runs with -w. XNU_CLANG_DIAG=1 shows just the diagnostics that hide real bugs on arm64
+# (an undeclared function returns a 32-bit int: a pointer or 64-bit result loses its top half).
+if [ -n "$XNU_CLANG_DIAG" ]; then
+  quiet=(-Wno-everything -Wimplicit-function-declaration -Wimplicit-int -Wint-conversion
+         -Wincompatible-function-pointer-types -Wint-to-pointer-cast -Wpointer-to-int-cast)
+else
+  quiet=(-w)
+fi
 exec /usr/bin/$drv -include "$HB/../../hostinc/xnu_clang_compat.h" -target arm64-apple-ios${XNU_SDK_VERSION:-16.5} --ld-path="$HB/ld64" \
-  -w "${extra[@]}" "${args[@]}"
+  "${quiet[@]}" "${extra[@]}" "${args[@]}"
