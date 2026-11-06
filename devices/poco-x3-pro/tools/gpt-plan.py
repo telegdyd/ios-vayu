@@ -159,6 +159,9 @@ def main():
             print('note: block 0 (protective MBR) differs (not counted): sgdisk may rewrite it')
         print('SAME GPT' if bad == 0 else f'{bad} DIFFERENCES: stop')
         sys.exit(0 if bad == 0 else 1)
+    if cmd == 'retype' and len(args) == 6:
+        retype(args)
+        return
     if cmd != 'plan' or len(args) not in (10, 11):
         sys.exit(__doc__)
     head_p, tail_p, blocks, count, n, end, new, start, last = args[:9]
@@ -210,6 +213,53 @@ def main():
         open(os.path.join(outdir, 'head.bin'), 'wb').write(new_head)
         open(os.path.join(outdir, 'tail.bin'), 'wb').write(new_tail)
         print(f'written: {outdir}/head.bin, {outdir}/tail.bin (nothing on any device)')
+
+
+def retype(args):
+    """retype HEAD TAIL BLOCKS N UNIQ OUTDIR: entry N becomes darwin (Apple APFS, unique GUID UNIQ) where it lies;
+    the table keeps its size and place, no other entry and no LBA changes. For a phone where Android's userdata
+    (the last entry, filling the unit) is given up whole to the port (vayu, 2026-11: a full table of 32 entries,
+    no room for a 33rd without moving it)."""
+    head_p, tail_p, blocks, n, uniq, outdir = args
+    blocks, n, uniq = int(blocks), int(n), uuid.UUID(uniq)
+    head, tail, ph, bh, entries = load(head_p, tail_p, blocks)
+    report('before', ph, bh, entries, blocks, mark=(n,))
+    e = entries[n - 1]
+    if e['empty']:
+        sys.exit('gpt-plan: entry N is empty')
+    if any(x['name'] == 'darwin' for x in entries if not x['empty']):
+        sys.exit('gpt-plan: there is a darwin already')
+    entries[n - 1] = dict(e, type=guid_bytes(APFS), uniq=guid_bytes(uniq), name='darwin', attrs=0)
+    check(entries, ph['first'], ph['last'])
+    esize, count = ph['esize'], ph['count']
+    nblk = (count * esize + BS - 1) // BS
+    tab = build_entries(entries, count, esize)
+    ecrc = zlib.crc32(tab) & 0xffffffff
+    hp, hb = build_header(dict(ph, ecrc=ecrc)), build_header(dict(bh, ecrc=ecrc))
+    new_head, new_tail = bytearray(head), bytearray(tail)
+    new_head[BS:2 * BS] = hp
+    new_head[ph['entries_lba'] * BS:(ph['entries_lba'] + nblk) * BS] = tab + b'\0' * (nblk * BS - len(tab))
+    toff = bh['entries_lba'] - (blocks - 6)
+    new_tail[toff * BS:(toff + nblk) * BS] = tab + b'\0' * (nblk * BS - len(tab))
+    new_tail[5 * BS:6 * BS] = hb
+    os.makedirs(outdir, exist_ok=True)
+    hpath, tpath = os.path.join(outdir, 'head.bin'), os.path.join(outdir, 'tail.bin')
+    open(hpath, 'wb').write(new_head)
+    open(tpath, 'wb').write(new_tail)
+    # read back the way a firmware would, and every byte outside the headers and tables unchanged
+    _, _, nph, nbh, nent = load(hpath, tpath, blocks)
+    report('planned (read back)', nph, nbh, nent, blocks, mark=(n,))
+    changed = [i + 1 for i, (a, b) in enumerate(zip(entries, nent)) if a != b]
+    diff = [i + 1 for i, (a, b) in enumerate(zip(load(head_p, tail_p, blocks)[4], nent)) if a != b]
+    if changed or diff != [n]:
+        sys.exit(f'gpt-plan: read back differs: {changed} / changed entries {diff}')
+    keep = [(0, BS), ((ph['entries_lba'] + nblk) * BS, 6 * BS)]
+    for a, b in keep:
+        if new_head[a:b] != head[a:b]:
+            sys.exit('gpt-plan: bytes outside the header and the table changed in HEAD')
+    if new_tail[:toff * BS] != tail[:toff * BS]:
+        sys.exit('gpt-plan: bytes before the backup table changed in TAIL')
+    print(f'written: {hpath}, {tpath}: only entry {n} differs (nothing on any device)')
 
 
 if __name__ == '__main__':

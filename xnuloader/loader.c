@@ -658,17 +658,20 @@ static const struct ufs_reference ufs_refs_redwood[] = {
 	{ "tz", 3710976 }, { "hyp", 3653632 }, { "dsp", 67108864 }, { "modem", 214265856 },
 };
 /*
- * vayu: darwin is entry 33 of unit 0 (sda33), 24 GiB at the end of the unit, with the GPT entry
- * parsed from the phone's own partition table (type APFS, unique 1c213492-90d4-4921-869e-98ec2fa0497c,
- * LBA 55871232..62162938). Nothing is written from the computer there yet; writes begin at block 2097152
- * (8 GiB), where var_store's two slots are (userland/src/var_store.c STORE_AT), so the first 8 GiB stay
- * free for an iOS volume on flash later. The references are whole partitions of a read-only backup of the
- * phone's own Android; they are hashed with FNV-1a for comparison (ufs=1).
+ * vayu: darwin is entry 32 of unit 0 (sda32): Android's userdata given up whole to the port (2026-11,
+ * devices/poco-x3-pro/tools/gpt-plan.py retype: the table was full, 32 of 32, so no 33rd entry), LBA
+ * 2851328..62162938, about 226 GiB, type APFS, unique 1756c529-8738-41c3-ba3a-8f263332c072.
+ * (The author's own phone had a 24 GiB darwin as entry 33, LBA 55871232..62162938, unique 1c213492-....)
+ * What the computer writes there (devices/poco-x3-pro/tools/darwin-install.sh) is redwood's layout: the iOS
+ * volume at block 0, the OS and App cryptexes behind it, up to block 2042367; writes from the phone begin at
+ * block 2097152 (8 GiB), where var_store's two slots are (userland/src/var_store.c STORE_AT). The references
+ * are whole partitions of a read-only backup of the phone's own Android; they are hashed with FNV-1a for
+ * comparison (ufs=1).
  */
 static const struct darwin_identity darwin_vayu = {
-	.first_lba = 55871232, .last_lba = 62162938, .write_first = 2097152, .unit = 0,
+	.first_lba = 2851328, .last_lba = 62162938, .write_first = 2097152, .unit = 0,
 	.type = { 0x7c3457ef, 0x0000, 0x11aa, { 0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac } },
-	.uniq = { 0x1c213492, 0x90d4, 0x4921, { 0x86, 0x9e, 0x98, 0xec, 0x2f, 0xa0, 0x49, 0x7c } },
+	.uniq = { 0x1756c529, 0x8738, 0x41c3, { 0xba, 0x3a, 0x8f, 0x26, 0x33, 0x32, 0xc0, 0x72 } },
 };
 static const struct ufs_reference ufs_refs_vayu[] = {
 	{ "bluetooth", 1048576 }, { "abl", 2097152 }, { "aop", 524288 }, { "xbl", 7340032 },
