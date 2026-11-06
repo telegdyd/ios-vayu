@@ -59,13 +59,29 @@ Done (FACT):
   remaining 7 casts in model_dep.c/kern_sysctl.c are Apple's own code), rc=2 (export check as before),
   `mach.development.bcm2837` 16525904 bytes sha256 b4e9d065d50ddaebd46bcf0a3567898c965ea5e6d95980f2c2823cb42a70dd58,
   copied to `~/vayu/hakios-kernel` (replaces d4d61ee2...). Not yet run on the phone.
+- xl on Git Bash (FACT, 2026-11-06, 1d1580f + 0dbc8dc): as the author left it, it could not work from Windows: no
+  `flock` in Git for Windows (every `fb` call fails), `python3` is the Store stub (mkpayload/mkxnuimg fail), DEVICE
+  defaulted to poco-x5-pro, and the Windows checkout had no UEFI pieces (no Mu-Silicium, no vayu BootShim.bin).
+  Fixed: mkdir+PID lock stand-in when flock is absent, `$PY` (python3 | python | py -3), CR stripped in `fb`,
+  `DEVICE` defaults to poco-x3-pro, a warning when the author's prebuilt loader would be used.
+  `devices/poco-x3-pro/tools/stage-windows.sh` (run in WSL) builds and verifies a USB image (verify-bootimg OK:
+  shim 176 + FD c8d2a573... + XNUP loader.efi/usb/platform=vayu + DTB 1c71a972...), then copies BootShim.bin/FD/ramdisk/
+  mkbootimg.py to devices/poco-x3-pro/prebuilt/ (now git-ignored except the DTB), the kernel to the xnu-src BUILD path,
+  loader.efi, root.apfs, system.apfs, plus `staged.sha256`. Staged 2026-11-06, 1m50s. The Windows-built xnu-usb.img
+  differs from the WSL one only in the gzip OS byte and the header's SHA-1 id (decompressed kernel and DTB are identical).
+  Dry run with fake fastboot/adb (scratchpad, CRLF on stderr like Windows): state, enter (adb reboot bootloader ->
+  boot -> loader), ramdisk, run (payload = kernel b4e9d065 + root.apfs + cmdline), a second xl refused during a run,
+  state/stop allowed, stale-lock recovery, screenshot PNG, log, reboot: all OK. Real `./xl state` on the phone
+  (Android, adb) = `android`. Not tested: real fastboot (locked bootloader refuses `fastboot boot` until day 1),
+  USB transfer speed of the 2.5 GB `xl ramdisk`. Windows has no `dtc`: verify-bootimg.py's last DTB check needs WSL.
+  Re-stage after any rebuild: `devices/poco-x3-pro/tools/stage-windows.sh` (SKIP_SYSTEM=1 skips system.apfs).
 
 Next:
 1. Day 1: unlock (Mi Unlock, wipes userdata) -> a root shell without flashing: `fastboot boot` a vayu recovery (the
    author uses PBRP on `recovery`; download needs the user's OK) or a Magisk-patched stock boot.img of
    V14.0.3.0.TJUMIXM -> dd every partition except userdata/super/cust to the PC (~1.2 GB) -> pull firmware as root
    (GPU a630_sqe/a640_gmu/a640_zap.*, NT36675 j20s_novatek_ts_fw0*, adsp/modem/slpi_vy mdt+bNN, wlanmdsp.mbn,
-   bdwlan.bin, BT crbtfw/crnv) -> rebuild root.apfs -> copy kernel/loader/UEFI FD/images to the Windows checkout ->
+   bdwlan.bin, BT crbtfw/crnv) -> rebuild root.apfs -> `devices/poco-x3-pro/tools/stage-windows.sh` in WSL ->
    `./xl enter`, `./xl ramdisk userland/system.apfs`, `./xl run` with the device README's boot args.
 
 ## Decision: base on HakiOS vayu (2026-11-05)
