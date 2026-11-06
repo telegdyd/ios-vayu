@@ -14,7 +14,8 @@ Standalone boot (FACT unless marked):
 - `try` (fastboot boot, RAM): home screen. Then `FLASH_BOOT=yes ... flash`: **the image is in `boot`**, Android's
   kernel is gone from it. **Undo: `fastboot flash boot ../backup-vayu/20261106/boot.img`.** Stock fastboot
   (volume down + power) is Xiaomi's ABL and unaffected. Updating iOS = rebuild + `standalone.sh flash`.
-- The first power-on boot from flash: see the next commit / ask the user (it was booting when this was written).
+- **FACT (user):** after `fastboot reboot` the phone booted from `boot` alone to the home screen. The phone is
+  now an iOS phone that needs no PC; nothing persists across boots yet (Next 2).
 
 ## Earlier handoff (2026-11-06 late: iOS volume installed on the phone's flash, boots with root on flash)
 
