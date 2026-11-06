@@ -3398,6 +3398,8 @@ struct payload_info {
 	uint64_t checkpoint;
 	uint64_t forced_base;
 	uint64_t resident_rd;           /* size of a root image the host put at the resident address */
+	const uint8_t *resident;        /* "resident": an image carried in the payload for the resident area (standalone boot) */
+	uint32_t resident_size;
 	int usb_mode;
 };
 
@@ -3441,6 +3443,9 @@ parse_payload(struct payload_info *pi, int verbose)
 			pi->ramdisk_size = e->size;
 		} else if (str_eq(e->name, "kernel")) {
 			pi->kernel = p + sizeof(*e);
+		} else if (str_eq(e->name, "resident")) {
+			pi->resident = p + sizeof(*e);            /* copied to the resident address before the run (loader 2.2) */
+			pi->resident_size = e->size;
 		} else if (str_eq(e->name, "cmdline")) {
 			pi->cmdline = text;
 		} else if (str_eq(e->name, "platform")) {
@@ -3517,6 +3522,13 @@ static struct {
 } SCREEN;
 static uint64_t win_base, win_size; /* XNU's physical memory window, claimed once */
 static uint64_t resident_rd_size;   /* root image kept at win_base + RESIDENT_RD_OFFSET, 0 if none */
+/*
+ * Standalone boot (loader 2.2): the image came from the phone's own boot partition with no "usb" entry,
+ * so no host is there to end the run. A kernel without loader_return_after then has no time limit: the
+ * watchdog is fed for as long as its heartbeat lives (a hung kernel still ends in the reset below).
+ */
+static int standalone_boot;
+#define STANDALONE_BUDGET_SECONDS (100ULL * 365 * 86400)
 static char last_result[64] = "idle";
 
 static void
@@ -4682,6 +4694,10 @@ run_kernel(int have_checkpoint, uint64_t checkpoint)
 			break;
 		}
 	}
+	if (kernel_budget == 0 && standalone_boot) {
+		kernel_budget = STANDALONE_BUDGET_SECONDS;
+		print("standalone: no time limit; the watchdog is fed while the kernel's heartbeat lives\n");
+	}
 
 	/* Give the kernel the address of our return stub and the checkpoint to stop at. */
 	for (uint64_t *q = (uint64_t *)kern_lo; q < (uint64_t *)kern_hi; q++) {
@@ -5614,7 +5630,7 @@ fb_command(char *cmd)
 			if (str_eq(var, "product")) {
 				fb_reply("OKAY", "xnuloader");
 			} else if (str_eq(var, "version")) {
-				fb_reply("OKAY", "2.1");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable) */
+				fb_reply("OKAY", "2.2");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host) */
 			} else if (str_eq(var, "max-download-size")) {
 				fb_reply("OKAY", download_to_ramdisk ? "0xffffffff" : "0x03f00000");
 			} else if (str_eq(var, "result")) {
@@ -6031,6 +6047,19 @@ efi_main(efi_handle image, efi_system_table *st)
 
 	/* One-shot mode: run the kernel that came with the image, then reset. */
 	if (have_payload) {
+		standalone_boot = 1;
+		if (pi.resident != NULL) {
+			if (!choose_window(&pi) || win_size <= RESIDENT_RD_OFFSET + RESIDENT_RD_RESERVE ||
+			    pi.resident_size > win_size - RESIDENT_RD_OFFSET - RESIDENT_RD_RESERVE) {
+				print("standalone: no room for the resident image (%x bytes)\n", (uint64_t)pi.resident_size);
+				flush_log();
+				reboot();
+			}
+			memcpy((void *)(win_base + RESIDENT_RD_OFFSET), pi.resident, pi.resident_size);
+			resident_rd_size = pi.resident_size;
+			print("standalone: resident image (%x bytes) copied to pa %x\n", (uint64_t)pi.resident_size,
+			    win_base + RESIDENT_RD_OFFSET);
+		}
 		run_kernel(0, 0);
 	}
 	reboot();
