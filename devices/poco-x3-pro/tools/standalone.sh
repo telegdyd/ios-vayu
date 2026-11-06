@@ -13,7 +13,9 @@
 # Android's own boot image is in the day 1 backup (../backup-vayu/20261106/boot.img): "fastboot flash boot" it
 # to undo. Fastboot itself (volume down + power) is Xiaomi's and stays reachable whatever is in boot.
 #
-# STANDALONE_CMDLINE replaces the kernel arguments (the default is what run 225353 booted with).
+# STANDALONE_CMDLINE replaces the kernel arguments (the default: run 225353's, plus var_store=1 ufs_write=1, which keep
+# /private/var in darwin past block 2097152: saved by Settings > General > Shut Down, restored at boot).
+# STANDALONE_EXTRA adds to them.
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 export DEVICE=poco-x3-pro
@@ -24,7 +26,7 @@ RES=userland/flashboot.apfs
 RD=userland/root-flash.apfs
 OUT=xnu-standalone.img
 BOOT_BYTES=134217728            # the boot partition (the backup's boot.img is this size)
-ARGS=${STANDALONE_CMDLINE-root_apfs=ufs_darwin ufs=2 bootcpu=7 cpus=8 fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1 gpu=1 vayu_gpu=1 vayu_keep=1}
+ARGS=${STANDALONE_CMDLINE-root_apfs=ufs_darwin ufs=2 bootcpu=7 cpus=8 fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1 gpu=1 vayu_gpu=1 vayu_keep=1 var_store=1 ufs_write=1}
 LOG=logs/standalone.log
 mkdir -p logs
 say() { echo "standalone: $*"; echo "$(date '+%F %T') $*" >> $LOG; }
@@ -35,7 +37,7 @@ build() {
 	for f in $K $L $RES $RD; do [ -f $f ] || die "$f missing"; done
 	grep -aq 'standalone: resident image' $L || die "$L is older than loader 2.2 (xnuloader/build.sh)"
 	$PY xnuloader/mkpayload.py -o standalone-payload.bin loader.efi=$L kernel=$K ramdisk=$RD resident=$RES \
-		--platform vayu --cmdline "sb_delay=8 $ARGS" >/dev/null
+		--platform vayu --cmdline "sb_delay=8 $ARGS${STANDALONE_EXTRA:+ $STANDALONE_EXTRA}" >/dev/null
 	local psize; psize=$(stat -c %s standalone-payload.bin)
 	[ $psize -le $(( 0x3f00000 )) ] || die "payload is $psize bytes, more than the loader's 0x3f00000"
 	$PY mkxnuimg.py -p standalone-payload.bin -o $OUT >/dev/null
@@ -43,7 +45,7 @@ build() {
 	[ $isize -lt $BOOT_BYTES ] || die "$OUT is $isize bytes, more than the boot partition"
 	say "built $OUT: $isize bytes, sha256 $(sha256sum $OUT | cut -c1-16); payload $psize bytes"
 	say "  kernel $(sha256sum $K | cut -c1-16)  loader $(sha256sum $L | cut -c1-16)  resident $(sha256sum $RES | cut -c1-16)  ramdisk $(sha256sum $RD | cut -c1-16)"
-	say "  cmdline: sb_delay=8 $ARGS"
+	say "  cmdline: sb_delay=8 $ARGS${STANDALONE_EXTRA:+ $STANDALONE_EXTRA}"
 }
 
 stock_fastboot() {

@@ -1,6 +1,6 @@
 # ios-vayu notes
 
-## Active handoff (2026-11-06 night: iOS installed and flashed into `boot`: the phone starts iOS by itself)
+## Active handoff (2026-11-06 night: iOS flashed into `boot`, starts by itself, keeps /private/var across shutdowns)
 
 Standalone boot (FACT unless marked):
 - Loader 2.2 (546ac05, loader.efi 103936 B sha256 539ed29f...): a payload entry "resident" is copied to the
@@ -15,7 +15,16 @@ Standalone boot (FACT unless marked):
   kernel is gone from it. **Undo: `fastboot flash boot ../backup-vayu/20261106/boot.img`.** Stock fastboot
   (volume down + power) is Xiaomi's ABL and unaffected. Updating iOS = rebuild + `standalone.sh flash`.
 - **FACT (user):** after `fastboot reboot` the phone booted from `boot` alone to the home screen. The phone is
-  now an iOS phone that needs no PC; nothing persists across boots yet (Next 2).
+  now an iOS phone that needs no PC.
+- **Persistence (FACT, user):** `var_store=1 ufs_write=1` added (now standalone.sh's default); image 64aee63e...
+  flashed into `boot`. The user changed something, did Settings > General > Shut Down, and after the next boot
+  the change was still there. The saver (userland/src/var_store.c, launchd job com.hakios.varstore) packs
+  /private/var into darwin at byte 8589934592 (block 2097152), two 2 GiB slots in turn; init's restore_var()
+  loads it. Saved ONLY by an orderly shutdown (OSKext setLoadEnabled(false) -> hakios_var_save_early); a forced
+  reset (vol-down+power, a panic, a hang) keeps the previous save. Not yet seen: how the shutdown ends on vayu
+  (PSCI SYSTEM_OFF vs back to the loader, which resets), the saver's own log lines, archive size.
+- Rollback images: `../backup-vayu/xnu-standalone-nopersist.img` (e23696a7..., the first flashed one) and
+  Android's `../backup-vayu/20261106/boot.img`.
 
 ## Earlier handoff (2026-11-06 late: iOS volume installed on the phone's flash, boots with root on flash)
 
@@ -53,7 +62,7 @@ Done (FACT):
 
 Next:
 1. (done: standalone boot, see the active handoff)
-2. Persistence: var_store=1 ufs_write=1 (writes only from block 2097152 of darwin), test carefully.
+2. (done: persistence, see the active handoff; a periodic save, `var_store watch SECS`, is not on)
 3. watchdog FFFF line; idle loader resets the phone to Android after a while.
 4. DSP firmware (modem/adsp/slpi/venus/wlanmdsp) not in any image yet: could go on darwin's iOS side later.
 5. The Windows copy userland/system.apfs (2.5 GB) is only needed for RAM boots now.
