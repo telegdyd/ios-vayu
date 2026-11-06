@@ -17,10 +17,17 @@ HFS Plus for a real writable /private/var (in progress, 2026-11-06 late night):
   `qemu/run-hfs-test.sh` (WSL: QEMU_EFI=/usr/share/AAVMF/AAVMF_CODE.fd QEMU_VARS=/usr/share/AAVMF/AAVMF_VARS.fd;
   qemu-system-arm, qemu-efi-aarch64, ipxe-qemu installed in WSL) twice on one image: "ALL OK", boot number 1 then 2
   (journal, 1 MB write/read, unmount/remount, persistence). The panic after it is process 1 exiting (expected).
-- Next for the phone: hakios.ufs.c's block device is read-only and uses buf_dataptr (same UPL problem); it needs
-  block writes into a fixed HFS region of darwin (past var_store's slots at 2097152..3145727, write_first checks
-  stay), buf_map, flush; then make the volume (mkfs.hfsplus image written by darwin-install.sh, user's OK), have init
-  mount it on /private/var instead of ramfs, and seed it from the var skeleton / the last var_store save.
+- FACT (274f982, ec38881): /dev/ufs_var = darwin's blocks 3145728..5242879 (8 GiB), writable only with ufs_write=1
+  + ufs_var_first/blocks; init var_hfs=1 mounts HFS Plus there (fallback ramfs), fills it once (skeleton + last
+  var_store save) and marks it. Volume made by var-volume.sh (HFSX, journaled; mkfs wrote 3 pieces / 37 MB),
+  written by `darwin-install.sh var` from PBRP, read back the same (2026-11-07 00:2x).
+- FACT: first try lost a change at a hard reset (run 003527: mounted "as the last boot left it", 2516 writes / 72 MB):
+  this kernel has no periodic sync and hfs_syncer runs only for ejectable media. Fix ec38881: hfs_is_ejectable()
+  true for /dev/ufs_var, init forks a sync() every 3 s, and counts boots in /private/var/.hakios-var-boots.
+- FACT: runs 004421/004528/004636 (xl, 60 s each, ended by loader_return_after = no unmount): "boot 1/2/3 of it",
+  ~3500 writes / ~65 MB each, 0 refused. Late writes survive an abrupt end.
+- Images: kernel b0cba756..., root-flash.apfs a9419a0e..., flashboot.apfs 2ed5d333...; standalone.sh's default
+  cmdline uses var_hfs=1. Rollback: ../backup-vayu/xnu-standalone-varstore.img (+ images-varstore/).
 
 Standalone boot (FACT unless marked):
 - Loader 2.2 (546ac05, loader.efi 103936 B sha256 539ed29f...): a payload entry "resident" is copied to the
