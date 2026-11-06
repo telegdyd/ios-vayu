@@ -186,13 +186,19 @@ image() {
 	[ -d fw-poco-x3-pro ] && [ -n "$(ls -A fw-poco-x3-pro)" ] || say "note: fw-poco-x3-pro/ is empty: the image will carry no firmware"
 	[ -z "$(git status --porcelain --untracked-files=no)" ] || say "note: uncommitted changes here do not reach WSL (it pulls vayu-dev)"
 	local win; win=$(pwd -W)   # C:/Users/...: what wslpath takes
-	MSYS_NO_PATHCONV=1 wsl -d Debian -- bash -s "$win" <<-'EOF'
+	# The loader takes at most 63 MB per download (getvar max-download-size 0x3f00000) and the run payload is
+	# the kernel (16 MB) + root.apfs: the DSP images (modem 74 MB, adsp 14, slpi_vy 7, venus, wlanmdsp ~100 MB)
+	# do not fit there. They stay out of root.apfs (FW_BIG; "" keeps everything); hakios_image_file() also
+	# finds fw/ in the resident system image (md1), which is where they belong (not done yet).
+	MSYS_NO_PATHCONV=1 wsl -d Debian -- bash -s "$win" "${FW_BIG-modem adsp slpi_vy venus wlanmdsp}" <<-'EOF'
 	set -e
 	cd ~/vayu
 	git pull -q win vayu-dev
 	WIN=$(wslpath -u "$1")
 	rm -rf fw-poco-x3-pro
 	[ -d "$WIN/fw-poco-x3-pro" ] && cp -a "$WIN/fw-poco-x3-pro" fw-poco-x3-pro
+	for n in $2; do rm -f fw-poco-x3-pro/$n.mdt fw-poco-x3-pro/$n.b[0-9][0-9] fw-poco-x3-pro/$n.mbn; done
+	[ -n "$2" ] && echo "day1: WSL: left out of root.apfs (too big for one download): $2"
 	echo "day1: WSL: $(ls -1 fw-poco-x3-pro 2>/dev/null | wc -l) firmware files; building root.apfs (log ~/userland-build-day1.log)"
 	before=$(stat -c %Y userland/system.apfs)
 	DEVICE=poco-x3-pro REST=1 userland/build.sh > ~/userland-build-day1.log 2>&1 || { tail -20 ~/userland-build-day1.log; exit 1; }
@@ -200,6 +206,11 @@ image() {
 	[ "$before" = "$after" ] && skip=1 || skip=
 	SKIP_SYSTEM=$skip devices/poco-x3-pro/tools/stage-windows.sh "$WIN"
 	EOF
+	local k r
+	k=$(stat -c %s xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837 2>/dev/null || echo 0)
+	r=$(stat -c %s userland/root.apfs 2>/dev/null || echo 0)
+	say "run payload: kernel $((k / 1048576)) MB + root.apfs $((r / 1048576)) MB (the loader takes 63 MB)"
+	[ $((k + r)) -lt $((0x3f00000 - 1048576)) ] || say "WARNING: that does not fit one download: xl run will fail"
 }
 
 boot() {
