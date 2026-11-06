@@ -896,6 +896,60 @@ read_whole(const char *path, char *buf, size_t size)
 	return (ssize_t)got;
 }
 
+/*
+ * var_hfs=1: /private/var is HFS Plus on the flash (/dev/ufs_var, a slice of darwin the kernel lets a filesystem write:
+ * bsd/dev/hakios.ufs.c), not a memory filesystem -- what iOS writes stays, as on an iPhone. The volume is made on the
+ * computer (devices/poco-x3-pro/tools/var-volume.sh) and empty; its first boot fills it (the skeleton, then the last
+ * var_store save if there is one) and leaves VAR_VOLUME_MARK, and every boot after finds it as it was left.
+ */
+#define VAR_VOLUME_MARK "/private/var/.hakios-var-volume"
+enum { VAR_IN_MEMORY, VAR_ON_FLASH, VAR_ON_FLASH_NEW };
+static int var_volume = VAR_IN_MEMORY;
+
+/* struct hfs_mount_args as user space passes it (bsd/hfs/hfs_mount.h) */
+struct hfs_args {
+	const char *fspec;
+	uint32_t uid, gid;
+	uint16_t mask, pad;
+	uint32_t encoding;
+	int tz[2];
+	int flags, journal_tbuffer_size, journal_flags, journal_disable;
+};
+
+/* What is in a directory, gone; the directory stays. Links are removed, not followed. */
+static int
+empty_tree(const char *path)
+{
+	char buf[4096], child[512];
+	struct stat st;
+	off_t position = 0;
+	ssize_t n;
+	int ok = 1, fd = open(path, O_RDONLY | O_DIRECTORY, 0);
+
+	if (fd < 0) {
+		return 1;
+	}
+	while ((n = getdirentries(fd, buf, sizeof(buf), &position)) > 0) {
+		for (ssize_t at = 0; at < n; at += ((struct dirent *)(buf + at))->d_reclen) {
+			const char *name = ((struct dirent *)(buf + at))->d_name;
+
+			if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0 || strlen(path) + strlen(name) + 2 > sizeof(child)) {
+				continue;
+			}
+			strcpy(child, path);
+			strcpy(child + strlen(child), "/");
+			strcpy(child + strlen(child), name);
+			if (lstat(child, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
+				ok = empty_tree(child) && rmdir(child) == 0 && ok;
+			} else {
+				ok = unlink(child) == 0 && ok;
+			}
+		}
+	}
+	close(fd);
+	return ok;
+}
+
 static void
 mount_writable(void)
 {
@@ -907,11 +961,40 @@ mount_writable(void)
 	struct stat st;
 
 	printf("\n-- writable filesystem --\n");
-	ok = mount("ramfs", "/private/var", 0, NULL) == 0;
+	{
+		const char *hfs = boot_arg("var_hfs");
+
+		if (hfs != NULL && strcmp(hfs, "1") == 0) {
+			struct hfs_args args = { .fspec = "/dev/ufs_var" };
+
+			if (mount("hfs", "/private/var", 0, &args) == 0) {
+				var_volume = stat(VAR_VOLUME_MARK, &st) == 0 ? VAR_ON_FLASH : VAR_ON_FLASH_NEW;
+				printf("  /private/var: HFS Plus on /dev/ufs_var, %s\n",
+				    var_volume == VAR_ON_FLASH ? "as the last boot left it" : "new: filled now");
+			} else {
+				printf("  HFS Plus on /dev/ufs_var: %s: a memory filesystem instead, kept for this boot only\n",
+				    strerror(errno));
+			}
+		}
+	}
+	if (var_volume == VAR_ON_FLASH) {
+		/* what only one boot can mean, as var_store leaves it out (src/var_store.c, SKIP) */
+		static const char *const per_boot[] = { "/private/var/tmp", "/private/var/run", "/private/var/vm" };
+
+		for (unsigned i = 0; i < sizeof(per_boot) / sizeof(per_boot[0]); i++) {
+			if (!empty_tree(per_boot[i])) {
+				printf("  %s: not all of it could be removed\n", per_boot[i]);
+			}
+		}
+		check(1, "mount the data volume on /private/var (HFS Plus, on the flash)");
+		goto prefix;    /* its directories are there from its first boot */
+	}
+	ok = var_volume == VAR_ON_FLASH_NEW || mount("ramfs", "/private/var", 0, NULL) == 0;
 	if (!ok) {
 		printf("  mount: %s\n", strerror(errno));
 	}
-	check(ok, "mount a memory filesystem on /private/var");
+	check(ok, var_volume == VAR_ON_FLASH_NEW ? "mount the data volume on /private/var (HFS Plus, new)" :
+	    "mount a memory filesystem on /private/var");
 
 	/* the directories of the data volume, as listed in the template that ships with iOS (sysimage/mkvarskel.py) */
 	read_whole(in_image("/etc/var.skel"), skeleton, sizeof(skeleton));
@@ -959,6 +1042,8 @@ mount_writable(void)
 	printf("  %d directories, %d files\n", made, files);
 	check(ok && made > 50, "create the directories of the data volume");
 
+prefix:
+
 	/*
 	 * and the package manager's prefix, when the image was built with one (tools/mk-jb.sh): /jb of
 	 * the system image in RAM, or, with the iOS volume on the flash as the root, /private/preboot/jb
@@ -979,6 +1064,9 @@ mount_writable(void)
 		 * /var/jb/Applications was "Unable to register", with nothing on the files even looked at.
 		 */
 		if (strcmp(jb, "/private/preboot/jb") == 0 && stat("/private/preboot/jb-rw", &st) == 0) {
+			if (var_volume != VAR_IN_MEMORY) {
+				unlink("/private/var/jb");      /* the last boot's link (a directory is not removed by this) */
+			}
 			if (mount("ramfs", "/private/preboot/jb-rw", 0, NULL) == 0 &&
 			    symlink("/private/preboot/jb-rw/procursus", "/private/var/jb") == 0) {
 				to = "/private/preboot/jb-rw/procursus";
@@ -1056,13 +1144,19 @@ restore_var(void)
 {
 	const char *wanted = boot_arg("var_store");
 	char *argv[3];
-	int status = 0;
+	int status = 0, fd;
 	pid_t pid;
 
-	if (wanted == NULL || strcmp(wanted, "1") != 0) {
+	if (var_volume == VAR_ON_FLASH) {
+		return;         /* the volume is on the flash and has it already */
+	}
+	if (var_volume != VAR_ON_FLASH_NEW && (wanted == NULL || strcmp(wanted, "1") != 0)) {
 		return;
 	}
 	printf("\n-- the data volume of the last boot --\n");
+	if (var_volume == VAR_ON_FLASH_NEW) {
+		printf("  the volume on the flash is new: what the last Shut Down saved goes into it, once\n");
+	}
 	argv[0] = (char *)in_image("/bin/var_store");
 	argv[1] = (char *)"load";
 	argv[2] = NULL;
@@ -1074,6 +1168,12 @@ restore_var(void)
 	}
 	if (pid < 0 || wait4(pid, &status, 0, NULL) != pid || !WIFEXITED(status)) {
 		printf("  var_store did not run\n");
+	}
+	if (var_volume == VAR_ON_FLASH_NEW) {
+		/* filled, from the store or from the skeleton alone: the next boot keeps it as it is */
+		fd = open(VAR_VOLUME_MARK, O_WRONLY | O_CREAT, 0644);
+		check(fd >= 0, "mark the data volume as filled");
+		close(fd);
 	}
 }
 

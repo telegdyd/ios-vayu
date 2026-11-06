@@ -22,6 +22,13 @@
  * GUIDs as well on the loader's side), and the loader refuses the same things over again and reads
  * every write back before it answers. Without ufs_write=1 nothing writes at all.
  *
+ * One block device writes as well, and only with ufs_write=1 and ufs_var_first= / ufs_var_blocks= (in darwin's
+ * blocks of 4096): /dev/ufs_var, that slice of darwin as a disk of its own, for a filesystem that writes (HFS Plus:
+ * /private/var on the flash, mounted by init with var_hfs=1). It begins at or past ufs_write_first, so the iOS
+ * volume and the cryptexes stay out of its reach, and every one of its writes goes through ufs_write() and the
+ * loader's checks like any other. A write that is not whole blocks of 4096 (the journal's 512-byte ones) is made
+ * whole: the blocks around it are read, patched and written (ufs_var_write).
+ *
  * One request at a time (the page has one), so requests are serialized by a mutex and split into
  * pieces of the buffer's size. The kernel writes only the request's cache lines and core 0 only
  * the answer's (see the loader), both through a mapping that does not cache here, so neither side
@@ -146,7 +153,7 @@ _Static_assert(__builtin_offsetof(struct loader_block, ask) == 128,
 static volatile struct loader_block *ufs_page;
 static uint8_t *ufs_buffer;             /* the loader's data buffer: filled by it for a read, here for a write */
 static uint32_t ufs_buffer_size, ufs_parts, ufs_seq;
-static uint32_t ufs_bsize[BLOCK_MAX_PARTS];   /* the block size each device is counted in (spec_open sets 512) */
+static uint32_t ufs_bsize[BLOCK_MAX_PARTS + 1];   /* the block size each device is counted in (spec_open sets 512); the last: ufs_var */
 static int ufs_bmajor = -1, ufs_cmajor = -1;
 static bool ufs_ready, ufs_dead;
 static uint64_t ufs_requests, ufs_errors, ufs_bytes, ufs_wait_us;
@@ -172,6 +179,14 @@ static LCK_GRP_DECLARE(ufs_lck_grp, "hakios-ufs");
 static LCK_MTX_DECLARE(ufs_lock, &ufs_lck_grp);
 /* One writer at a time; never held while the mailbox is, nor while user memory is touched. */
 static LCK_MTX_DECLARE(ufs_write_mtx, &ufs_lck_grp);
+
+/* /dev/ufs_var: darwin's blocks [ufs_var_first, ufs_var_first + ufs_var_blocks), a writable disk of its own */
+#define UFS_VAR_MINOR      BLOCK_MAX_PARTS
+static uint64_t ufs_var_first, ufs_var_blocks;
+static bool ufs_var_on;
+static uint64_t ufs_var_writes, ufs_var_patched;
+/* a write that is not whole blocks reads them first: one of those at a time, so two cannot patch one block */
+static LCK_MTX_DECLARE(ufs_rmw_mtx, &ufs_lck_grp);
 
 /*
  * Saving the data volume without being asked (userland/src/var_store.c).
@@ -213,6 +228,10 @@ static uint64_t ufs_writes, ufs_write_bytes, ufs_write_errors, ufs_write_refused
 SYSCTL_DECL(_kern_hakios);
 SYSCTL_QUAD(_kern_hakios, OID_AUTO, ufs_requests, CTLFLAG_RD | CTLFLAG_LOCKED, &ufs_requests,
     "requests the phone's storage has answered through the loader");
+SYSCTL_QUAD(_kern_hakios, OID_AUTO, ufs_var_writes, CTLFLAG_RD | CTLFLAG_LOCKED, &ufs_var_writes,
+    "writes of /dev/ufs_var (the filesystem on darwin's slice)");
+SYSCTL_QUAD(_kern_hakios, OID_AUTO, ufs_var_patched, CTLFLAG_RD | CTLFLAG_LOCKED, &ufs_var_patched,
+    "blocks of /dev/ufs_var read and patched for a write that was not whole blocks");
 SYSCTL_QUAD(_kern_hakios, OID_AUTO, ufs_errors, CTLFLAG_RD | CTLFLAG_LOCKED, &ufs_errors,
     "requests the phone's storage has refused or not answered");
 SYSCTL_QUAD(_kern_hakios, OID_AUTO, ufs_bytes, CTLFLAG_RD | CTLFLAG_LOCKED, &ufs_bytes,
@@ -645,9 +664,91 @@ ufs_write_restore(void)
 
 /* ---- the devices ---- */
 
+/*
+ * The partition a device reads, and where in it: a partition's device is all of it; /dev/ufs_var is its slice of
+ * darwin. False for a device that is not there.
+ */
+static bool
+ufs_dev_range(dev_t dev, uint32_t *part, uint64_t *base, uint64_t *bytes)
+{
+	uint32_t m = (uint32_t)minor(dev);
+
+	if (!ufs_ready) {
+		return false;
+	}
+	if (m == UFS_VAR_MINOR) {
+		if (!ufs_var_on || ufs_write_part < 0) {
+			return false;
+		}
+		*part = (uint32_t)ufs_write_part;
+		*base = ufs_var_first * ufs_page->part[*part].block_size;
+		*bytes = ufs_var_blocks * ufs_page->part[*part].block_size;
+		return true;
+	}
+	if (m >= ufs_parts) {
+		return false;
+	}
+	*part = m;
+	*base = 0;
+	*bytes = ufs_part_bytes(m);
+	return true;
+}
+
+/*
+ * Bytes [offset, offset + len) of /dev/ufs_var from src: whole blocks straight through ufs_write(), the block at
+ * either end that the write covers only part of read first and patched. Writes of a filesystem's buffer cache are
+ * never to the same block at once, but two of the journal's 512-byte ones can share a block: one patch at a time.
+ */
+static int
+ufs_var_write(uint64_t offset, const uint8_t *src, uint64_t len)
+{
+	uint32_t part = (uint32_t)ufs_write_part;
+	uint64_t nbs = ufs_page->part[part].block_size;
+	uint64_t at = ufs_var_first * nbs + offset;
+	uint8_t *block = NULL;
+	int error = 0;
+
+	if (offset > ufs_var_blocks * nbs || len > ufs_var_blocks * nbs - offset) {
+		return EINVAL;
+	}
+	lck_mtx_lock(&ufs_rmw_mtx);
+	while (error == 0 && len > 0) {
+		uint64_t in = at % nbs, n;
+
+		if (in == 0 && len >= nbs) {
+			n = len - len % nbs;            /* the whole blocks */
+			error = ufs_write(part, at, src, n);
+		} else {
+			n = nbs - in < len ? nbs - in : len;
+			if (block == NULL && (block = kalloc_data(nbs, Z_WAITOK)) == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			error = ufs_read(part, at - in, block, nbs);
+			if (error == 0) {
+				memcpy(block + in, src, n);
+				error = ufs_write(part, at - in, block, nbs);
+				ufs_var_patched++;
+			}
+		}
+		at += n;
+		src += n;
+		len -= n;
+	}
+	lck_mtx_unlock(&ufs_rmw_mtx);
+	if (block != NULL) {
+		kfree_data(block, nbs);
+	}
+	ufs_var_writes++;
+	return error;
+}
+
 static int
 ufs_open(dev_t dev, int flags, __unused int devtype, __unused proc_t p)
 {
+	if ((uint32_t)minor(dev) == UFS_VAR_MINOR) {
+		return ufs_ready && ufs_var_on ? 0 : ENXIO;     /* the one block device that writes */
+	}
 	if (!ufs_ready || (uint32_t)minor(dev) >= ufs_parts || (ufs_page->part[minor(dev)].flags & BLOCK_PART_UNIT)) {
 		return ENXIO;
 	}
@@ -688,22 +789,23 @@ ufs_cclose(dev_t dev, int flags, int devtype, proc_t p)
 static void
 ufs_strategy(buf_t bp)
 {
-	uint32_t part = (uint32_t)minor(buf_device(bp));
-	uint64_t offset, len, size;
+	uint32_t m = (uint32_t)minor(buf_device(bp)), part;
+	uint64_t base, offset, len, size;
+	bool reading = (buf_flags(bp) & B_READ) != 0;
+	caddr_t va = 0;
 	int error;
 
-	if (!ufs_ready || part >= ufs_parts) {
+	if (!ufs_dev_range(buf_device(bp), &part, &base, &size)) {
 		buf_seterror(bp, ENXIO);
 		buf_biodone(bp);
 		return;
 	}
-	if (!(buf_flags(bp) & B_READ)) {
-		buf_seterror(bp, EROFS);         /* this device never writes */
+	if (!reading && m != UFS_VAR_MINOR) {
+		buf_seterror(bp, EROFS);         /* of the block devices only /dev/ufs_var writes */
 		buf_biodone(bp);
 		return;
 	}
-	size = ufs_part_bytes(part);
-	offset = (uint64_t)buf_blkno(bp) * ufs_bsize[part];
+	offset = (uint64_t)buf_blkno(bp) * ufs_bsize[m];
 	len = buf_count(bp);
 	if (offset >= size) {
 		buf_seterror(bp, offset == size ? 0 : EINVAL);
@@ -714,7 +816,17 @@ ufs_strategy(buf_t bp)
 	if (offset + len > size) {
 		len = size - offset;
 	}
-	error = ufs_read(part, offset, (uint8_t *)buf_dataptr(bp), len);
+	/*
+	 * buf_map(), not buf_dataptr(): a buffer of the cluster layer (a file's data, as HFS Plus reads and writes it)
+	 * carries a UPL, not a kernel address, until it is mapped; a metadata buffer has one already and gets it back.
+	 */
+	if (buf_map(bp, &va) != 0 || va == 0) {
+		buf_seterror(bp, EIO);
+		buf_biodone(bp);
+		return;
+	}
+	error = reading ? ufs_read(part, base + offset, (uint8_t *)va, len) : ufs_var_write(offset, (const uint8_t *)va, len);
+	buf_unmap(bp);
 	buf_setresid(bp, (uint32_t)(buf_count(bp) - (error ? 0 : len)));
 	if (error) {
 		buf_seterror(bp, error);
@@ -725,15 +837,16 @@ ufs_strategy(buf_t bp)
 static int
 ufs_ioctl(dev_t dev, u_long cmd, caddr_t data, __unused int fflag, __unused proc_t p)
 {
-	uint32_t part = (uint32_t)minor(dev), native;
+	uint32_t m = (uint32_t)minor(dev), part, native;
+	uint64_t base, bytes;
 
-	if (!ufs_ready || part >= ufs_parts) {
+	if (!ufs_dev_range(dev, &part, &base, &bytes)) {
 		return ENXIO;
 	}
 	native = ufs_page->part[part].block_size;
 	switch (cmd) {
 	case DKIOCGETBLOCKSIZE:
-		*(uint32_t *)data = ufs_bsize[part];
+		*(uint32_t *)data = ufs_bsize[m];
 		return 0;
 	case DKIOCSETBLOCKSIZE:
 		/*
@@ -745,19 +858,23 @@ ufs_ioctl(dev_t dev, u_long cmd, caddr_t data, __unused int fflag, __unused proc
 		    (*(uint32_t *)data & (*(uint32_t *)data - 1)) != 0) {
 			return EINVAL;
 		}
-		ufs_bsize[part] = *(uint32_t *)data;
+		ufs_bsize[m] = *(uint32_t *)data;
 		return 0;
 	case DKIOCGETPHYSICALBLOCKSIZE:
 		*(uint32_t *)data = native;
 		return 0;
 	case DKIOCGETBLOCKCOUNT:
-		*(uint64_t *)data = ufs_part_bytes(part) / ufs_bsize[part];
+		*(uint64_t *)data = bytes / ufs_bsize[m];
 		return 0;
 	case DKIOCISWRITABLE:
-		*(uint32_t *)data = 0;  /* the block device, which is what a filesystem would ask */
+		*(uint32_t *)data = m == UFS_VAR_MINOR;        /* what a filesystem asks: /dev/ufs_var alone */
 		return 0;
+	case DKIOCSYNCHRONIZE:
+		/* the loader answers a write when it is written and read back: nothing of ours is left in flight */
+		return m == UFS_VAR_MINOR ? 0 : ENOTTY;
+	case DKIOCGETMAXBLOCKCOUNTWRITE:
 	case DKIOCGETMAXBLOCKCOUNTREAD:
-		*(uint64_t *)data = ufs_buffer_size / ufs_bsize[part];
+		*(uint64_t *)data = ufs_buffer_size / ufs_bsize[m];
 		return 0;
 	default:
 		return ENOTTY;
@@ -767,9 +884,10 @@ ufs_ioctl(dev_t dev, u_long cmd, caddr_t data, __unused int fflag, __unused proc
 static int
 ufs_psize(dev_t dev)
 {
-	uint32_t part = (uint32_t)minor(dev);
+	uint32_t part;
+	uint64_t base, bytes;
 
-	return ufs_ready && part < ufs_parts ? (int)ufs_bsize[part] : -1;
+	return ufs_dev_range(dev, &part, &base, &bytes) ? (int)ufs_bsize[minor(dev)] : -1;
 }
 
 /*
@@ -1676,6 +1794,32 @@ hakios_ufs_init(void)
 			    (ufs_darwin_blocks - ufs_write_first) * 4096 >> 20);
 		} else {
 			printf("ufs: nothing takes writes: darwin is not among the partitions\n");
+		}
+	}
+
+	/* ufs_var_first= and ufs_var_blocks=: /dev/ufs_var, a slice of darwin past ufs_write_first that a filesystem writes */
+	if (PE_parse_boot_argn("ufs_var_first", &ufs_var_first, sizeof(ufs_var_first)) &&
+	    PE_parse_boot_argn("ufs_var_blocks", &ufs_var_blocks, sizeof(ufs_var_blocks))) {
+		const char *why = NULL;
+
+		if (ufs_write_part < 0) {
+			why = "darwin takes no writes (ufs_write=1, and the loader's offer)";
+		} else if (ufs_var_first < ufs_write_first) {
+			why = "it begins before ufs_write_first: the iOS volume and the cryptexes are there";
+		} else if (ufs_var_blocks == 0 || ufs_var_first > ufs_darwin_blocks ||
+		    ufs_var_blocks > ufs_darwin_blocks - ufs_var_first) {
+			why = "it does not fit in darwin";
+		} else if (devfs_make_node(makedev(ufs_bmajor, UFS_VAR_MINOR), DEVFS_BLOCK, UID_ROOT, GID_OPERATOR, 0640,
+		    "ufs_var") == NULL) {
+			why = "no node for it";
+		}
+		if (why != NULL) {
+			printf("ufs: no /dev/ufs_var: %s\n", why);
+		} else {
+			ufs_bsize[UFS_VAR_MINOR] = 4096;
+			ufs_var_on = true;
+			printf("ufs: /dev/ufs_var is darwin's blocks %llu..%llu (%llu MB), and it writes\n", ufs_var_first,
+			    ufs_var_first + ufs_var_blocks - 1, ufs_var_blocks * 4096 >> 20);
 		}
 	}
 

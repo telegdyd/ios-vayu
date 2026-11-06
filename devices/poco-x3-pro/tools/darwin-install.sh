@@ -9,6 +9,9 @@
 #                                             each copy table first, and read back (gpt-plan.py retype makes them)
 #   darwin-install.sh write IMAGE BLOCK       IMAGE into darwin at its block BLOCK, read back by sha256
 #   darwin-install.sh sum BLOCK BYTES         sha256 of BYTES of darwin from BLOCK                    (writes nothing)
+#   darwin-install.sh var IMAGE               the data volume (HFS Plus, var-volume.sh makes it) into darwin's
+#                                             blocks VAR_FIRST.. (/dev/ufs_var: ufs_var_first=, ufs_var_blocks=):
+#                                             only what mkfs wrote (the sparse file's data), each piece read back
 #
 # Every write needs DARWIN_WRITE=yes. What `write` may reach: darwin as it was set up (entry 32 of sda, its GPT
 # entry with both GUIDs and LBAs, sysfs and blockdev agreeing), only blocks below 2097152 (where the phone's own
@@ -21,6 +24,8 @@ PART=32 NODE=/dev/block/sda32 DEV=/dev/block/by-name/darwin
 FIRST=2851328 LAST=62162938 BS=4096
 BLOCKS=$((LAST - FIRST + 1))
 LIMIT=2097152
+# the data volume: past var_store's two slots of 2 GiB (2097152..3145727), 8 GiB (the kernel's ufs_var_first/blocks)
+VAR_FIRST=3145728 VAR_BLOCKS=2097152
 TYPE=7C3457EF-0000-11AA-AA11-00306543ECAC UNIQ=1756C529-8738-41C3-BA3A-8F263332C072
 LUNBLOCKS=62162944
 HERE=$(cd "$(dirname "$0")/../../.." && pwd)
@@ -91,6 +96,46 @@ write() {
 	log "write: done in $dt s ($((bytes / 1048576 / dt)) MB/s), read back the same"
 }
 
+# The data volume: an HFS Plus image as a sparse file, the size of the slice. What mkfs left as holes is free space
+# (HFS Plus never reads it as anything until it has written it), so only the file's data is written, piece by piece.
+var() {
+	local img=$1 bytes pieces n=0 total=0 have want
+	[ -f "$img" ] || die "no $img"
+	bytes=$(stat -c %s "$img")
+	[ "$bytes" = $((VAR_BLOCKS * BS)) ] || die "$img is $bytes bytes, not the slice's $((VAR_BLOCKS * BS))"
+	case "$(dd if="$img" bs=1 skip=1024 count=2 2>/dev/null)" in H+|HX) ;; *) die "$img is not an HFS Plus volume" ;; esac
+	[ $((VAR_FIRST)) -ge $LIMIT ] || die "VAR_FIRST $VAR_FIRST is below $LIMIT"
+	[ $((VAR_FIRST + VAR_BLOCKS)) -le $BLOCKS ] || die "the slice does not fit in darwin"
+	pieces=$(python3 -I -c '
+import os, sys
+fd = os.open(sys.argv[1], os.O_RDONLY); end = os.fstat(fd).st_size; at = 0
+while at < end:
+    try: d = os.lseek(fd, at, os.SEEK_DATA)
+    except OSError: break
+    h = os.lseek(fd, d, os.SEEK_HOLE)
+    a, b = d // 4096, (h + 4095) // 4096
+    print(a, b - a); at = h
+' "$img") || die "could not find the image's data"
+	while read -r a c; do total=$((total + c)); done <<< "$pieces"
+	[ "$DARWIN_WRITE" = yes ] || die "DARWIN_WRITE=yes is not set: would write $(wc -l <<< "$pieces") pieces, $((total * BS >> 20)) MB, of $img into darwin's blocks $VAR_FIRST..$((VAR_FIRST + VAR_BLOCKS - 1))"
+	check
+	log "var: $img: $(wc -l <<< "$pieces") pieces, $((total * BS)) bytes, into darwin's blocks $VAR_FIRST..$((VAR_FIRST + VAR_BLOCKS - 1))"
+	while read -r a c; do
+		n=$((n + 1))
+		dd if="$img" bs=$BS skip=$a count=$c 2>/dev/null | "$ADB" exec-in "[ \"\$(readlink -f $DEV)\" = $NODE ] && [ \"\$(blockdev --getsize64 $NODE)\" = $((BLOCKS * BS)) ] && dd of=$NODE bs=$BS seek=$((VAR_FIRST + a)) conv=notrunc,fsync 2>/dev/null" ||
+			die "piece $n (blocks $a+$c) did not finish"
+	done <<< "$pieces"
+	sh_phone "echo 3 > /proc/sys/vm/drop_caches" >/dev/null
+	n=0
+	while read -r a c; do
+		n=$((n + 1))
+		want=$(dd if="$img" bs=$BS skip=$a count=$c 2>/dev/null | sha256sum | cut -d' ' -f1)
+		have=$("$ADB" exec-out "dd if=$NODE bs=$BS skip=$((VAR_FIRST + a)) count=$c 2>/dev/null" | sha256sum | cut -d' ' -f1)
+		[ "$have" = "$want" ] || die "piece $n (blocks $a+$c) read back $have, not $want"
+	done <<< "$pieces"
+	log "var: written, every piece read back the same"
+}
+
 gpt() {
 	local head=$1 tail=$2 ohead=$3 otail=$4 h t
 	for f in "$head" "$tail" "$ohead" "$otail"; do [ -s "$f" ] || die "no $f"; done
@@ -126,5 +171,6 @@ check) check ;;
 sum) [ $# = 3 ] || exit 2; check; sum "$2" "$3" ;;
 write) [ $# = 3 ] || exit 2; write "$2" "$3" ;;
 gpt) [ $# = 5 ] || exit 2; gpt "$2" "$3" "$4" "$5" ;;
-*) sed -n '2,20p' "$0"; exit 2 ;;
+var) [ $# = 2 ] || exit 2; var "$2" ;;
+*) sed -n '2,23p' "$0"; exit 2 ;;
 esac

@@ -13,8 +13,10 @@
 # Android's own boot image is in the day 1 backup (../backup-vayu/20261106/boot.img): "fastboot flash boot" it
 # to undo. Fastboot itself (volume down + power) is Xiaomi's and stays reachable whatever is in boot.
 #
-# STANDALONE_CMDLINE replaces the kernel arguments (the default: run 225353's, plus var_store=1 ufs_write=1, which keep
-# /private/var in darwin past block 2097152: saved by Settings > General > Shut Down, restored at boot).
+# STANDALONE_CMDLINE replaces the kernel arguments (the default: run 225353's, plus /private/var on the flash: HFS Plus
+# on /dev/ufs_var, darwin's blocks 3145728.. (8 GiB; var-volume.sh makes it, darwin-install.sh var writes it), written
+# as iOS writes; ufs_write=1 lets the kernel write there and nowhere else. The volume's first boot takes in the last
+# var_store save. The earlier way, var_store=1 instead of var_hfs=1 and ufs_var_*: a snapshot saved at Shut Down.)
 # STANDALONE_EXTRA adds to them.
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
@@ -26,7 +28,7 @@ RES=userland/flashboot.apfs
 RD=userland/root-flash.apfs
 OUT=xnu-standalone.img
 BOOT_BYTES=134217728            # the boot partition (the backup's boot.img is this size)
-ARGS=${STANDALONE_CMDLINE-root_apfs=ufs_darwin ufs=2 bootcpu=7 cpus=8 fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1 gpu=1 vayu_gpu=1 vayu_keep=1 var_store=1 ufs_write=1}
+ARGS=${STANDALONE_CMDLINE-root_apfs=ufs_darwin ufs=2 bootcpu=7 cpus=8 fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1 gpu=1 vayu_gpu=1 vayu_keep=1 ufs_write=1 var_hfs=1 ufs_var_first=3145728 ufs_var_blocks=2097152}
 LOG=logs/standalone.log
 mkdir -p logs
 say() { echo "standalone: $*"; echo "$(date '+%F %T') $*" >> $LOG; }
