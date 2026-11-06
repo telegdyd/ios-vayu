@@ -2,6 +2,26 @@
 
 ## Active handoff (2026-11-06 night: iOS flashed into `boot`, starts by itself, keeps /private/var across shutdowns)
 
+HFS Plus for a real writable /private/var (in progress, 2026-11-06 late night):
+- Why: /private/var is a RAM disk (ramfs) restored from / saved to darwin by var_store at Shut Down only; the APFS
+  driver is read-only. The user wants a proper system: writes going straight to flash.
+- Survey of github.com/Chromitsune/Portsmith-iOS (90 ports): Scion-Project/scion-kernel (HakiOS fork, same licenses)
+  has Apple's HFS Plus built into the kernel, QEMU-tested only; DC28088/ios-sweet runs iOS 16 from a writable
+  journaled HFS+ volume on a real phone (no license: idea only, nothing copied); zzweiqing/UniXNU-nabu is the same
+  SoC/GPU (SM8150/A640) with Metal via metal2vulkan+Turnip (UniXNU, iPadOS 17): a reference for GPU speed later.
+- FACT: HFS Plus is in our kernel tree: xnu/hfs/ (Scion's hfs.sh/hfs.patch/lists + our xnu.patch for bsd/conf/files,
+  config/MASTER(.arm64.bcm2837), bsd/conf/Makefile.template, bsd/vfs/vfs_conf.c), xnu/files/bsd/hfs/hfs_builtin.c;
+  xnu/apply.sh applies them. Kernel built in WSL (415 _hfs_ symbols; mach 63d7ca3b...+ the fix below; NOT staged to
+  Windows, NOT on the phone: the phone still runs c329096e).
+- FACT: virtio_blk=2 (our QEMU disk driver writes; buf_map() for cluster-I/O buffers, which carry a UPL not a VA).
+  `qemu/run-hfs-test.sh` (WSL: QEMU_EFI=/usr/share/AAVMF/AAVMF_CODE.fd QEMU_VARS=/usr/share/AAVMF/AAVMF_VARS.fd;
+  qemu-system-arm, qemu-efi-aarch64, ipxe-qemu installed in WSL) twice on one image: "ALL OK", boot number 1 then 2
+  (journal, 1 MB write/read, unmount/remount, persistence). The panic after it is process 1 exiting (expected).
+- Next for the phone: hakios.ufs.c's block device is read-only and uses buf_dataptr (same UPL problem); it needs
+  block writes into a fixed HFS region of darwin (past var_store's slots at 2097152..3145727, write_first checks
+  stay), buf_map, flush; then make the volume (mkfs.hfsplus image written by darwin-install.sh, user's OK), have init
+  mount it on /private/var instead of ramfs, and seed it from the var skeleton / the last var_store save.
+
 Standalone boot (FACT unless marked):
 - Loader 2.2 (546ac05, loader.efi 103936 B sha256 539ed29f...): a payload entry "resident" is copied to the
   resident address before the run; in one-shot mode (no "usb" entry) a kernel without loader_return_after gets

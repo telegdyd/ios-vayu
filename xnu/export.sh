@@ -3,7 +3,8 @@
 #   hakios.patch   the changes to Apple's files (against the tag the work sits on)
 #   files/          the files that are not in Apple's tree, at their paths
 # usage: xnu/export.sh [KERNEL-TREE]     (default: $XNU_SRC, else xnu-src/xnu-8796.121.2)
-# Run it before committing whenever the kernel tree has changed. Committed or not makes no
+# Run it before committing whenever the kernel tree has changed. (vayu: vayu-night.patch and xnu/hfs/xnu.patch
+# are applied after hakios.patch; this folds them into hakios.patch, so take them back out of it after.) Committed or not makes no
 # difference there: everything is compared with the base commit.
 set -e
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -22,7 +23,10 @@ mv "$HERE/hakios.patch.new" "$HERE/hakios.patch"
 rm -rf "$HERE/files.new"
 mkdir "$HERE/files.new"
 { git diff --no-renames --name-only --diff-filter=A "$BASE" -- .; git ls-files --others --exclude-standard; } |
-	sort -u | grep -Ev "$JUNK" > "$HERE/files.list"
+	sort -u | grep -Ev "$JUNK" |
+	# Apple's HFS sources are fetched by xnu/hfs/hfs.sh, not kept: only this port's own file of them
+	grep -Ev '^bsd/hfs(_encodings)?/' > "$HERE/files.list"
+[ -f bsd/hfs/hfs_builtin.c ] && echo bsd/hfs/hfs_builtin.c >> "$HERE/files.list"
 while IFS= read -r f; do
 	[ -f "$f" ] || [ -L "$f" ] || continue      # added in a commit, deleted since
 	mkdir -p "$HERE/files.new/$(dirname "$f")"

@@ -30,3 +30,7 @@ Fetched at build time, never committed:
   user's own phone (devices/poco-x5-pro/pull-firmware.sh).
 - lzfse (Apple, BSD-3-Clause), built by xnuloader/mkidentity.sh when no LZFSE decoder is installed.
 - Mesa (for GL=1 images), Procursus and Sileo packages (tools/mk-jb.sh): their own licenses.
+- HFS Plus (Apple, hfs-627.100.6, APSL 2.0): fetched from Apple's release by xnu/hfs/hfs.sh, not kept here. The way it
+  is built into the kernel (xnu/hfs/hfs.sh, hfs.patch, core.list, encodings.list, xnu/files/bsd/hfs/hfs_builtin.c, the
+  HFS parts of xnu/hfs/xnu.patch) and its QEMU test (qemu/run-hfs-test.sh, userland/src/hfs_test.c) come from
+  Scion-Project/scion-kernel, a HakiOS fork under the same licenses as this repository.

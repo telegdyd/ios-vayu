@@ -29,4 +29,8 @@ git apply --whitespace=nowarn "$HERE/hakios.patch"
 cp -a "$HERE/files/." .
 # vayu: the night-2026-11-02 changes to Apple files (build lists, a kfree type fix, no console panic)
 [ -s "$HERE/vayu-night.patch" ] && patch -s -p1 < "$HERE/vayu-night.patch"
+# HFS Plus built in (the data volume; from Scion-Project/scion-kernel): Apple's hfs-627.100.6 fetched into bsd/hfs with
+# its changes (xnu/hfs/hfs.sh, hfs.patch), and the kernel's build lists and VFS table told about it (xnu/hfs/xnu.patch)
+patch -s -p1 < "$HERE/hfs/xnu.patch"
+"$HERE/hfs/hfs.sh" put "$DIR"
 echo "apply.sh: $DIR: $TAG + $(grep -c '^diff --git' "$HERE/hakios.patch") changed and $(find "$HERE/files" -type f | wc -l) new files"

@@ -20,7 +20,9 @@
  * driver's own block cache misses, and the host is serving them out of its page cache.
  *
  * Read only.  A write request is refused: nothing in this port has any business writing
- * to the image, and refusing is one less way to damage it by accident.
+ * to the image, and refusing is one less way to damage it by accident -- except with
+ * boot-arg virtio_blk=2, which is for trying a file system that writes (HFS Plus, the data
+ * volume: qemu/run-hfs-test.sh) on a disk image before it goes anywhere near the phone's flash.
  */
 
 #include <kern/clock.h>
@@ -75,6 +77,7 @@ extern uint64_t kvtophys(vm_offset_t va);
 
 /* the request types we use */
 #define VIRTIO_BLK_T_IN         0
+#define VIRTIO_BLK_T_OUT        1
 #define VIRTIO_BLK_S_OK         0
 
 #define VIRTIO_BLK_SECTOR       512             /* virtio-blk counts in these, always */
@@ -136,6 +139,7 @@ struct blk_device {
 static LCK_GRP_DECLARE(blk_lck_grp, "hakios-virtio-blk");
 static struct blk_device blk_dev;
 static bool blk_ready;
+static bool blk_rw;                     /* virtio_blk=2: writes go through as well */
 static int blk_bmajor = -1, blk_cmajor = -1;
 
 /* One of this driver's devices: every request is a trip through the hypervisor */
@@ -166,11 +170,11 @@ reg_write64(struct blk_device *d, uint32_t reg, uint64_t value)
 }
 
 /*
- * One read.  `data` is kernel memory that need not be page aligned and whose pages need
+ * One read, or with `write` one write.  `data` is kernel memory that need not be page aligned and whose pages need
  * not be next to each other in physical memory, so it goes on the queue a page at a time.
  */
 static int
-blk_read(struct blk_device *d, uint64_t offset, void *data, size_t len)
+blk_io(struct blk_device *d, bool write, uint64_t offset, void *data, size_t len)
 {
 	vm_offset_t va = (vm_offset_t)data;
 	uint16_t idx = 0;
@@ -191,7 +195,7 @@ blk_read(struct blk_device *d, uint64_t offset, void *data, size_t len)
 
 	lck_mtx_lock(&d->lock);
 
-	d->hdr->type = VIRTIO_BLK_T_IN;
+	d->hdr->type = write ? VIRTIO_BLK_T_OUT : VIRTIO_BLK_T_IN;
 	d->hdr->reserved = 0;
 	d->hdr->sector = offset / VIRTIO_BLK_SECTOR;
 	*d->status = 0xff;
@@ -217,7 +221,7 @@ blk_read(struct blk_device *d, uint64_t offset, void *data, size_t len)
 		}
 		d->desc[idx].addr = kvtophys(at);
 		d->desc[idx].len = (uint32_t)chunk;
-		d->desc[idx].flags = DESC_F_WRITE | DESC_F_NEXT;
+		d->desc[idx].flags = write ? DESC_F_NEXT : DESC_F_WRITE | DESC_F_NEXT;  /* a write's data the device reads */
 		d->desc[idx].next = (uint16_t)(idx + 1);
 		idx++;
 		done += chunk;
@@ -245,8 +249,8 @@ blk_read(struct blk_device *d, uint64_t offset, void *data, size_t len)
 			break;
 		}
 		if (mach_absolute_time() > deadline) {
-			printf("virtio-blk: a read of %lu bytes at %llu went unanswered\n",
-			    (unsigned long)len, offset);
+			printf("virtio-blk: a %s of %lu bytes at %llu went unanswered\n",
+			    write ? "write" : "read", (unsigned long)len, offset);
 			lck_mtx_unlock(&d->lock);
 			return EIO;
 		}
@@ -255,8 +259,8 @@ blk_read(struct blk_device *d, uint64_t offset, void *data, size_t len)
 	reg_write(d, VIRTIO_INTERRUPT_ACK, reg_read(d, 0x060));  /* keep the device quiet */
 
 	if (*d->status != VIRTIO_BLK_S_OK) {
-		printf("virtio-blk: a read of %lu bytes at %llu failed with status %u\n",
-		    (unsigned long)len, offset, *d->status);
+		printf("virtio-blk: a %s of %lu bytes at %llu failed with status %u\n",
+		    write ? "write" : "read", (unsigned long)len, offset, *d->status);
 		error = EIO;
 	}
 	lck_mtx_unlock(&d->lock);
@@ -271,7 +275,7 @@ blk_dev_open(__unused dev_t dev, int flags, __unused int devtype, __unused proc_
 	if (!blk_ready) {
 		return ENXIO;
 	}
-	if (flags & FWRITE) {
+	if ((flags & FWRITE) && !blk_rw) {
 		return EROFS;
 	}
 	return 0;
@@ -297,8 +301,8 @@ blk_dev_strategy(buf_t bp)
 		buf_biodone(bp);
 		return;
 	}
-	if (!(buf_flags(bp) & B_READ)) {
-		buf_seterror(bp, EROFS);         /* this device never writes */
+	if (!(buf_flags(bp) & B_READ) && !blk_rw) {
+		buf_seterror(bp, EROFS);         /* this device writes only with virtio_blk=2 */
 		buf_biodone(bp);
 		return;
 	}
@@ -318,18 +322,31 @@ blk_dev_strategy(buf_t bp)
 
 	error = 0;
 	{
-		uint8_t *dst = (uint8_t *)buf_dataptr(bp);
+		/*
+		 * buf_map(), not buf_dataptr(): a buffer of the cluster layer (a file's data, as HFS Plus reads and
+		 * writes it) carries a UPL, not a kernel address, until it is mapped. The read-only APFS driver only
+		 * ever sent metadata buffers, which have one already (buf_map() then just hands it back).
+		 */
+		caddr_t va = 0;
+		uint8_t *dst;
 		size_t done = 0;
 
+		if (buf_map(bp, &va) != 0 || va == 0) {
+			buf_seterror(bp, EIO);
+			buf_biodone(bp);
+			return;
+		}
+		dst = (uint8_t *)va;
 		while (done < len && error == 0) {
 			size_t chunk = len - done;
 
 			if (chunk > BLK_MAX_XFER) {
 				chunk = BLK_MAX_XFER;
 			}
-			error = blk_read(d, offset + done, dst + done, chunk);
+			error = blk_io(d, !(buf_flags(bp) & B_READ), offset + done, dst + done, chunk);
 			done += chunk;
 		}
+		buf_unmap(bp);
 		buf_setresid(bp, (uint32_t)(buf_count(bp) - (error ? 0 : done)));
 	}
 	if (error) {
@@ -366,8 +383,12 @@ blk_dev_ioctl(__unused dev_t dev, u_long cmd, caddr_t data, __unused int fflag,
 		*(uint64_t *)data = d->capacity;
 		return 0;
 	case DKIOCISWRITABLE:
-		*(uint32_t *)data = 0;
+		*(uint32_t *)data = blk_rw ? 1 : 0;
 		return 0;
+	case DKIOCSYNCHRONIZE:
+		/* one request at a time, each answered before the next: nothing is left in flight here */
+		return blk_rw ? 0 : ENOTTY;
+	case DKIOCGETMAXBLOCKCOUNTWRITE:
 	case DKIOCGETMAXBLOCKCOUNTREAD:
 		*(uint64_t *)data = BLK_MAX_XFER / VIRTIO_BLK_SECTOR;
 		return 0;
@@ -391,6 +412,16 @@ blk_dev_read(__unused dev_t dev, struct uio *uio, __unused int ioflag)
 	    uio, VIRTIO_BLK_SECTOR);
 }
 
+static int
+blk_dev_write(__unused dev_t dev, struct uio *uio, __unused int ioflag)
+{
+	if (!blk_rw) {
+		return EROFS;
+	}
+	return physio(blk_dev_strategy, NULL, dev, B_WRITE, (u_int (*)(buf_t))blk_dev_size,
+	    uio, VIRTIO_BLK_SECTOR);
+}
+
 static const struct bdevsw blk_bdevsw = {
 	.d_open     = blk_dev_open,
 	.d_close    = blk_dev_close,
@@ -405,7 +436,7 @@ static const struct cdevsw blk_cdevsw = {
 	.d_open       = blk_dev_open,
 	.d_close      = blk_dev_close,
 	.d_read       = blk_dev_read,
-	.d_write      = eno_rdwrt,
+	.d_write      = blk_dev_write,
 	.d_ioctl      = blk_dev_ioctl,
 	.d_stop       = eno_stop,
 	.d_reset      = eno_reset,
@@ -486,6 +517,7 @@ hakios_virtio_blk_init(void)
 	if (!PE_parse_boot_argn("virtio_blk", &enabled, sizeof(enabled)) || !enabled) {
 		return;
 	}
+	blk_rw = enabled == 2;
 	bus = ml_io_map(VIRTIO_BUS, VIRTIO_SLOTS * VIRTIO_SLOT_SIZE);
 	for (slot = 0; slot < VIRTIO_SLOTS; slot++) {
 		d->regs = bus + (vm_offset_t)slot * VIRTIO_SLOT_SIZE;
@@ -521,9 +553,9 @@ hakios_virtio_blk_init(void)
 			return;
 		}
 		blk_ready = true;
-		printf("virtio-blk: /dev/rvblk0 in slot %d, %llu sectors of %u (%llu MB)\n",
+		printf("virtio-blk: /dev/rvblk0 in slot %d, %llu sectors of %u (%llu MB)%s\n",
 		    slot, d->capacity, VIRTIO_BLK_SECTOR,
-		    d->capacity * VIRTIO_BLK_SECTOR / (1024 * 1024));
+		    d->capacity * VIRTIO_BLK_SECTOR / (1024 * 1024), blk_rw ? ", writable (virtio_blk=2)" : "");
 		return;
 	}
 	printf("virtio-blk: no block device on the bus\n");
