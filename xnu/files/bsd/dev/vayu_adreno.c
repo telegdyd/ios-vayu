@@ -351,6 +351,34 @@ cmd_db_find(void)
 		    cmd_db_magic(cmd_db) ? "matches" : "DOES NOT MATCH");
 		return;
 	}
+	/*
+	 * The vendor node (reg 0xc3f000c, 8 bytes) is a pointer, not the database: AOP message RAM holds the
+	 * database's physical address and size as two 32-bit words, and msm-4.14 drivers/soc/qcom/cmd-db.c
+	 * maps what they name (readl(dict), readl(dict + 4)). Follow it first. On this phone (MIUI 14
+	 * V14.0.3.0, 2026-11-06) the old order fell through to mainline's 0x85f20000 and the read there
+	 * ended in an SError ("Unhandled implementation specific error", run 214825).
+	 */
+	{
+		const volatile uint32_t *dict = (const volatile uint32_t *)((const uint8_t *)ml_io_map(0x0c3f0000, 0x1000) + 0xc);
+		uint32_t start = dict[0], size = dict[1];
+
+		printf("vayu: cmd-db pointer at 0xc3f000c: address %#x, size %#x\n", start, size);
+		if (start != 0 && (start & 0xfff) == 0 && size >= sizeof(struct cmd_db_header) && size <= 0x100000) {
+			const struct cmd_db_header *db = (const struct cmd_db_header *)ml_io_map_wcomb(start, size);
+
+			if (cmd_db_magic(db)) {
+				cmd_db = db;
+				printf("vayu: cmd-db at %#x (from the AOP pointer): magic matches\n", start);
+				return;
+			}
+			printf("vayu: cmd-db at %#x (from the AOP pointer): magic DOES NOT MATCH\n", start);
+		}
+	}
+	if (!PE_parse_boot_argn("vayu_cmd_db_probe", &override, sizeof(override)) || override == 0) {
+		printf("vayu: no RPMh command database via the AOP pointer; the fixed places are not probed "
+		    "(0x85f20000 faults on MIUI 14; vayu_cmd_db_probe=1 tries them)\n");
+		return;
+	}
 	for (unsigned i = 0; i < sizeof(places) / sizeof(places[0]); i++) {
 		const struct cmd_db_header *db =
 		    (const struct cmd_db_header *)ml_io_map_wcomb(places[i].base, CMD_DB_SIZE);
