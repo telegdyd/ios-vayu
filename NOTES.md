@@ -1,5 +1,8 @@
 # ios-vayu notes
 
+**Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
+task, in order; each ticks its task there and adds a line to the handoff below.
+
 ## Active handoff (2026-11-07 ~01:50: iOS in `boot` with the USB shell; the agent reaches the phone itself)
 
 - **FACT (2026-11-07 ~01:50):** xnu-standalone.img a4373c63... flashed into `boot` (user's OK), `fastboot reboot`:
