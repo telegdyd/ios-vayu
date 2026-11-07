@@ -45,11 +45,15 @@
 #include <sys/kern_event.h>
 #include <sys/kpi_mbuf.h>
 #include <sys/kpi_socket.h>
+#include <sys/reboot.h>
+#include <sys/hakios.input.h>
+#include <kern/thread.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/vayu_usbnet.h>
 
 extern void loader_log_putc(char c);
+extern vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
 extern void HakiosEthernetStart(const char *interface, const uint8_t *address);   /* iokit/Kernel/hakios.wlan.cpp */
 extern int rtrequest(int req, struct sockaddr *dst, struct sockaddr *gateway, struct sockaddr *netmask, int flags,
     struct rtentry **ret_nrt);                                                      /* bsd/net/route.c */
@@ -1352,6 +1356,277 @@ usbnet_ipv4(void)
 	}
 }
 
+/* ---- the test loop's two ports, from ios-jasmine's sweet_usb (0077, j0021, j0022) ------------- */
+
+/*
+ * TCP 5140: the kernel's log (loader_return.c's, what the loader hands the PC after a run), the whole of
+ * it so far and then as it grows, to one reader at a time (devices/poco-x3-pro/tools/sweet-netlog.py).
+ * TCP 5141: one line per connection (tools/sweet-cmd.py): "reboot" (iOS again), "loader" (alias
+ * "fastboot": the loader's USB command mode, where xl runs and flashes -- a flag block in darwin and a
+ * reset, so that the loader starts USB on a fresh boot: its USB stack restarted after a run did not
+ * enumerate, standalone run of 2026-11-07 02:3x), "ping". Both ends of the run are
+ * the loader's way -- sync(), then loader_live.stop, as "xl stop" -- not iOS's shutdown: reboot_kernel()
+ * from here hung after unmounting /dev (run 020558, 7.5 min, until the run's time ran out), and the data
+ * volume needs no unmount (journal, and init's sync every 3 s). Boot-arg usbnet_ports=0: neither.
+ * Nothing the log thread does may print: it would feed itself.
+ */
+/*
+ * Into fastboot, as ios-jasmine's kernel does it (j0003) and as mainline Linux's qcom-pon reboot-mode
+ * does on SM8150: "bootloader" (2) in the PM8150's PON SOFT_RB_SPARE (slave 0, 0x88f, bits [7:1] --
+ * pm8150.dtsi pon@800, "qcom,pm8998-pon", reason shift 1), which ABL reads at the next boot, then an
+ * ordinary restart (PSCI SYSTEM_RESET). The arbiter (version 5) as bsd/dev/vayu_haptic.c and
+ * hakios.torch.c reach it: the channel whose entry is 0x008 must be ours (system 0) to write.
+ * (The loader's own way -- ResetSystem with ABL's RESET_PARAM, loader 2.4 -- came back into iOS.)
+ * FACT (run 020558): on vayu PON is channel 1, owned by system 1 -- not ours to write; nothing calls this.
+ */
+#define PON_ARB_CORE            0x0c440000UL
+#define PON_ARB_CNFG            0x0c40a000UL
+#define PON_ARB_OBSERVER        0x0e600000UL
+#define PON_ARB_CHNLS           0x0c600000UL
+#define PON_PPID                0x008           /* slave 0, peripheral 0x08: PON */
+#define PON_SOFT_RB_SPARE       0x8f
+#define PON_SHIFT               1
+#define PON_MODE_BOOTLOADER     2
+
+static int
+pon_wait(vm_offset_t channel)
+{
+	uint32_t status = 0;
+
+	for (int i = 0; i < 2000 && !((status = *(volatile uint32_t *)(channel + 0x08)) & 1); i++) {
+		delay(1);
+	}
+	return !(status & 1) ? -1 : (status & 0xe) ? -(int)status : 0;
+}
+
+/* the reboot reason's bits into `mode' (0: none, 2: bootloader); 0, or what went wrong (logged) */
+static int __unused
+pon_set_mode(uint32_t mode)
+{
+	static vm_offset_t core, cnfg, observer, chnls;
+	static int channel = -1;
+	uint8_t before, after;
+	int error;
+
+	if (core == 0) {
+		core = ml_io_map(PON_ARB_CORE, 0x1100);
+		cnfg = ml_io_map(PON_ARB_CNFG, 0x1000);
+	}
+	if (channel < 0) {
+		for (int n = 0; n < 512; n++) {
+			uint32_t map = *(volatile uint32_t *)(core + 0x900 + 4 * n);
+
+			if (map != 0 && ((map >> 8) & 0xfff) == PON_PPID) {
+				uint32_t owner = *(volatile uint32_t *)(cnfg + 0x700 + 4 * n) & 7;
+
+				printf("vayu-usbnet: PON is the arbiter's channel %d, owner system %u\n", n, owner);
+				if (owner != 0) {
+					return -2;
+				}
+				channel = n;
+				break;
+			}
+		}
+		if (channel < 0) {
+			printf("vayu-usbnet: no arbiter channel is PON\n");
+			return -3;
+		}
+		observer = ml_io_map(PON_ARB_OBSERVER + 0x80UL * (uint32_t)channel, 0x1000);
+		chnls = ml_io_map(PON_ARB_CHNLS + 0x10000UL * (uint32_t)channel, 0x1000);
+	}
+	hakios_spmi_lock();
+	*(volatile uint32_t *)(observer + 0x00) = (1u << 27) | (PON_SOFT_RB_SPARE << 4);
+	error = pon_wait(observer);
+	before = (uint8_t)*(volatile uint32_t *)(observer + 0x18);
+	if (error == 0) {
+		*(volatile uint32_t *)(chnls + 0x10) = (before & ((1u << PON_SHIFT) - 1)) | (mode << PON_SHIFT);
+		*(volatile uint32_t *)(chnls + 0x00) = (0u << 27) | (PON_SOFT_RB_SPARE << 4);
+		error = pon_wait(chnls);
+	}
+	if (error == 0) {
+		*(volatile uint32_t *)(observer + 0x00) = (1u << 27) | (PON_SOFT_RB_SPARE << 4);
+		error = pon_wait(observer);
+	}
+	after = (uint8_t)*(volatile uint32_t *)(observer + 0x18);
+	hakios_spmi_unlock();
+	printf("vayu-usbnet: PON SOFT_RB_SPARE 0x%02x -> 0x%02x (mode %u): %d\n", before, after, mode, error);
+	return error != 0 ? error : (after >> PON_SHIFT) == mode ? 0 : -4;
+}
+
+extern uint32_t loader_log_copy(uint64_t *pos, char *out, uint32_t max);
+extern void loader_live_reboot_mode_set(uint64_t mode);
+extern void loader_live_stop_set(void);
+extern int hakios_ufs_loader_flag(void);
+struct sync_args;
+extern int sync(proc_t p, struct sync_args *uap, int32_t *retval);
+extern proc_t kernproc;
+extern void IOSleep(unsigned int milliseconds);
+
+static socket_t
+port_listen(uint16_t port)
+{
+	struct sockaddr_in me = { .sin_len = sizeof(me), .sin_family = AF_INET, .sin_port = htons(port) };
+	socket_t ls = NULL;
+	int on = 1;
+
+	for (;;) {
+		if (sock_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, NULL, &ls) == 0) {
+			(void)sock_setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+			if (sock_bind(ls, (struct sockaddr *)&me) == 0 && sock_listen(ls, 2) == 0) {
+				return ls;
+			}
+			sock_close(ls);
+			ls = NULL;
+		}
+		IOSleep(1000);
+	}
+}
+
+static bool
+port_send(socket_t cs, const void *data, size_t length)
+{
+	while (length > 0) {
+		struct iovec iov = { .iov_base = (void *)(uintptr_t)data, .iov_len = length };
+		struct msghdr msg = { .msg_iov = &iov, .msg_iovlen = 1 };
+		size_t sent = 0;
+
+		if (sock_send(cs, &msg, 0, &sent) != 0 || sent == 0) {
+			return false;
+		}
+		data = (const char *)data + sent;
+		length -= sent;
+	}
+	return true;
+}
+
+static void
+log_port_thread(void *arg __unused, wait_result_t wr __unused)
+{
+	static char chunk[16384];
+	socket_t ls = port_listen(5140);
+
+	for (;;) {
+		socket_t cs = NULL;
+		uint64_t pos = 0;
+		struct timeval patience = { .tv_sec = 20, .tv_usec = 0 };
+
+		if (sock_accept(ls, NULL, 0, 0, NULL, NULL, &cs) != 0 || cs == NULL) {
+			IOSleep(500);
+			continue;
+		}
+		/* (a reader that went away without a word -- a cable pulled -- frees this thread in 20 s) */
+		(void)sock_setsockopt(cs, SOL_SOCKET, SO_SNDTIMEO, &patience, sizeof(patience));
+		for (;;) {
+			uint32_t n = loader_log_copy(&pos, chunk, sizeof(chunk));
+
+			if (n == 0) {
+				IOSleep(100);
+				/* (an empty send finds out whether the reader is still there) */
+				if (!port_send(cs, "", 0) || !link_up) {
+					break;
+				}
+				continue;
+			}
+			if (!port_send(cs, chunk, n)) {
+				break;
+			}
+		}
+		sock_close(cs);
+	}
+}
+
+static void
+command_port_thread(void *arg __unused, wait_result_t wr __unused)
+{
+	socket_t ls = port_listen(5141);
+
+	for (;;) {
+		socket_t cs = NULL;
+		char line[64];
+		size_t got = 0;
+		const char *reply;
+		uint64_t mode = 0;
+		bool restart = false;
+
+		if (sock_accept(ls, NULL, 0, 0, NULL, NULL, &cs) != 0 || cs == NULL) {
+			IOSleep(500);
+			continue;
+		}
+		while (got < sizeof(line) - 1) {
+			struct iovec iov = { .iov_base = line + got, .iov_len = sizeof(line) - 1 - got };
+			struct msghdr msg = { .msg_iov = &iov, .msg_iovlen = 1 };
+			size_t n = 0;
+
+			if (sock_receive(cs, &msg, 0, &n) != 0 || n == 0) {
+				break;
+			}
+			got += n;
+			line[got] = 0;
+			if (strchr(line, '\n') != NULL) {
+				break;
+			}
+		}
+		line[got] = 0;
+		for (char *c = line; *c != 0; c++) {
+			if (*c == '\r' || *c == '\n') {
+				*c = 0;
+				break;
+			}
+		}
+		if (strcmp(line, "reboot") == 0) {
+			reply = "rebooting\n";
+			restart = true;
+			mode = 1;
+		} else if (strcmp(line, "loader") == 0 || strcmp(line, "fastboot") == 0) {
+			int error = hakios_ufs_loader_flag();
+
+			reply = error == 0 ? "the loader's flag is set: restarting into its USB command mode\n" :
+			    "the loader's flag could not be written (ufs_write=1?): nothing done\n";
+			restart = error == 0;
+			mode = 1;
+		} else if (strcmp(line, "stock-fastboot") == 0) {
+			reply = "the loader's reset into stock fastboot (does not work on vayu yet)\n";
+			restart = true;
+			mode = 2;
+		} else if (strcmp(line, "ping") == 0) {
+			reply = "pong\n";
+		} else {
+			reply = "? (reboot, loader, stock-fastboot, ping)\n";
+		}
+		(void)port_send(cs, reply, strlen(reply));
+		sock_close(cs);
+		if (restart) {
+			int32_t ignored = 0;
+
+			printf("vayu-usbnet: \"%s\" over the command port: sync, then back to the loader (mode %llu)\n",
+			    line, mode);
+			(void)sync(kernproc, NULL, &ignored);
+			IOSleep(1000);          /* (the reply and the line out; the flash's last writes done) */
+			loader_live_reboot_mode_set(mode);
+			loader_live_stop_set();
+		}
+	}
+}
+
+static void
+usbnet_ports_start(void)
+{
+	uint32_t ports = 1;
+	thread_t thread;
+
+	PE_parse_boot_argn("usbnet_ports", &ports, sizeof(ports));
+	if (ports == 0) {
+		return;
+	}
+	if (kernel_thread_start(log_port_thread, NULL, &thread) == KERN_SUCCESS) {
+		thread_deallocate(thread);
+	}
+	if (kernel_thread_start(command_port_thread, NULL, &thread) == KERN_SUCCESS) {
+		thread_deallocate(thread);
+	}
+	printf("vayu-usbnet: the live log on TCP 5140, commands on 5141 (usbnet_ports=0: neither)\n");
+}
+
 /* ---- what the controller's side calls -------------------------------------------------------- */
 
 void
@@ -1382,6 +1657,7 @@ vayu_usbnet_ecm_init(void)
 		HakiosEthernetStart("en2", usbnet_address);
 		printf("vayu-usbnet: en2 left to configd (DHCP); usbnet_static=1 would set it here\n");
 	}
+	usbnet_ports_start();
 }
 
 void

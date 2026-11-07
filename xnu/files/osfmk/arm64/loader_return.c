@@ -92,6 +92,7 @@ static uint64_t loader_l1[512] __attribute__((aligned(4096)));
 static uint64_t loader_l2[512] __attribute__((aligned(4096)));
 
 static uint32_t loader_log_ring_at;      /* where the next character goes in the ring */
+static uint64_t loader_log_total;        /* characters ever put in: the live log's positions (loader_log_copy) */
 static bool     loader_log_wrapped;
 static bool     loader_log_linear;       /* the pieces have been put in order: only appending from now on */
 
@@ -157,6 +158,7 @@ loader_log_line(const char *line)
 static void
 loader_log_put_locked(char c)
 {
+	loader_log_total++;
 	if (loader_log_linear || loader_log_len < LOADER_LOG_HEAD) {
 		if (loader_log_len < LOADER_LOG_SIZE) {
 			loader_log[loader_log_len++] = c;
@@ -233,6 +235,10 @@ struct loader_live {
 	uint64_t magic3;                /* "XNULIVE3": the kernel has what follows */
 	volatile uint64_t usb_take;     /* ours: 1 = this kernel wants the USB controller (usb_handover=1) */
 	volatile uint64_t usb_given;    /* the loader's: 1 = it no longer touches USB in this run */
+	uint64_t magic4;                /* "XNULIVE4": what follows is there */
+	volatile uint64_t reboot_mode;  /* ours: what the loader does after this run: 1 reset (iOS again), 2 reset into
+	                                 * stock fastboot (loader 2.4; does not work on vayu), 3 stay in its USB
+	                                 * command mode (loader 2.5) */
 };
 
 /*
@@ -249,7 +255,60 @@ struct loader_live loader_live = {
 	.recording = loader_recording,
 	.magic2 = 0x324556494c554e58ULL, .sound = loader_sound,
 	.magic3 = 0x334556494c554e58ULL, .usb_take = 0, .usb_given = 0,
+	.magic4 = 0x344556494c554e58ULL, .reboot_mode = 0,
 };
+
+/*
+ * vayu_usbnet_ecm.c's command port ("fastboot"): the end of this run is to be a reset into fastboot,
+ * which the loader does with the firmware's own call (ResetSystem with ABL's RESET_PARAM, mode 2) once
+ * the kernel is back -- so the restart must come back to the loader, not go to PSCI (loader_end_request).
+ */
+void loader_live_reboot_mode_set(uint64_t mode);
+void loader_live_stop_set(void);
+
+/* The end of the run, as "xl stop" asks for it: loader_stop_poll() sees this within a second. */
+void
+loader_live_stop_set(void)
+{
+	loader_live.stop = 1;
+	__builtin_arm_dsb(0xf);
+}
+
+void
+loader_live_reboot_mode_set(uint64_t mode)
+{
+	loader_live.reboot_mode = mode;
+	__builtin_arm_dsb(0xf);
+}
+
+/*
+ * The live log (vayu_usbnet_ecm.c, TCP 5140): characters from *pos on, at most max, *pos moved on.
+ * Positions count every character ever put in: the head (the first LOADER_LOG_HEAD) stays as it is,
+ * the ring keeps the last LOADER_LOG_RING of the rest; a reader that fell further behind than the
+ * ring (less a margin for the writer) skips ahead. No lock: a character torn by a writer on another
+ * processor is the worst that can happen, and the reader must never wait for one.
+ */
+uint32_t loader_log_copy(uint64_t *pos, char *out, uint32_t max);
+
+uint32_t
+loader_log_copy(uint64_t *pos, char *out, uint32_t max)
+{
+	uint64_t total = os_atomic_load(&loader_log_total, relaxed);
+	uint32_t n = 0;
+
+	if (loader_log_linear) {
+		return 0;               /* (the run is ending: the pieces are being put in order) */
+	}
+	if (*pos >= LOADER_LOG_HEAD && total > *pos && total - *pos > LOADER_LOG_RING - 65536) {
+		*pos = total - (LOADER_LOG_RING - 65536);
+	}
+	while (n < max && *pos < total) {
+		out[n++] = *pos < LOADER_LOG_HEAD ? loader_log[*pos] :
+		    loader_log[LOADER_LOG_HEAD + (*pos - LOADER_LOG_HEAD) % LOADER_LOG_RING];
+		(*pos)++;
+	}
+	return n;
+}
 
 /*
  * The handover, for a driver that takes a controller the loader's UEFI also drives (bsd/dev/
@@ -451,6 +510,9 @@ loader_end_request(boolean_t restart)
 	}
 	if (restart && PE_parse_boot_argn("restart_loader", &to_loader, sizeof(to_loader)) && to_loader) {
 		return;
+	}
+	if (restart && loader_live.reboot_mode != 0) {
+		return;                 /* (into fastboot: the loader's to do, loader_live_reboot_mode_set) */
 	}
 	loader_end_action = restart ? LOADER_END_RESTART : LOADER_END_POWER_OFF;
 #else

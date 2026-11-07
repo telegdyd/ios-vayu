@@ -255,12 +255,22 @@ clean_dcache(uint64_t start, uint64_t end)
 /* ------------------------------------------------------------------------ */
 /* Log persistence: raw write to a GPT partition (phone only)               */
 
+static efi_block_io *find_partition(const char16 *want, unsigned length);
+
 static efi_block_io *
 find_log_partition(void)
 {
+	static const char16 want[] = LOG_PARTITION;
+
+	return find_partition(want, sizeof(want) / sizeof(want[0]));
+}
+
+/* The partition whose GPT name is exactly want (length counts its terminating 0), or NULL. */
+static efi_block_io *
+find_partition(const char16 *want, unsigned length)
+{
 	static const efi_guid part_guid = EFI_PARTITION_INFO_GUID;
 	static const efi_guid blk_guid = EFI_BLOCK_IO_GUID;
-	static const char16 want[] = LOG_PARTITION;
 	efi_handle *handles;
 	uint64_t count;
 
@@ -275,7 +285,7 @@ find_log_partition(void)
 		if (EFI_ERROR(BS->handle_protocol(handles[i], &part_guid, (void **)&info)) || info->type != 2) {
 			continue;
 		}
-		for (unsigned k = 0; k < sizeof(want) / sizeof(want[0]); k++) {
+		for (unsigned k = 0; k < length; k++) {
 			if (info->name[k] != want[k]) {
 				match = 0;
 				break;
@@ -752,9 +762,162 @@ platform_by_name(const char *name, uint32_t len)
 
 /* ------------------------------------------------------------------------ */
 
+static int kernel_wants_fastboot;      /* the last run's kernel set reboot_mode 2 (its command port: "stock-fastboot") */
+static int kernel_wants_loader;        /* ... 3: stay in the USB command mode (its command port: "loader", 2.5) */
+
+/*
+ * Into fastboot (2.4): what ABL's own "fastboot reboot-bootloader" does (QcomModulePkg BootLib
+ * ShutdownServices.c, RebootDevice(FASTBOOT_MODE)): ResetSystem, cold, with a status other than success
+ * and the data { L"RESET_PARAM", mode 2 }; Qualcomm's reset service turns the mode into the PMIC's PON
+ * reboot reason, which the next boot's ABL reads. Mode 2 only, never 0xff (EDL: auth-locked on this phone).
+ * A firmware that ignores it resets all the same, into iOS: harmless.
+ */
+/*
+ * flash:boot (2.5): the last download (an Android boot image, "ANDROID!") into the partition named exactly
+ * "boot", from its first block, the rest of the image's last block zeroed; then read back and compared.
+ * Nothing else is ever written by this: not boot_a/b (vayu has neither), not a bootloader, not darwin.
+ */
+static uint64_t download_size;          /* bytes of the last download: (not into the ramdisk) */
+static efi_block_io *find_partition(const char16 *want, unsigned length);
+
+static void wdt_pet(void);
+
+/*
+ * The download is in RAM the firmware keeps out of its own map (PAYLOAD_BASE); its UFS driver gets every
+ * byte through a buffer of its own allocation instead -- what logdump's and darwin's writes, which work,
+ * also use (the first try, writing straight from PAYLOAD_BASE, took the phone down mid-write, 02:3x).
+ * A megabyte at a time, the watchdog fed between, then all of it read back the same way.
+ */
+#define FLASH_CHUNK     (1024 * 1024)
+
+static int
+flash_boot(const char **why)
+{
+	static const char16 name[] = u"boot";
+	const uint8_t *image = (const uint8_t *)PAYLOAD_BASE;
+	efi_block_io *bio = find_partition(name, sizeof(name) / sizeof(name[0]));
+	uint64_t block, bytes, rounded, at;
+	uint8_t *bounce = NULL;
+	efi_status s = 0;
+	int ok = 0;
+
+	if (bio == NULL) {
+		*why = "no partition named boot";
+		return 0;
+	}
+	block = bio->media->block_size;
+	bytes = (bio->media->last_block + 1) * block;
+	rounded = (download_size + block - 1) / block * block;
+	if (download_size < 4096 || memcmp(image, "ANDROID!", 8) != 0) {
+		*why = "the download is not a boot image";
+		return 0;
+	}
+	if (rounded > bytes || rounded > PAYLOAD_MAX_SIZE - 0x100000 || FLASH_CHUNK % block != 0) {
+		*why = "the image is larger than boot";
+		return 0;
+	}
+	if (EFI_ERROR(BS->allocate_pool(2 /* EfiLoaderData */, FLASH_CHUNK, (void **)&bounce))) {
+		*why = "no buffer";
+		return 0;
+	}
+	memset((uint8_t *)PAYLOAD_BASE + download_size, 0, rounded - download_size);
+	print("flash: boot: %d bytes (%d blocks of %d) of %d, through a 1 MB buffer\n", download_size, rounded / block,
+	    block, bytes);
+	flush_log();
+	for (at = 0; at < rounded && !EFI_ERROR(s); at += FLASH_CHUNK) {
+		uint64_t n = rounded - at < FLASH_CHUNK ? rounded - at : FLASH_CHUNK;
+
+		memcpy(bounce, image + at, n);
+		s = bio->write_blocks(bio, bio->media->media_id, at / block, n, bounce);
+		wdt_pet();
+	}
+	if (!EFI_ERROR(s)) {
+		s = bio->flush_blocks(bio);
+	}
+	if (EFI_ERROR(s)) {
+		print("flash: boot: write failed %x at %d\n", s, at);
+		*why = "the write failed";
+	} else {
+		ok = 1;
+		for (at = 0; at < rounded && ok; at += FLASH_CHUNK) {
+			uint64_t n = rounded - at < FLASH_CHUNK ? rounded - at : FLASH_CHUNK;
+
+			if (EFI_ERROR(bio->read_blocks(bio, bio->media->media_id, at / block, n, bounce))) {
+				*why = "written, but not read back";
+				ok = 0;
+			} else if (memcmp(bounce, image + at, n) != 0) {
+				*why = "read back DIFFERENT";
+				ok = 0;
+			}
+			wdt_pet();
+		}
+	}
+	BS->free_pool(bounce);
+	print("flash: boot: %s\n", ok ? "written, read back the same" : *why);
+	flush_log();
+	return ok;
+}
+
+/*
+ * 2.5: the kernel's "loader" (vayu_usbnet_ecm.c) leaves "XNULOADR" in darwin's block 3145727 (hakios.ufs.c,
+ * LOADER_FLAG_BLOCK) and resets; a standalone start that finds it clears it first -- so that the next
+ * start is iOS's again, whatever happens -- and stays in its USB command mode.
+ */
+#define LOADER_FLAG_BLOCK       3145727ULL
+
+static int
+standalone_loader_flag(void)
+{
+	static const char16 name[] = u"darwin";
+	efi_block_io *bio = find_partition(name, sizeof(name) / sizeof(name[0]));
+	uint8_t *block = NULL;
+	uint64_t size;
+	int found = 0;
+
+	if (bio == NULL || bio->media->block_size != 4096 || bio->media->last_block < LOADER_FLAG_BLOCK + 1) {
+		return 0;
+	}
+	size = bio->media->block_size;
+	if (EFI_ERROR(BS->allocate_pool(2 /* EfiLoaderData */, size, (void **)&block))) {
+		return 0;
+	}
+	if (!EFI_ERROR(bio->read_blocks(bio, bio->media->media_id, LOADER_FLAG_BLOCK, size, block)) &&
+	    memcmp(block, "XNULOADR", 8) == 0) {
+		memset(block, 0, size);
+		found = !EFI_ERROR(bio->write_blocks(bio, bio->media->media_id, LOADER_FLAG_BLOCK, size, block)) &&
+		    !EFI_ERROR(bio->flush_blocks(bio));
+		print("standalone: the loader's flag in darwin: %s\n", found ? "cleared" : "could not be cleared: ignored");
+	}
+	BS->free_pool(block);
+	return found;
+}
+
+static void
+reboot_bootloader(void)
+{
+	static const struct {
+		uint16_t text[12];
+		uint8_t mode;
+	} __attribute__((packed)) data = { { 'R', 'E', 'S', 'E', 'T', '_', 'P', 'A', 'R', 'A', 'M', 0 }, 2 };
+
+	print("reset: into fastboot (ResetSystem with RESET_PARAM, mode 2)\n");
+	hc_take_back("before the reset");
+	flush_log();
+	/* (cold, the first try, came back into iOS: warm first now, then cold) */
+	ST->rt->reset_system(1 /* EfiResetWarm */, 0x8000000000000002ULL /* EFI_INVALID_PARAMETER: the data counts */,
+	    sizeof(data), (void *)&data);
+	ST->rt->reset_system(0 /* EfiResetCold */, 0x8000000000000002ULL, sizeof(data), (void *)&data);
+	ST->rt->reset_system(0 /* EfiResetCold */, 0, 0, NULL);
+	for (;;) {
+	}
+}
+
 static void
 reboot(void)
 {
+	if (kernel_wants_fastboot) {
+		reboot_bootloader();
+	}
 	hc_take_back("before the reset");
 	flush_log();
 	ST->rt->reset_system(0 /* EfiResetCold */, 0, 0, NULL);
@@ -1064,6 +1227,8 @@ struct kernel_live {
 	uint64_t magic3;                /* "XNULIVE3": the kernel has what follows (USB handover, USB networking) */
 	volatile uint64_t usb_take;     /* the kernel writes 1: it wants the USB controller (usb_handover=1) */
 	volatile uint64_t usb_given;    /* this loader writes 1: it has stopped touching USB for this run */
+	uint64_t magic4;                /* "XNULIVE4": the kernel has what follows */
+	volatile uint64_t reboot_mode;  /* the kernel's: 1 reset, 2 reset into stock fastboot, 3 stay in USB mode */
 };
 
 /*
@@ -1139,6 +1304,7 @@ static const char *sound_data;
 static uint64_t sound_len;
 #define KERNEL_LIVE_MAGIC2      0x324556494c554e58ULL
 #define KERNEL_LIVE_MAGIC3      0x334556494c554e58ULL   /* "XNULIVE3" */
+#define KERNEL_LIVE_MAGIC4      0x344556494c554e58ULL   /* "XNULIVE4" */
 #define KERNEL_LIVE_MAGIC       0x214556494c554e58ULL
 #define OTHER_CPU_NOT_STARTED   1000    /* run_on_other_cpu(): the firmware said yes but the core never arrived */
 #define OTHER_CPU_HUNG          1001    /* ... the kernel stopped giving signs of life */
@@ -2572,6 +2738,12 @@ run_on_other_cpu(uint64_t mpidr, uint64_t entry, uint64_t boot_args_pa, const st
 			for (volatile int i = 0; i < 20000; i++) {
 			}
 		}
+	}
+	if (live != NULL && live->magic2 == KERNEL_LIVE_MAGIC2 && live->magic3 == KERNEL_LIVE_MAGIC3 &&
+	    live->magic4 == KERNEL_LIVE_MAGIC4 && (live->reboot_mode == 2 || live->reboot_mode == 3)) {
+		kernel_wants_fastboot = live->reboot_mode == 2;
+		kernel_wants_loader = live->reboot_mode == 3;
+		print("run: the kernel asked for %s at its end\n", kernel_wants_loader ? "this loader's USB mode" : "fastboot");
 	}
 	running_live = NULL;
 
@@ -5630,7 +5802,7 @@ fb_command(char *cmd)
 			if (str_eq(var, "product")) {
 				fb_reply("OKAY", "xnuloader");
 			} else if (str_eq(var, "version")) {
-				fb_reply("OKAY", "2.3");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host); 2.3: a standalone boot with usb_handover=1 starts USB, for the kernel to take */
+				fb_reply("OKAY", "2.5");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host); 2.3: a standalone boot with usb_handover=1 starts USB, for the kernel to take; 2.4: reboot-bootloader, and a kernel's reboot_mode 2 ends a standalone run in fastboot; 2.5: reboot_mode 3 keeps a standalone run's loader in USB mode, flash:boot */
 			} else if (str_eq(var, "max-download-size")) {
 				fb_reply("OKAY", download_to_ramdisk ? "0xffffffff" : "0x03f00000");
 			} else if (str_eq(var, "result")) {
@@ -5691,6 +5863,8 @@ fb_command(char *cmd)
 			if (got == total) {
 				if (to_ramdisk) {
 					resident_rd_size = total;
+				} else {
+					download_size = total;
 				}
 				fb_reply("OKAY", "");
 			} else {
@@ -5805,6 +5979,18 @@ fb_command(char *cmd)
 				compose_logs(returned_klog, returned_klog_len);  /* (the last run's kernel log, if any) */
 			}
 			fb_reply("OKAY", "");
+		} else if (starts_with(cmd, "flash:boot")) {
+			const char *why = "";
+
+			if (flash_boot(&why)) {
+				fb_reply("OKAY", "");
+			} else {
+				fb_reply("FAIL", why);
+			}
+		} else if (starts_with(cmd, "reboot-bootloader") || starts_with(cmd, "oem reboot-bootloader")) {
+			fb_reply("OKAY", "");
+			BS->stall(200000);
+			reboot_bootloader();
 		} else if (starts_with(cmd, "reboot") || starts_with(cmd, "oem reboot")) {
 			fb_reply("OKAY", "");
 			BS->stall(200000);
@@ -6067,11 +6253,32 @@ efi_main(efi_handle image, efi_system_table *st)
 		 * then "left alone"). Started here as for the command loop: the host sees the loader's fastboot
 		 * device until the handover, then the kernel's USB Ethernet.
 		 */
+		if (standalone_loader_flag()) {
+			if (usb_start()) {
+				print("standalone: the flag in darwin asks for the loader: USB command mode\n");
+				flush_log();
+				usb_command_loop();
+			}
+			print("standalone: USB did not start: iOS instead\n");
+		}
 		if (aud_word(pi.cmdline, "usb_handover=1") && USB == NULL) {
 			print("standalone: usb_handover=1: %s\n", usb_start() ? "USB started, for the kernel to take" :
 			    "USB did not start: the kernel will have none");
 		}
 		run_kernel(0, 0);
+		/*
+		 * 2.5: the kernel's command port said "loader": stay, and take commands over USB as after
+		 * "fastboot boot" -- xl runs kernels from here and flashes boot (flash:boot), and "reboot"
+		 * starts the flashed system again. (run_kernel() has restarted the USB stack after the handover.)
+		 */
+		if (kernel_wants_loader) {
+			kernel_wants_loader = 0;
+			if (USB != NULL || usb_start()) {
+				print("standalone: the kernel asked for the loader: USB command mode\n");
+				flush_log();
+				usb_command_loop();
+			}
+		}
 	}
 	reboot();
 	return 0;

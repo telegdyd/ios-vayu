@@ -647,6 +647,41 @@ ufs_write(uint32_t part, uint64_t offset, const uint8_t *src, uint64_t len)
 	return error;
 }
 
+/*
+ * vayu's "loader" (vayu_usbnet_ecm.c's command port): one block of darwin that loader 2.5 reads at the
+ * next start -- "XNULOADR" there makes it clear the block and take commands over USB, as after
+ * "fastboot boot", instead of starting iOS. The block is the last of var_store's second slot
+ * (darwin-install.sh: slots 2097152..3145727, unused since the data volume is HFS Plus, var_hfs=1),
+ * past ufs_write_first, before the data volume (3145728..).
+ */
+#define LOADER_FLAG_BLOCK       3145727ULL
+
+static void ufs_write_restore(void);
+
+int hakios_ufs_loader_flag(void);
+
+int
+hakios_ufs_loader_flag(void)
+{
+	static uint8_t block[16384] __attribute__((aligned(4096)));
+	uint64_t nbs;
+	int error;
+
+	if (!ufs_ready || ufs_write_part < 0) {
+		return EROFS;
+	}
+	nbs = ufs_page->part[ufs_write_part].block_size;
+	if (nbs == 0 || nbs > sizeof(block)) {
+		return EINVAL;
+	}
+	bzero(block, sizeof(block));
+	memcpy(block, "XNULOADR", 8);
+	error = ufs_write((uint32_t)ufs_write_part, LOADER_FLAG_BLOCK * nbs, block, nbs);
+	ufs_write_restore();
+	printf("ufs: the loader's flag (darwin block %llu): %d\n", LOADER_FLAG_BLOCK, error);
+	return error;
+}
+
 /* The writing over: this kernel's own transfer list back in, and reads through it again. */
 static void
 ufs_write_restore(void)

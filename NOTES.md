@@ -3,7 +3,33 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
-## Active handoff (2026-11-07 ~01:50: iOS in `boot` with the USB shell; the agent reaches the phone itself)
+## Active handoff (2026-11-07 ~03:10: the test loop is closed -- iOS, loader, flash, iOS with nobody at the phone)
+
+- **FACT (2026-11-07 02:5x-03:04):** `boot` holds xnu-standalone.img 4b79c0ce... (loader 2.5 4894c295..., kernel
+  87b9c382...). Twice without a hand on the phone (looptest + `phone.sh deploy`): iOS -> `sweet-cmd.py loader` -> our
+  loader on USB in 3 s -> `fastboot flash boot` (flash:boot: 14080000 bytes, read back the same) -> reboot -> iOS
+  answers at +50 s (var boot counter 17, 18).
+- The tools (devices/poco-x3-pro/tools): `phone.sh state|loader|flash|reboot|deploy|sh|log` (the loop);
+  sweet-sh.py (sweetd, TCP 5143: programs + built-ins ls cat sysctl put rm mkdir kill); sweet-cmd.py (kernel, TCP
+  5141: reboot, loader, ping); sweet-netlog.py (kernel log, TCP 5140, whole boot then live). In our loader's USB
+  mode xl works as after `xl enter` (xl run from RAM, xl log).
+- Kernel (vayu_usbnet_ecm.c): the ports from ios-jasmine (0077/j0021/j0022). "reboot" and "loader" never go
+  through iOS's shutdown: reboot_kernel() from the command thread hung after unmounting /dev (run 020558, 7.5 min);
+  instead sync() then loader_live.stop (the "xl stop" path). "loader" first writes "XNULOADR" into darwin block
+  3145727 (hakios.ufs.c hakios_ufs_loader_flag; the end of var_store's unused second slot).
+- Loader 2.5: a standalone start finds the flag, clears it (the next start is iOS again whatever happens), starts
+  USB and takes commands (usb_command_loop) -- a fresh-boot USB start, the path `fastboot boot` takes. flash:boot
+  writes the partition named exactly "boot" from the last download (ANDROID! magic, size checked) through a 1 MB
+  UEFI pool buffer, watchdog fed per chunk, read back. FACT: writing straight from PAYLOAD_BASE took the phone down
+  mid-write (02:3x); FACT: staying in the loader after a run (reboot_mode 3, USB stack restarted after the
+  handover) did not enumerate until a replug, then "unknown USB device" -- not used any more.
+- Stock fastboot without buttons: NOT possible so far. FACT: PON SOFT_RB_SPARE (PM8150 0x88f) is SPMI channel 1,
+  owned by system 1, not apps (run 020558); FACT: UEFI ResetSystem cold with ABL's RESET_PARAM mode 2 rebooted
+  into iOS (loader 2.4; 2.5 tries warm first, untested). Not needed for the loop; stock fastboot (buttons) is the
+  way back if a flashed boot does not start: ../backup-vayu/xnu-standalone-hfs.img (cd3e34b5, no USB shell).
+- Next: whatever the user wants worked on -- the agent can now build, deploy and inspect on its own.
+
+## Earlier (2026-11-07 ~01:50: iOS in `boot` with the USB shell; the agent reaches the phone itself)
 
 - **FACT (2026-11-07 ~01:50):** xnu-standalone.img a4373c63... flashed into `boot` (user's OK), `fastboot reboot`:
   ping 169.254.7.2 at +77 s, sweetd answered (var boot counter 8, the four usbnet args in kern.bootargs, ps -A with
