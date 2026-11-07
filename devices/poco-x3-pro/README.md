@@ -50,7 +50,7 @@ user-space sources compile and link, and it has not been booted since. Run it be
 | Bluetooth | Qualcomm WCN3998 on a QUP UART | `vayu_bt.c`, `userland/src` extras: `bluetool_stub.c` | built; the controller initialises and `bluetoothd` reports its stack up on hardware, then stops at a vendor-specific command that times out (a workaround for it is written and has not been seen to work); no pairing |
 | NFC | NXP PN553 on I2C | `vayu_nfc.c` | built; the controller answers `CORE_RESET` and `CORE_INIT` on hardware, discovery is not reached |
 | IR blaster | SPI engine | `vayu_ir.c`, `vayu_irtest.c` | built, not confirmed |
-| USB networking | DWC3 gadget, CDC-NCM (ECM with `usbnet_ecm=1`) | `vayu_usbnet.c`, `vayu_usbnet_ecm.c` | works with Windows' own driver: 169.254.7.2; sweetd shell on TCP 5143, live kernel log on 5140, commands on 5141; `tools/phone.sh` state/sh/log over USB; its loader paths (loader, flash, deploy) are off: loader mode hangs after a forced restart (NOTES.md), deploys go from iOS |
+| USB networking | DWC3 gadget, CDC-NCM (ECM with `usbnet_ecm=1`) | `vayu_usbnet.c`, `vayu_usbnet_ecm.c` | works with Windows' own driver: 169.254.7.2; sweetd shell on TCP 5143, live kernel log on 5140, commands on 5141; `tools/phone.sh` state/sh/log over USB, and `deploy` from iOS (the image staged in darwin, loader 2.8 writes `boot` at the next start, verified); its loader-mode paths (loader, flash) are off: loader mode hangs after a forced restart (NOTES.md) |
 
 The rest of the stock iOS user space comes from your own IPSW exactly as on the POCO X5 Pro.
 

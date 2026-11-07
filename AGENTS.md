@@ -22,9 +22,10 @@ github.com/nomorecoolnicknames/hackios-xnu-kernel-vayu, branch `main`); our work
   (xbl, abl, devcfg, ...), modem, persist, modemst/fsg and the partition backups intact: Xiaomi EDL is
   auth-locked, a broken bootloader chain cannot be repaired at home. The user wants iOS installed on the
   phone eventually (Android may go); confirm every destructive step with the user before running it.
-- Deploys: flash `boot` from iOS, never through our loader's USB mode (no "loader" on the command port, no
-  `phone.sh loader|flash|deploy`, no `flash:boot`): it hangs after any forced restart (NOTES.md, "Loader-mode
-  hang (parked)"). Until the flash-from-iOS command exists, `boot` is written only from vayu's stock fastboot,
-  which the user enters (volume down + power).
+- Deploys: `FLASH_BOOT=yes devices/poco-x3-pro/tools/phone.sh deploy [IMAGE]` from a settled iOS (staged in
+  darwin, written by the loader at the next start, verified; NOTES.md "Flash from iOS"). Never through our
+  loader's USB mode (no "loader" on the command port, no `phone.sh loader|flash`, no `flash:boot`): it hangs
+  after any forced restart (NOTES.md, "Loader-mode hang (parked)"). If `boot` does not start, vayu's stock
+  fastboot, which the user enters (volume down + power).
 - Keep device dumps, serial numbers, IMEI/SIM identifiers, Wi-Fi secrets and Apple/vendor files out of git.
 - C: is small (~26 GB free at setup). Check `df` before large downloads or builds.

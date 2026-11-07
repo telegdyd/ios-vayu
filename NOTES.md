@@ -1,12 +1,32 @@
 # ios-vayu notes
 
-**Deploys (user decision 2026-11-07): flash from iOS, never through our loader's USB mode.** No agent sends
-"loader"/"fastboot" to the command port, runs `phone.sh loader|flash|deploy`, or flashes `boot` in our
-loader (`flash:boot`, `xl` there). Loader mode hangs inside Qualcomm's USB driver after any forced restart
-(below, "Loader-mode hang (parked)"). Until the flash-from-iOS command exists: `boot` is written only from
-vayu's stock fastboot (the user: volume down + power), `fastboot flash boot IMAGE`, `fastboot reboot`,
-with a copy of the image in ../backup-vayu first. `phone.sh` refuses the loader paths (LOADER_MODE=yes
-overrides: only on the user's word, for work on the hang itself).
+**Deploys (user decision 2026-11-07): flash from iOS, never through our loader's USB mode.**
+`FLASH_BOOT=yes devices/poco-x3-pro/tools/phone.sh deploy [IMAGE]` from a settled iOS (~1.5 min): the image
+put on the phone, staged in darwin by `flash_stage` (userland/src/flash_stage.c; the binary
+userland/obj/flash_stage, kept on the phone as /private/var/hakios/flash_stage), a reboot -- loader 2.8 writes
+`boot` before anything else and restarts -- then iOS again and `boot` compared with the image. Keep a copy of
+each image in ../backup-vayu. No agent sends "loader"/"fastboot" to the command port, runs `phone.sh
+loader|flash`, or flashes `boot` in our loader (`flash:boot`, `xl` there): loader mode hangs inside
+Qualcomm's USB driver after any forced restart (below, "Loader-mode hang (parked)"); `phone.sh` refuses
+those (LOADER_MODE=yes overrides: only on the user's word, for work on the hang itself). If `boot` does not
+start: vayu's stock fastboot (the user: volume down + power), `fastboot flash boot IMAGE`, `fastboot reboot`.
+
+## Flash from iOS (2026-11-07 ~14:40; loader 2.8)
+
+- iOS may write only darwin past ufs_write_first (hakios.ufs.c, holder of kern.hakios.var_busy), and the
+  loader on core 0 performs those writes and refuses others; so `boot` is not written by iOS. `flash_stage
+  stage IMAGE` writes IMAGE into darwin from block 2621440 (var_store's second slot: unused, var_store is off
+  with var_hfs=1), reads it back, then the header into block 3145727 ("XNUFLASH", first block, bytes,
+  FNV-1a 64). Loader 2.8 (xnuloader/loader.c standalone_staged_flash, first thing of a standalone start, no
+  USB): header cleared first, image read through a 1 MB buffer, place/size/sum checked, flash_boot() (the
+  partition named exactly "boot", "ANDROID!", read back), reset. `flash_stage verify IMAGE` reads
+  /dev/rufs_boot; `flash_stage cancel` clears a stage.
+- **FACT (14:39-14:44):** loader 2.8 image 5478afe2 (loader fa305e53, kernel 734bff34, step 3's args) put in
+  once through stock fastboot. Then from iOS: 80853881 (the same + `flashtest=1`) deployed -> iOS came back with
+  flashtest=1 in kern.bootargs (1 min 37 s); then 5478afe2 deployed back -> "boot holds" it, flashtest gone,
+  rc 0 (1 min 38 s). Staging 14 MB: ~1 s. The staged copy lives in /private/var/hakios (/private/var/tmp is
+  emptied at boot).
+- `boot` now: 5478afe2 (= ../backup-vayu/xnu-standalone-loader28-5478afe2.img).
 
 ## Loader-mode hang (parked 2026-11-07; come back to it later)
 

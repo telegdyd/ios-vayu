@@ -934,6 +934,95 @@ standalone_loader_flag(void)
 	return found;
 }
 
+/*
+ * 2.8: a boot image staged by iOS (userland/src/flash_stage.c), written into boot at this start -- deploys
+ * from iOS without our USB mode (NOTES.md "Loader-mode hang (parked)"). iOS may write only darwin past
+ * ufs_write_first; it puts the image from block 2621440 on and, last, a header into LOADER_FLAG_BLOCK:
+ * "XNUFLASH", first block, bytes, FNV-1a 64. Found here before anything else of a standalone start: the
+ * header cleared first (whatever happens, the next start is an ordinary one), the image read into the
+ * payload's RAM through a 1 MB buffer, its place, size, magic and sum checked, then flash_boot() -- the
+ * partition named exactly "boot", read back -- and a reset into it. The running payload is overwritten
+ * by then, so every way out of here is a reset, never this start's kernel.
+ */
+#define STAGE_FIRST_MIN         2097152ULL      /* ufs_write_first: where iOS may write from */
+static uint64_t ufs_fnv(uint64_t h, const uint8_t *p, uint64_t n);
+
+static void
+standalone_staged_flash(void)
+{
+	static const char16 name[] = u"darwin";
+	struct { char magic[8]; uint64_t first_block, bytes, fnv; } h;
+	efi_block_io *bio = find_partition(name, sizeof(name) / sizeof(name[0]));
+	uint8_t *block = NULL, *bounce = NULL;
+	uint64_t bs, rounded, at, sum;
+	const char *why = "?";
+	int ok = 0;
+
+	if (bio == NULL || bio->media->block_size != 4096 || bio->media->last_block < LOADER_FLAG_BLOCK + 1) {
+		return;
+	}
+	bs = bio->media->block_size;
+	if (EFI_ERROR(BS->allocate_pool(2 /* EfiLoaderData */, bs, (void **)&block))) {
+		return;
+	}
+	if (EFI_ERROR(bio->read_blocks(bio, bio->media->media_id, LOADER_FLAG_BLOCK, bs, block)) ||
+	    memcmp(block, "XNUFLASH", 8) != 0) {
+		BS->free_pool(block);
+		return;
+	}
+	memcpy(&h, block, sizeof(h));
+	memset(block, 0, bs);
+	if (EFI_ERROR(bio->write_blocks(bio, bio->media->media_id, LOADER_FLAG_BLOCK, bs, block)) ||
+	    EFI_ERROR(bio->flush_blocks(bio))) {
+		print("staged flash: the header could not be cleared: not flashed\n");
+		BS->free_pool(block);
+		return;                 /* (nothing overwritten yet: an ordinary start) */
+	}
+	BS->free_pool(block);
+	print("staged flash: %d bytes at darwin block %d, fnv %x\n", h.bytes, h.first_block, h.fnv);
+	rounded = (h.bytes + bs - 1) / bs * bs;
+	if (h.first_block < STAGE_FIRST_MIN || h.first_block + rounded / bs > LOADER_FLAG_BLOCK ||
+	    h.bytes < 4096 || rounded > PAYLOAD_MAX_SIZE - 0x200000) {
+		print("staged flash: the header is not one to trust: not flashed\n");
+		flush_log();
+		return;                 /* (nothing overwritten yet) */
+	}
+	if (EFI_ERROR(BS->allocate_pool(2 /* EfiLoaderData */, FLASH_CHUNK, (void **)&bounce))) {
+		print("staged flash: no buffer: not flashed\n");
+		flush_log();
+		return;
+	}
+	for (at = 0, ok = 1; at < rounded && ok; at += FLASH_CHUNK) {
+		uint64_t n = rounded - at < FLASH_CHUNK ? rounded - at : FLASH_CHUNK;
+
+		if (EFI_ERROR(bio->read_blocks(bio, bio->media->media_id, h.first_block + at / bs, n, bounce))) {
+			ok = 0;
+			why = "the staged image could not be read";
+		} else {
+			memcpy((uint8_t *)PAYLOAD_BASE + at, bounce, n);
+		}
+	}
+	BS->free_pool(bounce);
+	if (ok) {
+		sum = ufs_fnv(0xcbf29ce484222325ULL, (const uint8_t *)PAYLOAD_BASE, h.bytes);
+		if (sum != h.fnv) {
+			ok = 0;
+			why = "the staged image's sum is not the header's";
+			print("staged flash: fnv %x, the header says %x\n", sum, h.fnv);
+		}
+	}
+	if (ok) {
+		download_size = h.bytes;
+		ok = flash_boot(&why);  /* (checks "ANDROID!" and the size itself; prints and logs) */
+	}
+	print("staged flash: %s; restarting\n", ok ? "boot written, read back the same" : why);
+	flush_log();
+	BS->stall(1500000);             /* (a moment to read it on the screen) */
+	ST->rt->reset_system(0 /* EfiResetCold */, 0, 0, NULL);
+	for (;;) {
+	}
+}
+
 static void
 reboot_bootloader(void)
 {
@@ -6066,7 +6155,7 @@ fb_command(char *cmd)
 			if (str_eq(var, "product")) {
 				fb_reply("OKAY", "xnuloader");
 			} else if (str_eq(var, "version")) {
-				fb_reply("OKAY", "2.7-corereset");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host); 2.3: a standalone boot with usb_handover=1 starts USB, for the kernel to take; 2.4: reboot-bootloader, and a kernel's reboot_mode 2 ends a standalone run in fastboot; 2.5: reboot_mode 3 keeps a standalone run's loader in USB mode, flash:boot */
+				fb_reply("OKAY", "2.8");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host); 2.3: a standalone boot with usb_handover=1 starts USB, for the kernel to take; 2.4: reboot-bootloader, and a kernel's reboot_mode 2 ends a standalone run in fastboot; 2.5: reboot_mode 3 keeps a standalone run's loader in USB mode, flash:boot */
 			} else if (str_eq(var, "max-download-size")) {
 				fb_reply("OKAY", download_to_ramdisk ? "0xffffffff" : "0x03f00000");
 			} else if (str_eq(var, "result")) {
@@ -6504,6 +6593,7 @@ efi_main(efi_handle image, efi_system_table *st)
 	/* One-shot mode: run the kernel that came with the image, then reset. */
 	if (have_payload) {
 		standalone_boot = 1;
+		standalone_staged_flash();      /* (2.8: returns only if nothing is staged, or nothing was overwritten) */
 		if (pi.resident != NULL) {
 			if (!choose_window(&pi) || win_size <= RESIDENT_RD_OFFSET + RESIDENT_RD_RESERVE ||
 			    pi.resident_size > win_size - RESIDENT_RD_OFFSET - RESIDENT_RD_RESERVE) {
