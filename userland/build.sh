@@ -249,8 +249,9 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 		# what iOS here believes about Metal, and what CoreImage does without it (src/metal_test.m);
 		# OpenGLES for the CIContext made over an EAGLContext, which is deprecated and the point
 		$DYN -fobjc-arc -Wno-deprecated-declarations -framework Foundation -framework CoreGraphics \
-			-framework CoreImage -framework IOKit -framework Metal -framework OpenGLES \
-			-lMobileGestalt -o obj/metal_test src/metal_test.m src/metal_app.m
+			-framework CoreImage -framework IOKit -framework IOSurface -framework Metal -framework OpenGLES -framework QuartzCore \
+			-lMobileGestalt -Wl,-adhoc_codesign -o obj/metal_test src/metal_test.m src/metal_app.m src/metal_layer.m
+		$DYN -dynamiclib -Wl,-adhoc_codesign -o obj/metal_layer_lookup.dylib src/metal_layer_lookup.c
 		$DYN -o obj/shm_test src/shm_test.c
 		$DYN -o obj/apfs_mmap_test src/apfs_mmap_test.c
 		$DYN -o obj/vol_ls src/vol_ls.c
@@ -412,6 +413,7 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 	[ -f obj/snap_test ] && cp obj/snap_test root/bin/
 	[ -f obj/font_test ] && cp obj/font_test root/bin/
 	[ -f obj/metal_test ] && cp obj/metal_test root/bin/
+	[ -f obj/metal_layer_lookup.dylib ] && cp obj/metal_layer_lookup.dylib root/bin/
 	[ -f obj/net_test ] && cp obj/net_test root/bin/
 	[ -f obj/store_test ] && cp obj/store_test root/bin/
 	[ -f obj/battery_test ] && cp obj/battery_test root/bin/

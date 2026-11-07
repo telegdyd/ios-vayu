@@ -69,6 +69,32 @@ Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt a
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 10 (2026-11-07; CAMetalLayer on the panel)
+
+- **FACT (`docs/metal-step10-phone.log`, `docs/metal-layer-results.md`):** `tools/metal-layer-run.sh final-full 60` ran
+  `metal_test layer`, a full-screen CAMetalLayer (rotating triangle, frame-numbered clear colour).
+  - 3590 frames (59.8/s), 0 errors, 239 drawables read back and 0 wrong. Present interval median 16.65 / p95 18.01 /
+    p99 19.15 ms; GPU 2–3 ms a frame.
+  - QuartzCore scans the drawables out directly (framebuffer layer 0 names them); the panel runs at 60.9/s.
+  - 0 surfaces re-given to the GPU or locked while being copied to the panel, 0 copied before the GPU was done.
+  - `final-plain 20 LAYER_PLAIN=1` (the window server composites it): its output surfaces show the layer, each read
+    from one frame (`docs/metal-step10-composited.png`).
+  - Ended at 35 C / 80%. No plug-in/driver change; `HakiosGPU` 0x7e surface import is now exercised on hardware.
+- **Phone state changed (not flashed; `boot` still 4cb4ccbf):**
+  - SpringBoard was restarted once (pid 9 -> 710).
+  - `/private/var/jb/usr/lib/TweakInject/MetalLayerHost.{dylib,plist}` is installed and persists across boots. It is
+    idle until notified; delete both files to remove it.
+  - Test files are in /private/var/tmp/task10 (emptied at boot).
+- **Learned:**
+  - A sweetd child is in launchd's `system` domain and CA's services are in `user/501`. Fix: borrow SpringBoard's
+    bootstrap port before an exec, plus `metal_layer_lookup.dylib`.
+  - A remote CAContext is never drawn unless SpringBoard hosts it (CALayerHost).
+  - The AMFI stand-in gives user space nobody's entitlements.
+  - `tools/macho-sign.py` signs ad hoc with XML entitlements; a DER entitlements blob gets the signature rejected.
+  - A signed file overwritten in place counts as unsigned (stale cached signature): remove it first.
+- **Open:** `presentedTime` is never reported; a person has not looked at the panel. **Next:** task 11 (CoreAnimation
+  on Metal; `metal=3` shows backboardd the device).
+
 ## Metal step 9 (2026-11-07; a real Metal program draws and computes)
 
 - **FACT (`docs/metal-step9-phone.log`, `docs/metal-app-results.md`):** `metal_test app LIB BUNDLE CACHE` -- public

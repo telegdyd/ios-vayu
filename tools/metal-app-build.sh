@@ -42,8 +42,8 @@ $DYN -bundle -fno-objc-arc -Wno-deprecated-declarations -framework Foundation -f
 	-Wl,-U,_native_bridge_metal_open -Wl,-U,_native_bridge_metal_first_problem -Wl,-U,_native_bridge_metal_status -Wl,-U,_native_bridge_metal_formats -Wl,-U,_native_bridge_metal_variant_hook
 cp "$ROOT/userland/src/HakiosMetal.plist" "$O/HakiosMetal.bundle/Info.plist"
 $DYN -fobjc-arc -Wno-deprecated-declarations -framework Foundation -framework CoreGraphics \
-	-framework CoreImage -framework IOKit -framework Metal -framework OpenGLES \
-	-lMobileGestalt -o "$O/metal_test" "$ROOT/userland/src/metal_test.m" "$ROOT/userland/src/metal_app.m"
+	-framework CoreImage -framework IOKit -framework IOSurface -framework Metal -framework OpenGLES -framework QuartzCore \
+	-lMobileGestalt -o "$O/metal_test" "$ROOT/userland/src/metal_test.m" "$ROOT/userland/src/metal_app.m" "$ROOT/userland/src/metal_layer.m"
 
 # the library: each function's module assembled from its .ll, then the container
 K="$O/kernels"

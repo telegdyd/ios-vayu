@@ -42,6 +42,7 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
+#import <mach-o/dyld.h>
 #import <signal.h>
 #import <stdio.h>
 #import <stdlib.h>
@@ -297,6 +298,11 @@ plugins(void)
 /* `metal_test app LIBRARY [BUNDLE]`: the .metallib task 9's program runs (metal_app.m) */
 int metal_app(id<MTLDevice> device, const char *library_path);
 static const char *app_library;
+/* `metal_test layer LIBRARY [SECONDS [DIVISOR [BUNDLE]]]`: task 10's full-screen CAMetalLayer (metal_layer.m) */
+int metal_layer(id<MTLDevice> device, const char *library_path, double seconds, double divisor);
+void metal_layer_take_bootstrap(void);
+static double layer_seconds = 20, layer_divisor = 3;
+static int layer_mode;
 
 /* a device made by hand, by `metal_test bundle PATH` (see the_bundles_device): nil for the system's own */
 static id<MTLDevice> given_device;
@@ -637,7 +643,7 @@ the_bundles_device(const char *path)
 	given_device = device;
 	printf("metal_test:   -initWithAcceleratorPort: %u gave %s\n", service, device ? class_getName([device class]) : "nil");
 	if (device != nil && app_library != NULL) {
-		exit(metal_app(device, app_library));
+		exit(layer_mode ? metal_layer(device, app_library, layer_seconds, layer_divisor) : metal_app(device, app_library));
 	}
 	if (device != nil) {
 		the_device();
@@ -690,6 +696,49 @@ main(int argc, char **argv)
 				return 1;
 			}
 			return metal_app(MTLCreateSystemDefaultDevice(), app_library);
+		} else if (strcmp(argv[1], "layer") == 0 && argc > 2) {
+			/* task 10: an animated full-screen CAMetalLayer over SpringBoard, composited by the GL window server */
+			app_library = argv[2];
+			layer_mode = 1;
+			/* NAME=VALUE arguments after the library go into the environment (sweetd passes none; LAYER_PLAIN=1 ...) */
+			while (argc > 3 && strchr(argv[3], '=') != NULL) {
+				putenv(argv[3]);
+				memmove(&argv[3], &argv[4], (size_t)(argc - 3) * sizeof(*argv));
+				argc--;
+			}
+			/* run again with metal_layer_lookup.dylib (beside this program) under it: the window server's services are in
+			 * launchd's user/501 domain, which a child of sweetd does not look in (metal_layer_lookup.c) */
+			if (getenv("DYLD_INSERT_LIBRARIES") == NULL) {
+				char self[1024], lib[1100];
+				uint32_t size = sizeof(self);
+
+				if (_NSGetExecutablePath(self, &size) == 0) {
+					char *slash = strrchr(self, '/');
+
+					snprintf(lib, sizeof(lib), "%.*s/metal_layer_lookup.dylib", slash != NULL ? (int)(slash - self) : 1,
+					    slash != NULL ? self : ".");
+					if (access(lib, R_OK) == 0) {
+						metal_layer_take_bootstrap();   /* (SpringBoard's bootstrap port: kept across the exec) */
+						setenv("DYLD_INSERT_LIBRARIES", lib, 1);
+						execv(self, argv);
+						printf("metal_test: cannot run again with %s\n", lib);
+					} else {
+						printf("metal_test: no %s: the window server's lookups will fail from a system job's child\n", lib);
+					}
+				}
+			}
+			if (argc > 3) {
+				layer_seconds = atof(argv[3]);
+			}
+			if (argc > 4) {
+				layer_divisor = atof(argv[4]);
+			}
+			if (argc > 5) {
+				the_bundles_device(argv[5]);
+				printf("metal_test: the bundle gave no device\n");
+				return 1;
+			}
+			return metal_layer(MTLCreateSystemDefaultDevice(), app_library, layer_seconds, layer_divisor);
 		} else if (strcmp(argv[1], "bundle") == 0 && argc > 2) {
 			the_bundles_device(argv[2]);
 		} else if (strcmp(argv[1], "metal-blit") == 0) {

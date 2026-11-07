@@ -291,7 +291,7 @@ Every agent, every task:
   the window server stays on GL (ES 3.2, FD640) with the rebuilt Mesa. **Open:** vertex
   descriptors, depth/MSAA/MRT/blend through Metal not exercised.
 
-- [ ] **10. IOSurface textures and CAMetalLayer.**
+- [x] **10. IOSurface textures and CAMetalLayer.**
   Depends on: 9.
   Do: import IOSurfaces (`MiniIOSurface`) as Metal textures with correct tiling, layout, cache
   ownership and fences between the GPU and the display. Present through `CAMetalLayer`
@@ -302,7 +302,25 @@ Every agent, every task:
   plugin. Verify the vayu surface-import ABI instead of assuming upstream support.
   Done when: an animated Metal app is visible on the panel with no tearing or corruption, and the
   frame intervals are logged (FACT).
-  Result: —
+  Result: **FACT (2026-11-07, `metal-step10`, `docs/metal-layer-results.md`):** `metal_test layer`
+  (`userland/src/metal_layer.m`) runs a full-screen `CAMetalLayer` (rotating triangle on a frame-numbered colour) on
+  the GL window server, no flash.
+  - 60 s full screen: 3590 frames (59.8/s), 0 errors, 239 drawables read back and 0 wrong. Present interval median
+    16.65 / p95 18.01 / p99 19.15 ms; GPU 2–3 ms a frame. QuartzCore scans the drawables out directly (the kernel's
+    framebuffer layers name them); the panel runs at 60.9/s.
+  - Kernel counters: 0 surfaces re-given to the GPU or locked while being copied to the panel, 0 copied before the
+    GPU finished.
+  - Composited variant (`LAYER_PLAIN=1`): the window server's own surfaces show the layer, every sampled point from
+    one frame.
+  - The plug-in needed no change: drawables are QuartzCore's IOSurfaces imported through `HakiosGPU` 0x7e (linear
+    BGRA8, 4544-byte rows), now exercised on hardware, and presented on completion.
+  - What it took (details in the results doc): the window server's services are in launchd's `user/501` domain, so the
+    program borrows SpringBoard's bootstrap port and adds a lookup fallback. A remote context is not shown on its own,
+    so a SpringBoard tweak (`MetalLayerHost.dylib`, `/var/jb/usr/lib/TweakInject`, still installed) hosts it.
+    `tools/macho-sign.py` signs ad hoc; DER entitlements break the signature, and the AMFI stand-in gives nobody
+    entitlements.
+  - Open: `presentedTime` is never reported; nobody has looked at the panel (the evidence is kernel counters and
+    read-backs); only BGRA8 linear; app contexts hosted by FrontBoard are for tasks 11–12.
 
 ### Phase D: the system on Metal
 
@@ -422,4 +440,9 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
   The bundled `hakios-metal/plugin/HakiosMetal.m` is superseded by `userland/src/HakiosMetalCA.m`
   (`METAL_PLUGIN=basic` keeps the old one). Tasks 10–17 should build on the CA plug-in's
   IOSurface, drawable and timing paths rather than the placeholder plug-in the inventory describes.
+- **Answered (task 10):** a process outside SpringBoard gets a layer on the panel only when SpringBoard hosts its
+  context (`CALayerHost`); a displayable remote context alone is never drawn. A full-screen opaque `CAMetalLayer` is
+  not composited: QuartzCore gives the drawable to the framebuffer, which copies it to the panel after the GPU's
+  fence. For task 11 this means that when backboardd itself is on Metal, its output still reaches the panel through
+  the same framebuffer copy.
 - Which third-party Metal apps or games matter to the user? (task 12)

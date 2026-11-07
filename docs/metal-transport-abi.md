@@ -83,7 +83,7 @@ vayu source returns a constant zero for FAULTS; the probe's `FAULTS 0` lines
 are not a functioning reset counter. Successful fences/readbacks and no
 transport errors provide the positive hardware evidence in this task.
 
-Selector `0x7e` imports IOSurfaces using the 40-byte `HakiosSurface` layout.
+Selector `0x7e` imports IOSurfaces using the 40-byte `HakiosSurface` layout (exercised on hardware by task 10: QuartzCore's CAMetalLayer drawables, linear BGRA8, 4544-byte rows; `docs/metal-layer-results.md`).
 It is outside stages 1–4 and **not validated here**. Fence FDs, syncobjs, per-process
 GPU page tables, reset recovery and shader execution are likewise not validated.
 

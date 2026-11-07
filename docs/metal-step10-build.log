@@ -1,0 +1,18 @@
+# task 10 build (WSL Debian, toolchain of ~/vayu), 2026-11-07: bash tools/metal-layer-build.sh
+userland/obj/task10/metal_test: signed ad hoc as metal_test, 32 pages, 7 entitlements (1952 bytes)
+userland/obj/task10/task10.metallib: 2 functions
+version    (1, 2)
+total      5119
+file       5119
+funcs      (88, 287)
+public     (427, 16)
+private    (443, 16)
+bitcode    (459, 4640)
+2 functions
+  tri_dpos_vs                                          vertex        air 2.5.3.0  module 2368
+  tri_cflat_fs                                         fragment      air 2.5.3.0  module 2272
+1cf50e847b4e9a10d535380052aab66029b5d182081cee218636611378d5238c  userland/obj/task10/metal_test
+6a608e30a26ffd05241141db9dca0f494b27bd75d58ea491a184e7324505e2a8  userland/obj/task10/metal_layer_lookup.dylib
+4b56a6fdd8395dbffdb2703c8d520384f34fd1ccb177ba36d48c3ae14fbb911a  userland/obj/task10/MetalLayerHost.dylib
+f16eaebdfd5bdb89cd771afc041f10408a1e9a4f422664f675f4ce3bf34fea6c  userland/obj/task10/task10.metallib
+# exit 0
