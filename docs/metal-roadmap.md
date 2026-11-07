@@ -286,9 +286,10 @@ Every agent, every task:
   fixtures byte for byte; `argbuf_res` regenerated and compiled/run on the phone (probe 6w).
   Host 263 tests (MESA=1) / 262 (none), 0 failed. Compiler-enabled probe: 279 ok, 1 strict
   word-identity failure (`tex_fill` compiles differently on iOS; that code runs right).
-  **Open:** device made from the uploaded bundle, not yet `MTLCreateSystemDefaultDevice()`
-  (needs a new image: deploy with the user's OK); the image's GL Mesa will pick up two new ir3
-  patches, unseen on GL; vertex descriptors, depth/MSAA/MRT/blend through Metal not exercised.
+  **Deployed (user's OK):** image 4cb4ccbf (`docs/metal-step9-deploy.log`): on
+  `MTLCreateSystemDefaultDevice()` the same 24/24, twice; the disk cache survives the reboot;
+  the window server stays on GL (ES 3.2, FD640) with the rebuilt Mesa. **Open:** vertex
+  descriptors, depth/MSAA/MRT/blend through Metal not exercised.
 
 - [ ] **10. IOSurface textures and CAMetalLayer.**
   Depends on: 9.

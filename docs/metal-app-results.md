@@ -96,16 +96,28 @@ GNU's on Linux, and differs on equal keys). Not chased further; the check stays 
 - Build: ld64 needs `-Wl,-U,_native_bridge_metal_*` for the plug-in's weak metal2vulkan symbols; `llvm-nm` (not
   binutils `nm`) reads the Mach-O archive.
 
+## Deployed: the system path (image 4cb4ccbf)
+
+With the user's OK the plug-in went into the image (`docs/metal-step9-deploy.log`): 4cb4ccbf = task 8's 1252556b
+with only the ramdisk rebuilt (d2186bb7: `bin/metal_test`, the plug-in, `libOSMesa` and `motd` differ from step 8's
+tree; same 21 firmware files, same kernel, loader, resident image and command line). Deployed from iOS; `boot`
+holds it. Backups: `../backup-vayu/xnu-standalone-metal9-4cb4ccbf.img`, `root-flash-fcb7ecfa.apfs`; rollback 1252556b.
+
+- **FACT:** `/redwood/bin/metal_test app task9.metallib` on `MTLCreateSystemDefaultDevice()`: 24 of 24, twice.
+  The first run after the reboot took every stage of the earlier runs from `/private/var/db/hakios-metal-cache`
+  (the cache survives a reboot); only `tex_fill`, never cached there before, compiled. Second run: all from the cache.
+- **FACT:** `metal_test device`: the system device "HakiOS Adreno 640", registry ID 4294967593, task 8's limits and
+  families, blit PASS.
+- **FACT (boot console):** the window server is refused the device (metal=1) and makes its OpenGL ES 3.2 context
+  on FD640 with the rebuilt Mesa (the two new ir3 patches in); SpringBoard 9 / backboardd 15 stay up. Not looked
+  at beyond that: GL rendering correctness under the new Mesa was not checked frame by frame.
+
 ## Not covered (still open)
 
-- The device came from the uploaded bundle by hand, not from `MTLCreateSystemDefaultDevice()`: the flashed image
-  (1252556b) still has task 8's bundle. A new image (deploy with the user's OK) makes the system path use this one;
-  then `metal_test app LIBRARY` with no bundle argument runs the same program.
-- Rebuilding the image also rebuilds the GL library's Mesa with the two new ir3 patches (`userland/build.sh` rebuilds
-  Mesa when `tools/mesa/*.patch` change). Upstream ships them with GL; **not yet seen on vayu's GL path**.
 - Vertex descriptors/attributes through Metal, depth/stencil states, MSAA, MRT and blending through the public API
   were not in this program (the core passed them in task 7 through its own interface). Argument encoders and heaps
   were not exercised through Metal.
 - Plug-in GPU times: `GPUStartTime/GPUEndTime` now return values (0.15–0.5 ms here); not validated against the
   timer (task 13).
-- `THIRD_PARTY_LICENSES.md`: the plug-in's origin licence is "to verify", as upstream records it.
+- `THIRD_PARTY_LICENSES.md`: the plug-in's origin licence is "to verify", as upstream records it; the user
+  judged that no issue for this project's purpose (2026-11-07).

@@ -26,7 +26,7 @@ start: vayu's stock fastboot (the user: volume down + power), `fastboot flash bo
   flashtest=1 in kern.bootargs (1 min 37 s); then 5478afe2 deployed back -> "boot holds" it, flashtest gone,
   rc 0 (1 min 38 s). Staging 14 MB: ~1 s. The staged copy lives in /private/var/hakios (/private/var/tmp is
   emptied at boot).
-- `boot` was 5478afe2 (= ../backup-vayu/xnu-standalone-loader28-5478afe2.img); now 1252556b (Metal step 8 below).
+- `boot` was 5478afe2 (= ../backup-vayu/xnu-standalone-loader28-5478afe2.img); then 1252556b (Metal step 8); now 4cb4ccbf (Metal step 9 below).
 
 ## Loader-mode hang (parked 2026-11-07; come back to it later)
 
@@ -85,9 +85,14 @@ task, in order; each ticks its task there and adds a line to the handoff below.
   (WSL; host Mesa `tools/air/mk-host.sh` -> `~/vayu/build/mesa-host`, iOS Mesa `tools/mk-mesa.sh` + libair.a).
   Host suite 263 (MESA=1) / 262, 0 failed. Compiler-enabled probe on the phone: 279 ok, 1 fail = tex_fill's
   phone compile differs in words from the host's (its code runs right; HYPOTHESIS libc qsort order).
-- **Next:** a new image carries the new bundle (deploy only with the user's OK) -- that build also rebuilds the GL
-  Mesa with the two new ir3 patches, untested on GL; then task 10 (IOSurface textures, CAMetalLayer) on the CA
-  plug-in's paths. Licence of the plug-in's origin is "to verify" (THIRD_PARTY_LICENSES.md): do not publish.
+- **`boot` now: 4cb4ccbf** (= ../backup-vayu/xnu-standalone-metal9-4cb4ccbf.img; deployed from iOS with the user's
+  OK, `docs/metal-step9-deploy.log`): 1252556b with ramdisk d2186bb7 only (built by `DEVICE=poco-x3-pro
+  CRYPTEXES=flash FLASHBOOT=1 REST=1 userland/build.sh` in WSL; step 8's fcb7ecfa kept in ../backup-vayu). Rollback
+  1252556b. **FACT:** `/redwood/bin/metal_test app /private/var/tmp/task9/task9.metallib` on the system device: 24/24
+  twice, cache persists across the reboot; window server on GL ES 3.2 / FD640 with the rebuilt Mesa (new ir3 patches).
+  The library must be uploaded again after a boot (/private/var/tmp); it is `userland/obj/task9/task9.metallib`.
+- **Next:** task 10 (IOSurface textures, CAMetalLayer) on the CA plug-in's paths. The plug-in's origin licence is
+  "to verify" (THIRD_PARTY_LICENSES.md); the user said that is no issue for our purpose (2026-11-07).
 - WSL `~/vayu` was fast-forwarded to bd98a33 after `git stash` of its (identical) copies: `stash@{0}` there.
 
 ## Metal step 8 (2026-11-07; Metal.framework sees the device)

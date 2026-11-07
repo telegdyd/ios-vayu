@@ -1,0 +1,155 @@
+# task 9 deploy, 2026-11-07 17:16-17:25: image 4cb4ccbf (../backup-vayu/xnu-standalone-metal9-4cb4ccbf.img)
+# = 1252556b with ramdisk d2186bb7 (was fcb7ecfa, kept as ../backup-vayu/root-flash-fcb7ecfa.apfs): kernel 34b989e3, loader fa305e53, resident 2ed5d333, cmdline identical
+# ramdisk tree against step 8's: only bin/metal_test, lib/HakiosMetal.bundle/HakiosMetal (6c4666ae, the bundle tested by hand), lib/libOSMesa.8.dylib (Mesa with the new ir3 patches), etc/motd
+# recipe: DEVICE=poco-x3-pro CRYPTEXES=flash FLASHBOOT=1 REST=1 userland/build.sh (WSL ~/vayu); standalone.sh build with STANDALONE_EXTRA = 1252556b's extras
+
+################ phone.sh deploy
+phone: deploy xnu-standalone.img (4cb4ccbf964f3d74) from iOS
+flash_stage: staged /private/var/hakios/boot-staged.img: 15833088 bytes at darwin block 2621440, fnv eae9f8e6d189f416; the loader writes boot at the next start
+rebooting
+phone: ios (+24s)
+flash_stage: boot holds /private/var/hakios/boot-staged.img (15833088 bytes, fnv eae9f8e6d189f416)
+
+################ boot console ring (logs/metal-step9-console.txt): the plug-in and the GL window server
+MiniIOMobileFramebuffer: metal=1: the accelerator names HakiosMetal as its Metal plug-in
+hakios-gl: 8 of 8 methods of EAGLContext are ours; OpenGL ES by Mesa, off-screen (OSMesa)
+HakiosMetal[backboardd 15]: backboardd is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+hakios-gl: an OpenGL ES 3 context for CoreAnimation, by Mesa, off-screen (OSMesa): OpenGL ES 3.2 Mesa 25.0.7; FD640; shaders OpenGL ES GLSL ES 3.20
+HakiosMetal[mediaserverd 40]: mediaserverd is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+HakiosMetal[SpringBoard 9]: SpringBoard is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+HakiosMetal[FitnessWidget 100]: FitnessWidget is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+HakiosMetal[chronod 84]: chronod is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+HakiosMetal[CollectionsPoster 143]: CollectionsPoster is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+
+################ /redwood/bin/metal_test app /private/var/tmp/task9/task9.metallib  (MTLCreateSystemDefaultDevice), run 1 after the reboot
+hakios-metal: the GPU through the service HakiosGPU
+HakiosMetal[metal_test 177]: device: HakiOS Adreno 640 on IOAcceleratorES service 0x1603; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+metal_app: device "HakiOS Adreno 640"; shader cache /private/var/db/hakios-metal-cache (8 files before)
+HakiosMetal[metal_test 177]: feature profile 1: supportsFamily answers YES for 1001 1002 3001; maxColorAttachments-limited features follow it
+HakiosMetal[metal_test 177]: a command queue takes 64 command buffers at a time (maxCommandBufferCount); each one waits on the queue's semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer completes
+metal_app: PASS -newCommandQueue
+metal_app: PASS -newLibraryWithURL: /private/var/tmp/task9/task9.metallib: 7 functions (fill_id tex_fill tri_color_fs tri_color_vs tri_fc_fs tri_flat_vs tri_tex_fs)
+metal_app: PASS -newFunctionWithName: each function, with its type
+HakiosMetal[metal_test 177]: pipeline cache: compute fill_id in 85.65 ms, 1 from the cache, 0 compiled (this process: 1 hits, 0 misses)
+HakiosMetal[metal_test 177]: compiled fill_id: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute pipeline fill_id in 86.55 ms (max 1024 threads a threadgroup, width 64)
+HakiosMetal[metal_test 177]: a pipeline's function tri_color_fs: class _MTLFunctionInternal, ivars: _functionData, _publicMetadataInitialized, _privateMetadataInitialized, _sourceArchiveMetadataInitialized, _stitchableFunctionMetadataInitialized, _programObject, _filePath, _lineNumber, _functionQueue, _specializationAirScript, _baseLibraryFilePath, _baseLibraryUUID, _baseFunctionConstantValues
+HakiosMetal[metal_test 177]: a pipeline's function tri_color_fs: class _MTLFunction, ivars: _device, _functionType, _name, _libraryData, _vendorPrivate, _vertexAttributes, _functionConstants, _functionConstantDictionary, _options, _precompiledOutput, _debugInstrumentationData, _returnType, _arguments, _bindings, _unpackedFilePath, _functionConstantSpecializationHash, _relocations, _importedSymbols, _importedLibraries
+HakiosMetal[metal_test 177]: a pipeline's function tri_color_fs: class _MTLObjectWithLabel, ivars: _label, _labelLock
+HakiosMetal[metal_test 177]:   ... functionConstantsDictionary: 0 entries
+HakiosMetal[metal_test 177]: pipeline cache: render tri_color_vs+tri_color_fs in 0.77 ms, 2 stages from the cache, 0 compiled (this process: 3 hits, 0 misses)
+HakiosMetal[metal_test 177]: linked tri_color_vs+tri_color_fs (0x119d133f0) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_color_fs in 2.32 ms
+HakiosMetal[metal_test 177]: pipeline cache: render tri_color_vs+tri_tex_fs in 0.42 ms, 2 stages from the cache, 0 compiled (this process: 5 hits, 0 misses)
+HakiosMetal[metal_test 177]: linked tri_color_vs+tri_tex_fs (0x119d14650) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 2; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_tex_fs in 0.70 ms
+HakiosMetal[metal_test 177]: function constants: tri_fc_fs specialised here (2 declared), not by a compiler service: the core compiles them in
+HakiosMetal[metal_test 177]: function constants: tri_fc_fs declares 2 and was given 2 of them (the first function seen with constants)
+HakiosMetal[metal_test 177]: pipeline cache: render tri_flat_vs+tri_fc_fs in 0.57 ms, 2 stages from the cache, 0 compiled (this process: 7 hits, 0 misses)
+HakiosMetal[metal_test 177]: linked tri_flat_vs+tri_fc_fs (0x119d15300) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 0=7 1=1
+metal_app: PASS function constants 0=7, 1=true: -newFunctionWithName:constantValues: and its pipeline in 0.88 ms (2 constants declared)
+HakiosMetal[metal_test 177]: pipeline cache: render tri_flat_vs+tri_fc_fs in 0.41 ms, 2 stages from the cache, 0 compiled (this process: 9 hits, 0 misses)
+HakiosMetal[metal_test 177]: linked tri_flat_vs+tri_fc_fs (0x119d155d0) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 1=1
+metal_app: PASS function constants 1=true alone (0 left out): a function and its pipeline
+HakiosMetal[metal_test 177]: refused: a specialised function: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: PASS function constants 0=7 alone (the required 1 left out): refused: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: pipelines: fill_id 86.55 ms, tri_color 2.32 ms, tri_tex 0.70 ms, tri_fc 0.88 ms; cache files 8 before, 8 after
+metal_app: PASS compute: fill_id, 64 threadgroups of 64, every one of 4096 words gid*0x9E3779B1+c: 0 wrong (status 4, GPU 0.397 ms)
+HakiosMetal[metal_test 177]: pipeline cache: compute tex_fill in 1216.29 ms, 0 from the cache, 1 compiled (this process: 9 hits, 1 misses)
+HakiosMetal[metal_test 177]: compiled tex_fill: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute into a texture: tex_fill over 64x32 RGBA32Uint, 0 of 2048 texels wrong (status 4)
+metal_app: PASS blit: fillBuffer 64 KiB with 0x5a, then copyFromBuffer 16 KiB at +8192 of another: 0 wrong bytes (status 4)
+metal_app: PASS a 64x64 RGBA8Unorm render target (shared storage)
+metal_app: PASS render tri_color: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.203 ms)
+metal_app: PASS render tri_color: 4032 of 4032 pixels within one unit of the barycentric expectation (max deviation 0/255)
+metal_app: PASS a 4x4 RGBA8 texture: -replaceRegion: then -getBytes: read the same
+metal_app: PASS -newSamplerStateWithDescriptor: nearest, clamp to edge
+metal_app: PASS render tri_tex: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.152 ms)
+metal_app: PASS render tri_tex: 3840 of 3840 pixels their texel exactly (192 near a texel edge not judged)
+metal_app: PASS render tri_fc (constants 0=7, 1=true): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.167 ms)
+metal_app: PASS render tri_fc: 4096 of 4096 pixels 07 ff 40 ff (first ff40ff07)
+metal_app: PASS render tri_fc (constant 1=true alone): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.181 ms)
+metal_app: PASS render tri_fc, 0 absent: 4096 of 4096 pixels 00 00 40 ff (first ff400000)
+metal_app: PASS completion handlers: 7 of 7 command buffers called theirs
+metal_app: 24 checks, 0 failed, 1330.5 ms in all; cache files now 9
+metal_app: ALL PASS
+
+
+################ run 2
+hakios-metal: the GPU through the service HakiosGPU
+HakiosMetal[metal_test 178]: device: HakiOS Adreno 640 on IOAcceleratorES service 0x1403; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+metal_app: device "HakiOS Adreno 640"; shader cache /private/var/db/hakios-metal-cache (9 files before)
+HakiosMetal[metal_test 178]: feature profile 1: supportsFamily answers YES for 1001 1002 3001; maxColorAttachments-limited features follow it
+HakiosMetal[metal_test 178]: a command queue takes 64 command buffers at a time (maxCommandBufferCount); each one waits on the queue's semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer completes
+metal_app: PASS -newCommandQueue
+metal_app: PASS -newLibraryWithURL: /private/var/tmp/task9/task9.metallib: 7 functions (fill_id tex_fill tri_color_fs tri_color_vs tri_fc_fs tri_flat_vs tri_tex_fs)
+metal_app: PASS -newFunctionWithName: each function, with its type
+HakiosMetal[metal_test 178]: pipeline cache: compute fill_id in 0.20 ms, 1 from the cache, 0 compiled (this process: 1 hits, 0 misses)
+HakiosMetal[metal_test 178]: compiled fill_id: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute pipeline fill_id in 0.46 ms (max 1024 threads a threadgroup, width 64)
+HakiosMetal[metal_test 178]: a pipeline's function tri_color_fs: class _MTLFunctionInternal, ivars: _functionData, _publicMetadataInitialized, _privateMetadataInitialized, _sourceArchiveMetadataInitialized, _stitchableFunctionMetadataInitialized, _programObject, _filePath, _lineNumber, _functionQueue, _specializationAirScript, _baseLibraryFilePath, _baseLibraryUUID, _baseFunctionConstantValues
+HakiosMetal[metal_test 178]: a pipeline's function tri_color_fs: class _MTLFunction, ivars: _device, _functionType, _name, _libraryData, _vendorPrivate, _vertexAttributes, _functionConstants, _functionConstantDictionary, _options, _precompiledOutput, _debugInstrumentationData, _returnType, _arguments, _bindings, _unpackedFilePath, _functionConstantSpecializationHash, _relocations, _importedSymbols, _importedLibraries
+HakiosMetal[metal_test 178]: a pipeline's function tri_color_fs: class _MTLObjectWithLabel, ivars: _label, _labelLock
+HakiosMetal[metal_test 178]:   ... functionConstantsDictionary: 0 entries
+HakiosMetal[metal_test 178]: pipeline cache: render tri_color_vs+tri_color_fs in 0.27 ms, 2 stages from the cache, 0 compiled (this process: 3 hits, 0 misses)
+HakiosMetal[metal_test 178]: linked tri_color_vs+tri_color_fs (0x1018150d0) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_color_fs in 1.01 ms
+HakiosMetal[metal_test 178]: pipeline cache: render tri_color_vs+tri_tex_fs in 0.26 ms, 2 stages from the cache, 0 compiled (this process: 5 hits, 0 misses)
+HakiosMetal[metal_test 178]: linked tri_color_vs+tri_tex_fs (0x101816350) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 2; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_tex_fs in 0.56 ms
+HakiosMetal[metal_test 178]: function constants: tri_fc_fs specialised here (2 declared), not by a compiler service: the core compiles them in
+HakiosMetal[metal_test 178]: function constants: tri_fc_fs declares 2 and was given 2 of them (the first function seen with constants)
+HakiosMetal[metal_test 178]: pipeline cache: render tri_flat_vs+tri_fc_fs in 0.23 ms, 2 stages from the cache, 0 compiled (this process: 7 hits, 0 misses)
+HakiosMetal[metal_test 178]: linked tri_flat_vs+tri_fc_fs (0x101816eb0) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 0=7 1=1
+metal_app: PASS function constants 0=7, 1=true: -newFunctionWithName:constantValues: and its pipeline in 0.60 ms (2 constants declared)
+HakiosMetal[metal_test 178]: pipeline cache: render tri_flat_vs+tri_fc_fs in 0.22 ms, 2 stages from the cache, 0 compiled (this process: 9 hits, 0 misses)
+HakiosMetal[metal_test 178]: linked tri_flat_vs+tri_fc_fs (0x101817330) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 1=1
+metal_app: PASS function constants 1=true alone (0 left out): a function and its pipeline
+HakiosMetal[metal_test 178]: refused: a specialised function: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: PASS function constants 0=7 alone (the required 1 left out): refused: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: pipelines: fill_id 0.46 ms, tri_color 1.01 ms, tri_tex 0.56 ms, tri_fc 0.60 ms; cache files 9 before, 9 after
+metal_app: PASS compute: fill_id, 64 threadgroups of 64, every one of 4096 words gid*0x9E3779B1+c: 0 wrong (status 4, GPU 0.467 ms)
+HakiosMetal[metal_test 178]: pipeline cache: compute tex_fill in 0.20 ms, 1 from the cache, 0 compiled (this process: 10 hits, 0 misses)
+HakiosMetal[metal_test 178]: compiled tex_fill: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute into a texture: tex_fill over 64x32 RGBA32Uint, 0 of 2048 texels wrong (status 4)
+metal_app: PASS blit: fillBuffer 64 KiB with 0x5a, then copyFromBuffer 16 KiB at +8192 of another: 0 wrong bytes (status 4)
+metal_app: PASS a 64x64 RGBA8Unorm render target (shared storage)
+metal_app: PASS render tri_color: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.219 ms)
+metal_app: PASS render tri_color: 4032 of 4032 pixels within one unit of the barycentric expectation (max deviation 0/255)
+metal_app: PASS a 4x4 RGBA8 texture: -replaceRegion: then -getBytes: read the same
+metal_app: PASS -newSamplerStateWithDescriptor: nearest, clamp to edge
+metal_app: PASS render tri_tex: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.168 ms)
+metal_app: PASS render tri_tex: 3840 of 3840 pixels their texel exactly (192 near a texel edge not judged)
+metal_app: PASS render tri_fc (constants 0=7, 1=true): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.156 ms)
+metal_app: PASS render tri_fc: 4096 of 4096 pixels 07 ff 40 ff (first ff40ff07)
+metal_app: PASS render tri_fc (constant 1=true alone): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.145 ms)
+metal_app: PASS render tri_fc, 0 absent: 4096 of 4096 pixels 00 00 40 ff (first ff400000)
+metal_app: PASS completion handlers: 7 of 7 command buffers called theirs
+metal_app: 24 checks, 0 failed, 22.9 ms in all; cache files now 9
+metal_app: ALL PASS
+
+
+################ /redwood/bin/metal_test device
+metal_test: the services Metal looks for (IOAcceleratorES)
+metal_test:   IOAcceleratorES "sgx": MetalPluginName HakiosMetal, MetalPluginClassName HakiosMetalDevice
+metal_test: what the registry has that is a GPU
+metal_test:   HakiosGPU "HakiosGPU": IOUserClientClass HakiosGPUUserClient
+metal_test: the device a program gets
+hakios-metal: the GPU through the service HakiosGPU
+HakiosMetal[metal_test 180]: device: HakiOS Adreno 640 on IOAcceleratorES service 0xf03; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+metal_test:   MTLCreateSystemDefaultDevice() = "HakiOS Adreno 640", class HakiosMetalDevice
+metal_test:   registry id 4294967593, unified memory 1
+metal_test:   limits: max buffer 268435456 bytes, threads per group 1024x1024x1024, threadgroup memory 32768 bytes, sample counts 1 2 4
+metal_test:   families: Common1 yes Common2 no Common3 no Apple1 yes Apple2 yes Apple3 no Apple4 no Apple5 no Apple6 no Apple7 no Apple8 no Mac2 no Metal3 no
+metal_test:   feature sets: iOS GPU family 1 v5 1, 2 v5 1, 3 v1 0, 4 v1 0
+metal_test: what the device makes (a queue, a buffer, a blit by the GPU) (asked by a process of its own)
+hakios-metal: the GPU through the service HakiosGPU
+HakiosMetal[metal_test 181]: device: HakiOS Adreno 640 on IOAcceleratorES service 0x1703; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+HakiosMetal[metal_test 181]: feature profile 1: supportsFamily answers YES for 1001 1002 3001; maxColorAttachments-limited features follow it
+HakiosMetal[metal_test 181]: a command queue takes 64 command buffers at a time (maxCommandBufferCount); each one waits on the queue's semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer completes
+metal_test:   queue HakiosMetalCommandQueue, buffer HakiosMetalBuffer (4194304 bytes, contents 0x102b0c000)
+metal_test:   command buffer HakiosMetalCommandBuffer, blit encoder HakiosMetalBlitCommandEncoder
+metal_test:   blit fill of 4186112 bytes: status 4, error none, completed handlers 1, 7416 us, 0 bytes wrong: PASS
+
+
+################ after: kern.hakios.battery_temperature_c 31; SpringBoard pid 9 Ss, backboardd pid 15 Ss
