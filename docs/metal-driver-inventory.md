@@ -18,6 +18,15 @@ The existing Mesa AIR API still needs reconciliation (`../hakios-metal/VAYU.md`)
 
 ## Metal API coverage
 
+**Update (task 9, `docs/metal-app-results.md`):** the plug-in vayu builds is now
+`userland/src/HakiosMetalCA.m` (upstream's full bridge over the same core), not
+the bundled `plugin/HakiosMetal.m` the right-hand column below describes. Through
+it, textures, samplers, render/compute pipelines and encoders, function constants,
+blits and completion handlers ran on the A640 via the public API. The column is
+kept as the audit of the bundled plug-in; re-audit the CA plug-in where a later
+task depends on a row (IOSurface textures, drawables and GPU times for 10 and 13).
+Compute kernels now also use the persistent cache (`compileAir`, task 9).
+
 There are two separate surfaces: the C++ runtime/C bridge and the bundled
 `plugin/HakiosMetal.m`. The plugin is substantially older in functionality than
 the core. In particular, allocating a non-nil placeholder pipeline or texture does

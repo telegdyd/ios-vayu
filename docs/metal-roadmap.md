@@ -50,6 +50,9 @@ Every agent, every task:
   `0043-hakios-metal-a640-fixtures.patch` (test shaders regenerated for FD640). Task 1
   built the arm64 library/probe and passed 261 host tests plus fake-probe stages 1–4;
   no vayu hardware validation yet. Additional upstream fixtures are not yet ported.
+- **Since task 9:** compiler-enabled builds (`tools/metal-app-build.sh`), upstream's full plug-in
+  (`userland/src/HakiosMetalCA.m`), the persistent compute cache, and a public-API Metal program
+  (`metal_test app`); `docs/metal-app-results.md`.
 - **Upstream** keeps hakios-metal in `oosexgang/hakios-xnu-kernel`, `main`, `hakios-metal/`, with
   `docs/reference/metal.md` (integration) and `metal-measurements.md`. The old standalone repository
   `oosexgang/hakios-metal` points there.
@@ -254,7 +257,7 @@ Every agent, every task:
   4294967593) but **not in the flashed image** until the next ramdisk. parsecd hit SIGTRAP on this
   boot without loading the bundle (INFERENCE: unrelated; mobileactivationd's crash loop predates it).
 
-- [ ] **9. A real Metal program draws and computes.**
+- [x] **9. A real Metal program draws and computes.**
   Depends on: 7, 8.
   Do: extend `metal_test` (or add `metal_app`) to use only the public API: command queue, buffers,
   textures, a `.metallib` built on the PC, a render pipeline, a compute pipeline, blits, completion
@@ -271,7 +274,21 @@ Every agent, every task:
   and validate the compiler-enabled host/iOS builds and A640 shader fixtures.
   Done when: the program's render and compute results match expected values on the phone, and a
   second run shows the cache warm (FACT).
-  Result: —
+  Result: **FACT (2026-11-07, `metal-step9`, `docs/metal-app-results.md`):** `metal_test app`
+  (`userland/src/metal_app.m`, public API after the device) passes 24 of 24 checks on the phone,
+  cold and warm, GL UI live: a PC-built `.metallib` (`tools/metal-mklib.py`, 7 functions),
+  compute into a buffer (4096/4096) and a texture (2048/2048), two render pipelines (4032/4032
+  interpolated pixels, 3840/3840 texels), function constants (supplied, guarded-absent, required
+  refused), blits, readbacks, handlers. Warm run: every pipeline from the disk cache (10 hits,
+  0 compiled; fill_id 91 → 0.44 ms). Plug-in is now upstream's full bridge
+  `userland/src/HakiosMetalCA.m` with vayu's gate/name/limits; compute kernels now use the
+  persistent cache too. `tools/mesa/air` is upstream's frontend: reproduces 58/59 committed A640
+  fixtures byte for byte; `argbuf_res` regenerated and compiled/run on the phone (probe 6w).
+  Host 263 tests (MESA=1) / 262 (none), 0 failed. Compiler-enabled probe: 279 ok, 1 strict
+  word-identity failure (`tex_fill` compiles differently on iOS; that code runs right).
+  **Open:** device made from the uploaded bundle, not yet `MTLCreateSystemDefaultDevice()`
+  (needs a new image: deploy with the user's OK); the image's GL Mesa will pick up two new ir3
+  patches, unseen on GL; vertex descriptors, depth/MSAA/MRT/blend through Metal not exercised.
 
 - [ ] **10. IOSurface textures and CAMetalLayer.**
   Depends on: 9.
@@ -399,4 +416,9 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
 - **Answered for `metal=1` (task 8):** backboardd does ask Metal first (it loads the bundle),
   and with no device shown to it QuartzCore stays on OpenGL ES with no further sign. Whether it
   switches when shown the device (`metal=3` or a clients entry) is task 11's to measure.
+- **Answered (task 9):** the frontend reconciliation was a replacement: the pinned upstream
+  frontend reproduces every hardware-validated A640 fixture, so `tools/mesa/air` is that one now.
+  The bundled `hakios-metal/plugin/HakiosMetal.m` is superseded by `userland/src/HakiosMetalCA.m`
+  (`METAL_PLUGIN=basic` keeps the old one). Tasks 10–17 should build on the CA plug-in's
+  IOSurface, drawable and timing paths rather than the placeholder plug-in the inventory describes.
 - Which third-party Metal apps or games matter to the user? (task 12)

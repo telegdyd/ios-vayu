@@ -1,0 +1,116 @@
+# task 9 build evidence, WSL ~/vayu at vayu-dev bd98a33 + this task's working tree (tools/metal-app-build.sh), 2026-11-07
+
+## AIR frontend reconciliation (tools/metal-fixtures-reconcile.sh, reconciled tools/mesa/air = upstream 63fc2b46's)
+DIFF argbuf_res (136 lines)
+SAME chain160
+SAME chain220
+SAME chain_fs
+SAME fill_id
+SAME long_chain
+SAME null_fs
+SAME ptr_phi
+SAME pvt_fill
+SAME tex_copy
+SAME tex_fill_3d
+SAME tex_fill
+SAME tex_fill_arr
+SAME tex_fill_h
+SAME tex_sample_gid
+SAME tex_sample_wide
+SAME tex_size_h
+SAME tg_arg
+SAME tri_arr_vs
+SAME tri_attr_vs
+SAME tri_base_vs
+SAME tri_cflat_fs
+SAME tri_color_fs
+SAME tri_color_vs
+SAME tri_ctex_fs
+SAME tri_cuba_fs
+SAME tri_cube_fs
+SAME tri_dbuf_fs
+SAME tri_dpos_vs
+SAME tri_fb_fs
+SAME tri_fc_fs
+SAME tri_flat_fs
+SAME tri_flat_vs
+SAME tri_fw_fs
+SAME tri_half_fs
+SAME tri_hc_fs
+SAME tri_hcolor_fs
+SAME tri_hcolor_vs
+SAME tri_mrt1_fs
+SAME tri_mrt_fs
+SAME tri_ms_fs
+SAME tri_nullfb_fs
+SAME tri_null_fs
+SAME tri_oldcb_vs
+SAME tri_olddb_vs
+SAME tri_pntc_fs
+SAME tri_pos_vs
+SAME tri_pt_vs
+SAME tri_pvt_fs
+SAME tri_shadow_fs
+SAME tri_tex1da_fs
+SAME tri_tex1d_fs
+SAME tri_tex2da_fs
+SAME tri_tex31_fs
+SAME tri_tex39_fs
+SAME tri_tex3d_fs
+SAME tri_tex_fs
+SAME tri_upos_vs
+SAME tri_vtex_vs
+reconcile: 58 same, 1 different, 0 failed
+
+## host suite with the compiler (make test MESA=1)
+ok   compiler_without_mesa_refuses_by_name_and_with_it_matches_the_fixture
+ok   a_threadgroup_argument_starts_past_the_static_arrays
+ok   a_compiled_kernel_comes_back_from_the_disk_cache
+ok   compiler_matches_the_texture_fixtures
+ok   compiler_refuses_a_declaration_that_disagrees_with_the_instructions
+ok   compiler_reads_the_image_only_kernel_off_the_nir
+ok   compiler_reads_the_copy_kernel_off_the_nir
+ok   compiler_reads_the_sampling_kernel_off_the_nir
+ok   compiler_matches_the_stage_fixtures
+ok   compiler_refuses_a_kernel_as_a_stage_and_a_stage_as_a_kernel
+ok   compiler_links_the_two_programs
+ok   compiler_link_refuses_what_the_first_draw_does_not_serve
+ok   compiler_specialises_a_stage_by_the_pipelines_function_constants
+263 tests, 0 failed checks
+
+## vayu-check MESA=1 (fake probe stages 1-4) and iOS cross build; artifacts
+ok   metallib_reads_its_functions
+263 tests, 0 failed checks
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 21 us to a GPU buffer, 28 to its own; 16 K words read from a GPU buffer in 28 us; a draw's 2.5 KB of table 0.06 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 148 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 1627 us at best (10309 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+/mnt/c/Users/teleg/Documents/Code/Poco X3 Pro/ios-vayu/userland/obj/task9/task9.metallib: 7 functions
+7 functions
+  fill_id                                              kernel        air 2.5.3.0  module 2368
+  tex_fill                                             kernel        air 2.5.3.0  module 2592
+  tri_color_vs                                         vertex        air 2.5.3.0  module 2480
+  tri_color_fs                                         fragment      air 2.5.3.0  module 2208
+  tri_tex_fs                                           fragment      air 2.5.3.0  module 2496
+  tri_flat_vs                                          vertex        air 2.5.3.0  module 2320
+  tri_fc_fs                                            fragment      air 2.5.3.0  module 2688
+task9 artifacts:
+6c4666ae7e3f82185437c5caf0b880736e6bb9b2c8fe498755be4a674bbc94a2  /mnt/c/Users/teleg/Documents/Code/Poco X3 Pro/ios-vayu/userland/obj/task9/HakiosMetal.bundle/HakiosMetal
+2214093a9504435fa4979c2f8be23136f41c53aa0005265982c6cfb936af2bf5  /mnt/c/Users/teleg/Documents/Code/Poco X3 Pro/ios-vayu/userland/obj/task9/metal_test
+660239c1e0001498ea15fdd44b9e12bfb029b5ecac77ba907f4bb0f08db3ec94  /mnt/c/Users/teleg/Documents/Code/Poco X3 Pro/ios-vayu/userland/obj/task9/task9.metallib
+
+## no-compiler baseline (make test, no MESA): the new cache test reports it did not run
+clang++ -O2 -g -std=c++17 -Wall -Wextra -Werror -Iinclude -pthread -o out/host/tests src/pm4.cpp src/gpu.cpp src/command.cpp src/compute.cpp src/texture.cpp src/render.cpp src/link.cpp src/compiler.cpp src/metallib.cpp src/c_api.cpp src/fake_gpu.cpp tests/a6xx_test.cpp tests/c_api_test.cpp tests/command_test.cpp tests/compiler_test.cpp tests/compute_test.cpp tests/kernel_test.cpp tests/link_test.cpp tests/metallib_test.cpp tests/pm4_test.cpp tests/render_test.cpp tests/texture_test.cpp tests/main.cpp 
+ok   c_api_fail_ends_in_error
+       (no compiler in this build: the kernel cache did not run)
+262 tests, 0 failed checks
+ok   a_compiled_kernel_comes_back_from_the_disk_cache
+       (no compiler in this build: the pointer phis did not run)

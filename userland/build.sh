@@ -250,7 +250,7 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 		# OpenGLES for the CIContext made over an EAGLContext, which is deprecated and the point
 		$DYN -fobjc-arc -Wno-deprecated-declarations -framework Foundation -framework CoreGraphics \
 			-framework CoreImage -framework IOKit -framework Metal -framework OpenGLES \
-			-lMobileGestalt -o obj/metal_test src/metal_test.m
+			-lMobileGestalt -o obj/metal_test src/metal_test.m src/metal_app.m
 		$DYN -o obj/shm_test src/shm_test.c
 		$DYN -o obj/apfs_mmap_test src/apfs_mmap_test.c
 		$DYN -o obj/vol_ls src/vol_ls.c
@@ -314,14 +314,35 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 			-o obj/libhakios.fairplay.dylib src/inject_fairplay.c
 		# the output device of the audio server: a plug-in for CoreAudio's HAL
 		$DYN -bundle -framework CoreFoundation -o obj/HakiosAudio src/audio_plugin.c
-		# the plug-in Metal loads when the kernel names it (boot-arg metal=N, MiniIOMobileFramebuffer.cpp): hakios-metal's
-		# plugin/ over its core (hakios-metal/out/ios, `make -C hakios-metal ios`; the Makefile's vayu-check builds it). The
-		# core without its compiler (no MESA=1, docs/metal-roadmap.md task 9): buffers, queues and blits on the GPU.
+		# the plug-in Metal loads when the kernel names it (boot-arg metal=N, MiniIOMobileFramebuffer.cpp) over hakios-metal's
+		# core (hakios-metal/out/ios: `make -C hakios-metal ios MESA=1`, docs/metal-roadmap.md task 9). Since task 9 it is
+		# src/HakiosMetalCA.m (upstream's full bridge: textures, samplers, pipelines, encoders), with the core's compiler and
+		# Mesa's iOS archives (tools/mk-mesa.sh, then `ninja ... src/compiler/air/libair.a`) linked in when the core has it.
+		# METAL_PLUGIN=basic: task 8's hakios-metal/plugin/HakiosMetal.m (buffers, queues and blits only).
 		HM=../hakios-metal
 		if [ -f $HM/out/ios/libhakios-metal.a ]; then
-			$DYN -bundle -fno-objc-arc -Wno-deprecated-declarations -DHAKIOS_METAL_GPU -I$HM/include -I$HM/plugin \
-				-framework Foundation -framework Metal -framework IOKit -framework IOSurface -lobjc -lc++ \
-				-o obj/HakiosMetal $HM/plugin/HakiosMetal.m $HM/plugin/hakios_metallib.c $HM/out/ios/libhakios-metal.a
+			METAL_GPU="-DHAKIOS_METAL_GPU -I$HM/include $HM/out/ios/libhakios-metal.a -lc++ -framework IOKit -framework IOSurface"
+			if llvm-nm -g $HM/out/ios/libhakios-metal.a 2>/dev/null | grep -q " U _air_"; then
+				MB=../xnu-deps/build/mesa/build-softpipe-freedreno
+				for a in src/compiler/air/libair.a src/freedreno/ir3/libfreedreno_ir3.a src/freedreno/isa/libir3encode.a \
+				    src/freedreno/isa/libir3decode.a src/compiler/isaspec/libisaspec.a src/compiler/nir/libnir.a \
+				    src/compiler/libcompiler.a src/freedreno/fdl/libfreedreno_layout.a \
+				    src/freedreno/common/libfreedreno_common.a src/util/libmesa_util.a src/util/libmesa_util_sse41.a \
+				    src/util/blake3/libblake3.a src/c11/impl/libmesa_util_c11.a; do
+					METAL_GPU="$METAL_GPU $MB/$a"
+				done
+				METAL_GPU="$METAL_GPU -lz -lm"
+				echo "build.sh: HakiosMetal with its compiler (Mesa's archives from $MB)"
+			fi
+			if [ "${METAL_PLUGIN:-}" = basic ]; then
+				$DYN -bundle -fno-objc-arc -Wno-deprecated-declarations -I$HM/plugin \
+					-framework Foundation -framework Metal -lobjc \
+					-o obj/HakiosMetal $HM/plugin/HakiosMetal.m $HM/plugin/hakios_metallib.c $METAL_GPU
+			else
+				$DYN -bundle -fno-objc-arc -Wno-deprecated-declarations -framework Foundation -framework Metal -lobjc \
+					-o obj/HakiosMetal src/HakiosMetalCA.m $METAL_GPU \
+					-Wl,-U,_native_bridge_metal_open -Wl,-U,_native_bridge_metal_first_problem -Wl,-U,_native_bridge_metal_status -Wl,-U,_native_bridge_metal_formats -Wl,-U,_native_bridge_metal_variant_hook
+			fi
 		else
 			echo "build.sh: no $HM/out/ios/libhakios-metal.a: no Metal plug-in in this image"
 		fi

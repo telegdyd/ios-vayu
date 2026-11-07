@@ -196,7 +196,8 @@ TEST(a_threadgroup_argument_starts_past_the_static_arrays) {
         std::printf("       (no compiler in this build: the threadgroup layout did not run)\n");
         return;
     }
-    auto k = compareWithFixture("tg_arg", kernels::tg_arg_air, "tg_arg", "l[r1.z+256]");
+    // (the register holding the index is the chip's register allocation: r1.z on A635, r2.x on A640; the +256 is the point)
+    auto k = compareWithFixture("tg_arg", kernels::tg_arg_air, "tg_arg", "+256], ");
     if (k) {
         CHECK(k->hasThreadgroupArg);
         CHECK_EQ(k->threadgroupArgBase, 256u);
@@ -205,6 +206,65 @@ TEST(a_threadgroup_argument_starts_past_the_static_arrays) {
     // the twin: a kernel with no threadgroup argument says so, and keeps its base at 0
     auto fill = compareWithFixture("tex_fill", kernels::tex_fill_air, "tex_fill", "stib");
     if (fill) CHECK(!fill->hasThreadgroupArg);
+}
+
+// A kernel compiled once is read back from HAKIOS_METAL_CACHE the second time (vayu task 9): the same words, fields and
+// resources, counted as a hit; a cache file that does not hold together is a miss and is compiled again.
+TEST(a_compiled_kernel_comes_back_from_the_disk_cache) {
+    if (!hasCompiler()) {
+        std::printf("       (no compiler in this build: the kernel cache did not run)\n");
+        return;
+    }
+    std::vector<uint8_t> bc = bitcodeOf("fill_id");
+    CHECK(!bc.empty());
+    if (bc.empty()) return;
+    char dir[] = "/tmp/hakios-metal-kcache-XXXXXX";
+    CHECK(mkdtemp(dir) != nullptr);
+    setenv("HAKIOS_METAL_CACHE", dir, 1);
+    uint64_t hits0 = 0, misses0 = 0, hits1 = 0, misses1 = 0, hits2 = 0, misses2 = 0;
+    stageCacheCounts(&hits0, &misses0);
+    std::string why;
+    auto first = compileAir(bc.data(), bc.size(), &why);
+    stageCacheCounts(&hits1, &misses1);
+    auto second = compileAir(bc.data(), bc.size(), &why);
+    stageCacheCounts(&hits2, &misses2);
+    CHECK(first != nullptr && second != nullptr);
+    CHECK_EQ(misses1 - misses0, 1u);
+    CHECK_EQ(hits1 - hits0, 0u);
+    CHECK_EQ(hits2 - hits1, 1u);
+    CHECK_EQ(misses2 - misses1, 0u);
+    if (first && second) {
+        CHECK(first->words == second->words);
+        CHECK(first->immediates == second->immediates);
+        CHECK_EQ(first->resources.size(), second->resources.size());
+        CHECK(first->name == second->name);
+        CHECK(second->kernel.words == second->words.data());
+        CHECK_EQ(second->kernel.numWords, first->kernel.numWords);
+        CHECK_EQ(second->kernel.instrlen, first->kernel.instrlen);
+        CHECK_EQ(second->kernel.constlen, first->kernel.constlen);
+        CHECK_EQ(second->kernel.driverParamsOffsetVec4, first->kernel.driverParamsOffsetVec4);
+        CHECK(std::string(second->kernel.name) == "fill_id");
+    }
+    // a damaged file: truncated, so it is not taken, and the kernel is compiled again (a miss)
+    int found = 0;
+    if (DIR* d = opendir(dir)) {
+        while (dirent* e = readdir(d)) {
+            if (strstr(e->d_name, ".kernel") == nullptr) continue;
+            const std::string path = std::string(dir) + "/" + e->d_name;
+            CHECK(truncate(path.c_str(), 40) == 0);
+            found++;
+        }
+        closedir(d);
+    }
+    CHECK_EQ(found, 1);
+    auto third = compileAir(bc.data(), bc.size(), &why);
+    uint64_t hits3 = 0, misses3 = 0;
+    stageCacheCounts(&hits3, &misses3);
+    CHECK(third != nullptr);
+    CHECK_EQ(misses3 - misses2, 1u);
+    CHECK_EQ(hits3 - hits2, 0u);
+    if (third && first) CHECK(third->words == first->words);
+    unsetenv("HAKIOS_METAL_CACHE");
 }
 
 // Pointer phis into one buffer at run-time offsets (a branch's two GEPs, a pointer stepped round a loop) translate:

@@ -12,7 +12,9 @@
 # MESA_SRC and MESA_BUILD at them. The default is a host build in the kernel's tree (xnu-deps/build/mesa-host: a meson build
 # of Mesa with the AIR front end, tools/mk-mesa.sh's sources), recognised by its libair.a. Nothing of it is copied, only linked
 # against. Without it the tests that need the compiler cannot be built: `make ios` needs only the cross build.
-MESA_HOST  ?= $(abspath $(HAKIOS))/xnu-deps/build/mesa-host
+# (vayu: tools/air/mk-host.sh builds it in build/mesa-host; that one is taken where it exists)
+MESA_HOST  ?= $(firstword $(wildcard $(abspath $(HAKIOS))/build/mesa-host/build/build.ninja) $(abspath $(HAKIOS))/xnu-deps/build/mesa-host)
+MESA_HOST  := $(patsubst %/build/build.ninja,%,$(MESA_HOST))
 MESA_SRC   ?= $(MESA_HOST)/mesa-25.0.7
 MESA_BUILD ?= $(MESA_HOST)/build
 

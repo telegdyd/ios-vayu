@@ -69,6 +69,27 @@ Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt a
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 9 (2026-11-07; a real Metal program draws and computes)
+
+- **FACT (`docs/metal-step9-phone.log`, `docs/metal-app-results.md`):** `metal_test app LIB BUNDLE CACHE` -- public
+  Metal API after the device -- 24/24 checks on the A640, cold and warm, GL UI live (SpringBoard 9 / backboardd 15
+  unchanged, 31 C / 88%): PC-built `.metallib` (7 functions), compute into a buffer and a texture, two render
+  pipelines, function constants (incl. a required one refused), blits, readbacks, handlers. Warm run: 10 cache hits,
+  0 compiles (fill_id 91 -> 0.44 ms). Files uploaded to /private/var/tmp/task9 only; **nothing flashed**, `boot`
+  still 1252556b. The device was made from the uploaded bundle by hand, not by MTLCreateSystemDefaultDevice().
+- **Code:** `tools/mesa/air` = upstream 63fc2b46's frontend (+ its air-ir3 and two ir3 patches): reproduces 58/59
+  committed fixtures byte for byte (`tools/metal-fixtures-reconcile.sh`), argbuf_res regenerated for A640 and run on
+  the phone. Plug-in = `userland/src/HakiosMetalCA.m` (upstream's full bridge; vayu gate/name/limits, own function
+  -constant specialisation, cache lines); `userland/build.sh` builds it by default (METAL_PLUGIN=basic: the old).
+  Driver: compute kernels in the disk cache, `hakios_metal_cache_counts()`. Build all: `tools/metal-app-build.sh`
+  (WSL; host Mesa `tools/air/mk-host.sh` -> `~/vayu/build/mesa-host`, iOS Mesa `tools/mk-mesa.sh` + libair.a).
+  Host suite 263 (MESA=1) / 262, 0 failed. Compiler-enabled probe on the phone: 279 ok, 1 fail = tex_fill's
+  phone compile differs in words from the host's (its code runs right; HYPOTHESIS libc qsort order).
+- **Next:** a new image carries the new bundle (deploy only with the user's OK) -- that build also rebuilds the GL
+  Mesa with the two new ir3 patches, untested on GL; then task 10 (IOSurface textures, CAMetalLayer) on the CA
+  plug-in's paths. Licence of the plug-in's origin is "to verify" (THIRD_PARTY_LICENSES.md): do not publish.
+- WSL `~/vayu` was fast-forwarded to bd98a33 after `git stash` of its (identical) copies: `stash@{0}` there.
+
 ## Metal step 8 (2026-11-07; Metal.framework sees the device)
 
 - **`boot` now: 1252556b** (= ../backup-vayu/xnu-standalone-metal8-1252556b.img): kernel 34b989e3, ramdisk

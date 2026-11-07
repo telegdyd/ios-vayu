@@ -56,7 +56,8 @@ if [ ! -d "$SRC" ] || [ "$(cat "$SRC/.air-patches" 2>/dev/null)" != "$PATCHES" ]
 		p = root + '/src/c11/threads.h'
 		s = open(p).read()
 		old = "typedef pthread_once_t  once_flag;\n#  define ONCE_FLAG_INIT PTHREAD_ONCE_INIT\n"
-		new = ("#  if defined(__GLIBC__) && __GLIBC_USE(ISOC23) && !defined(__cplusplus)\n"
+		# (2.41's _GNU_SOURCE already says ISOC23 without declaring call_once: the version decides)
+		new = ("#  if defined(__GLIBC__) && (__GLIBC__ > 2 || __GLIBC_MINOR__ >= 43) && __GLIBC_USE(ISOC23) && !defined(__cplusplus)\n"
 		       "#    define C11_LIBC_HAS_CALL_ONCE 1\n"
 		       "#  else\n"
 		       "typedef pthread_once_t  once_flag;\n"
@@ -87,6 +88,10 @@ fi
 if [ ! -x venv/bin/python3 ]; then
 	python3 -m venv venv
 	venv/bin/pip -q install mako pyyaml packaging
+fi
+# Mesa 25 wants meson >= 1.1 (Debian 12 has 1.0.1, or none): one in the venv, as tools/mk-mesa.sh does
+if [ ! -x venv/bin/meson ]; then
+	venv/bin/pip -q install 'meson>=1.1,<1.6'
 fi
 export PATH=$B/venv/bin:$PATH
 

@@ -110,6 +110,20 @@ fixtures must be checked/regenerated before hardware use in later tasks.
 Acceptance evidence: `../docs/metal-step1-build.log` and the task-1 result in
 `../docs/metal-roadmap.md`. No hardware result follows from a fake-GPU pass.
 
+**Task 9 (reconciliation done):** `tools/mesa/air` is now the pinned upstream
+frontend itself, with upstream's `air-ir3.patch`, `ir3-shift-split.patch` and
+`ir3-ssbo-subdword.patch`. It reproduces 58 of 59 committed A640 fixtures byte
+for byte (`../tools/metal-fixtures-reconcile.sh`; task 6's compute fixtures
+included, so our older copy's lowering fixes are not needed on top); the 59th,
+`argbuf_res`, is regenerated for A640 and runs on the phone (probe 6w).
+`make test MESA=1` (host Mesa from `../tools/air/mk-host.sh`, found by default
+in `../build/mesa-host`) passes, as do `vayu-check MESA=1` and `make ios MESA=1`
+(`../tools/metal-app-build.sh`). One test needle was A635 register allocation.
+Local driver change: `compileAir` uses the disk cache (`.kernel` files beside
+the `.stage` ones); `hakios_metal_cache_counts()` reports hits and misses. The
+plug-in in use is `../userland/src/HakiosMetalCA.m`, not `plugin/HakiosMetal.m`.
+Evidence: `../docs/metal-app-results.md`, `../docs/metal-step9-*.log`.
+
 ## Compute hardware follow-up
 
 Task 6: `../docs/metal-compute-results.md` records seventeen precompiled

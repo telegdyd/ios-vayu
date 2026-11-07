@@ -74,6 +74,9 @@ void hakios_metal_close(hakios_metal_device *device);
 uint64_t hakios_metal_gpu_id(hakios_metal_device *device);
 /* whether kernels can be compiled in this build (MESA=1); without it hakios_metal_kernel_compile* refuse by name */
 int hakios_metal_has_compiler(void);
+/* the persistent shader cache's lookups in this process: stages and kernels read from disk (HITS) and compiled because
+ * they were not there (MISSES); both 0 without HAKIOS_METAL_CACHE/_SEED or without a compiler (vayu task 9) */
+void hakios_metal_cache_counts(uint64_t *hits, uint64_t *misses);
 
 hakios_metal_buffer *hakios_metal_buffer_new(hakios_metal_device *device, uint64_t length);
 void hakios_metal_buffer_free(hakios_metal_buffer *buffer);

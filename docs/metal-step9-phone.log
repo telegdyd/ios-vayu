@@ -1,0 +1,515 @@
+# task 9 (metal-step9): a real Metal program on the A640, 2026-11-07, phone UI live on GL (SpringBoard pid 9, backboardd pid 15 throughout)
+# boot image 1252556b (task 8, metal=1); nothing flashed. Uploaded to /private/var/tmp/task9 (emptied at boot):
+#   HakiosMetal.bundle/HakiosMetal sha256 6c4666ae7e3f82185437c5caf0b880736e6bb9b2c8fe498755be4a674bbc94a2
+#   metal_test sha256 2214093a9504435fa4979c2f8be23136f41c53aa0005265982c6cfb936af2bf5
+#   task9.metallib sha256 660239c1e0001498ea15fdd44b9e12bfb029b5ecac77ba907f4bb0f08db3ec94
+#   metal-probe-mesa sha256 3bd6451b6fbfa553f1305a71344b5af1c51c671b7d34ed19b809e836a148186e
+# command: metal_test app /private/var/tmp/task9/task9.metallib /private/var/tmp/task9/HakiosMetal.bundle CACHE_DIR
+
+################ final-cold (fresh cache /private/var/tmp/task9/cache-final2)
+metal_test:   /private/var/tmp/task9/HakiosMetal.bundle: class HakiosMetalDevice, a _MTLDevice 1, conforms to MTLDevice 1
+hakios-metal: the GPU through the service HakiosGPU
+HakiosMetal[metal_test 807]: device: HakiOS Adreno 640 on IOAcceleratorES service 0xe07; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+metal_test:   -initWithAcceleratorPort: 3591 gave HakiosMetalDevice
+metal_app: device "HakiOS Adreno 640"; shader cache /private/var/tmp/task9/cache-final2 (0 files before)
+HakiosMetal[metal_test 807]: feature profile 1: supportsFamily answers YES for 1001 1002 3001; maxColorAttachments-limited features follow it
+HakiosMetal[metal_test 807]: a command queue takes 64 command buffers at a time (maxCommandBufferCount); each one waits on the queue's semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer completes
+metal_app: PASS -newCommandQueue
+metal_app: PASS -newLibraryWithURL: /private/var/tmp/task9/task9.metallib: 7 functions (fill_id tex_fill tri_color_fs tri_color_vs tri_fc_fs tri_flat_vs tri_tex_fs)
+metal_app: PASS -newFunctionWithName: each function, with its type
+HakiosMetal[metal_test 807]: pipeline cache: compute fill_id in 91.02 ms, 0 from the cache, 1 compiled (this process: 0 hits, 1 misses)
+HakiosMetal[metal_test 807]: compiled fill_id: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute pipeline fill_id in 91.32 ms (max 1024 threads a threadgroup, width 64)
+HakiosMetal[metal_test 807]: a pipeline's function tri_color_fs: class _MTLFunctionInternal, ivars: _functionData, _publicMetadataInitialized, _privateMetadataInitialized, _sourceArchiveMetadataInitialized, _stitchableFunctionMetadataInitialized, _programObject, _filePath, _lineNumber, _functionQueue, _specializationAirScript, _baseLibraryFilePath, _baseLibraryUUID, _baseFunctionConstantValues
+HakiosMetal[metal_test 807]: a pipeline's function tri_color_fs: class _MTLFunction, ivars: _device, _functionType, _name, _libraryData, _vendorPrivate, _vertexAttributes, _functionConstants, _functionConstantDictionary, _options, _precompiledOutput, _debugInstrumentationData, _returnType, _arguments, _bindings, _unpackedFilePath, _functionConstantSpecializationHash, _relocations, _importedSymbols, _importedLibraries
+HakiosMetal[metal_test 807]: a pipeline's function tri_color_fs: class _MTLObjectWithLabel, ivars: _label, _labelLock
+HakiosMetal[metal_test 807]:   ... functionConstantsDictionary: 0 entries
+HakiosMetal[metal_test 807]: pipeline cache: render tri_color_vs+tri_color_fs in 8.90 ms, 0 stages from the cache, 2 compiled (this process: 0 hits, 3 misses)
+HakiosMetal[metal_test 807]: linked tri_color_vs+tri_color_fs (0x10120fcd0) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_color_fs in 9.73 ms
+HakiosMetal[metal_test 807]: pipeline cache: render tri_color_vs+tri_tex_fs in 3.74 ms, 1 stages from the cache, 1 compiled (this process: 1 hits, 4 misses)
+HakiosMetal[metal_test 807]: linked tri_color_vs+tri_tex_fs (0x101212170) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 2; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_tex_fs in 4.11 ms
+HakiosMetal[metal_test 807]: function constants: tri_fc_fs specialised here (2 declared), not by a compiler service: the core compiles them in
+HakiosMetal[metal_test 807]: function constants: tri_fc_fs declares 2 and was given 2 of them (the first function seen with constants)
+HakiosMetal[metal_test 807]: pipeline cache: render tri_flat_vs+tri_fc_fs in 7.23 ms, 0 stages from the cache, 2 compiled (this process: 1 hits, 6 misses)
+HakiosMetal[metal_test 807]: linked tri_flat_vs+tri_fc_fs (0x1012111c0) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 0=7 1=1
+metal_app: PASS function constants 0=7, 1=true: -newFunctionWithName:constantValues: and its pipeline in 7.68 ms (2 constants declared)
+HakiosMetal[metal_test 807]: pipeline cache: render tri_flat_vs+tri_fc_fs in 3.11 ms, 1 stages from the cache, 1 compiled (this process: 2 hits, 7 misses)
+HakiosMetal[metal_test 807]: linked tri_flat_vs+tri_fc_fs (0x101212450) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 1=1
+metal_app: PASS function constants 1=true alone (0 left out): a function and its pipeline
+HakiosMetal[metal_test 807]: refused: a specialised function: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: PASS function constants 0=7 alone (the required 1 left out): refused: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: pipelines: fill_id 91.32 ms, tri_color 9.73 ms, tri_tex 4.11 ms, tri_fc 7.68 ms; cache files 0 before, 7 after
+metal_app: PASS compute: fill_id, 64 threadgroups of 64, every one of 4096 words gid*0x9E3779B1+c: 0 wrong (status 4, GPU 0.538 ms)
+HakiosMetal[metal_test 807]: pipeline cache: compute tex_fill in 5.69 ms, 0 from the cache, 1 compiled (this process: 2 hits, 8 misses)
+HakiosMetal[metal_test 807]: compiled tex_fill: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute into a texture: tex_fill over 64x32 RGBA32Uint, 0 of 2048 texels wrong (status 4)
+metal_app: PASS blit: fillBuffer 64 KiB with 0x5a, then copyFromBuffer 16 KiB at +8192 of another: 0 wrong bytes (status 4)
+metal_app: PASS a 64x64 RGBA8Unorm render target (shared storage)
+metal_app: PASS render tri_color: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.227 ms)
+metal_app: PASS render tri_color: 4032 of 4032 pixels within one unit of the barycentric expectation (max deviation 0/255)
+metal_app: PASS a 4x4 RGBA8 texture: -replaceRegion: then -getBytes: read the same
+metal_app: PASS -newSamplerStateWithDescriptor: nearest, clamp to edge
+metal_app: PASS render tri_tex: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.166 ms)
+metal_app: PASS render tri_tex: 3840 of 3840 pixels their texel exactly (192 near a texel edge not judged)
+metal_app: PASS render tri_fc (constants 0=7, 1=true): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.149 ms)
+metal_app: PASS render tri_fc: 4096 of 4096 pixels 07 ff 40 ff (first ff40ff07)
+metal_app: PASS render tri_fc (constant 1=true alone): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.148 ms)
+metal_app: PASS render tri_fc, 0 absent: 4096 of 4096 pixels 00 00 40 ff (first ff400000)
+metal_app: PASS completion handlers: 7 of 7 command buffers called theirs
+metal_app: 24 checks, 0 failed, 156.6 ms in all; cache files now 8
+metal_app: ALL PASS
+
+
+################ final-warm (the same cache, the next run)
+metal_test:   /private/var/tmp/task9/HakiosMetal.bundle: class HakiosMetalDevice, a _MTLDevice 1, conforms to MTLDevice 1
+hakios-metal: the GPU through the service HakiosGPU
+HakiosMetal[metal_test 808]: device: HakiOS Adreno 640 on IOAcceleratorES service 0x1907; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+metal_test:   -initWithAcceleratorPort: 6407 gave HakiosMetalDevice
+metal_app: device "HakiOS Adreno 640"; shader cache /private/var/tmp/task9/cache-final2 (8 files before)
+HakiosMetal[metal_test 808]: feature profile 1: supportsFamily answers YES for 1001 1002 3001; maxColorAttachments-limited features follow it
+HakiosMetal[metal_test 808]: a command queue takes 64 command buffers at a time (maxCommandBufferCount); each one waits on the queue's semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer completes
+metal_app: PASS -newCommandQueue
+metal_app: PASS -newLibraryWithURL: /private/var/tmp/task9/task9.metallib: 7 functions (fill_id tex_fill tri_color_fs tri_color_vs tri_fc_fs tri_flat_vs tri_tex_fs)
+metal_app: PASS -newFunctionWithName: each function, with its type
+HakiosMetal[metal_test 808]: pipeline cache: compute fill_id in 0.20 ms, 1 from the cache, 0 compiled (this process: 1 hits, 0 misses)
+HakiosMetal[metal_test 808]: compiled fill_id: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute pipeline fill_id in 0.44 ms (max 1024 threads a threadgroup, width 64)
+HakiosMetal[metal_test 808]: a pipeline's function tri_color_fs: class _MTLFunctionInternal, ivars: _functionData, _publicMetadataInitialized, _privateMetadataInitialized, _sourceArchiveMetadataInitialized, _stitchableFunctionMetadataInitialized, _programObject, _filePath, _lineNumber, _functionQueue, _specializationAirScript, _baseLibraryFilePath, _baseLibraryUUID, _baseFunctionConstantValues
+HakiosMetal[metal_test 808]: a pipeline's function tri_color_fs: class _MTLFunction, ivars: _device, _functionType, _name, _libraryData, _vendorPrivate, _vertexAttributes, _functionConstants, _functionConstantDictionary, _options, _precompiledOutput, _debugInstrumentationData, _returnType, _arguments, _bindings, _unpackedFilePath, _functionConstantSpecializationHash, _relocations, _importedSymbols, _importedLibraries
+HakiosMetal[metal_test 808]: a pipeline's function tri_color_fs: class _MTLObjectWithLabel, ivars: _label, _labelLock
+HakiosMetal[metal_test 808]:   ... functionConstantsDictionary: 0 entries
+HakiosMetal[metal_test 808]: pipeline cache: render tri_color_vs+tri_color_fs in 0.27 ms, 2 stages from the cache, 0 compiled (this process: 3 hits, 0 misses)
+HakiosMetal[metal_test 808]: linked tri_color_vs+tri_color_fs (0x100d17d30) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_color_fs in 0.86 ms
+HakiosMetal[metal_test 808]: pipeline cache: render tri_color_vs+tri_tex_fs in 0.22 ms, 2 stages from the cache, 0 compiled (this process: 5 hits, 0 misses)
+HakiosMetal[metal_test 808]: linked tri_color_vs+tri_tex_fs (0x100d19020) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 2; fragment constants not 0:
+metal_app: PASS render pipeline tri_color_vs+tri_tex_fs in 0.47 ms
+HakiosMetal[metal_test 808]: function constants: tri_fc_fs specialised here (2 declared), not by a compiler service: the core compiles them in
+HakiosMetal[metal_test 808]: function constants: tri_fc_fs declares 2 and was given 2 of them (the first function seen with constants)
+HakiosMetal[metal_test 808]: pipeline cache: render tri_flat_vs+tri_fc_fs in 0.23 ms, 2 stages from the cache, 0 compiled (this process: 7 hits, 0 misses)
+HakiosMetal[metal_test 808]: linked tri_flat_vs+tri_fc_fs (0x100d19d60) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 0=7 1=1
+metal_app: PASS function constants 0=7, 1=true: -newFunctionWithName:constantValues: and its pipeline in 0.52 ms (2 constants declared)
+HakiosMetal[metal_test 808]: pipeline cache: render tri_flat_vs+tri_fc_fs in 0.23 ms, 2 stages from the cache, 0 compiled (this process: 9 hits, 0 misses)
+HakiosMetal[metal_test 808]: linked tri_flat_vs+tri_fc_fs (0x100d1a1e0) for pixel format 70: the vertex stage binds 0 resources, the fragment stage 0; fragment constants not 0: 1=1
+metal_app: PASS function constants 1=true alone (0 left out): a function and its pipeline
+HakiosMetal[metal_test 808]: refused: a specialised function: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: PASS function constants 0=7 alone (the required 1 left out): refused: function constant fc_opaque (index 1) of tri_fc_fs is required and was not given
+metal_app: pipelines: fill_id 0.44 ms, tri_color 0.86 ms, tri_tex 0.47 ms, tri_fc 0.52 ms; cache files 8 before, 8 after
+metal_app: PASS compute: fill_id, 64 threadgroups of 64, every one of 4096 words gid*0x9E3779B1+c: 0 wrong (status 4, GPU 0.392 ms)
+HakiosMetal[metal_test 808]: pipeline cache: compute tex_fill in 0.19 ms, 1 from the cache, 0 compiled (this process: 10 hits, 0 misses)
+HakiosMetal[metal_test 808]: compiled tex_fill: 2 resources, 1024 threads a threadgroup at most, execution width 64, 0 bytes of threadgroup memory
+metal_app: PASS compute into a texture: tex_fill over 64x32 RGBA32Uint, 0 of 2048 texels wrong (status 4)
+metal_app: PASS blit: fillBuffer 64 KiB with 0x5a, then copyFromBuffer 16 KiB at +8192 of another: 0 wrong bytes (status 4)
+metal_app: PASS a 64x64 RGBA8Unorm render target (shared storage)
+metal_app: PASS render tri_color: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.210 ms)
+metal_app: PASS render tri_color: 4032 of 4032 pixels within one unit of the barycentric expectation (max deviation 0/255)
+metal_app: PASS a 4x4 RGBA8 texture: -replaceRegion: then -getBytes: read the same
+metal_app: PASS -newSamplerStateWithDescriptor: nearest, clamp to edge
+metal_app: PASS render tri_tex: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.166 ms)
+metal_app: PASS render tri_tex: 3840 of 3840 pixels their texel exactly (192 near a texel edge not judged)
+metal_app: PASS render tri_fc (constants 0=7, 1=true): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.158 ms)
+metal_app: PASS render tri_fc: 4096 of 4096 pixels 07 ff 40 ff (first ff40ff07)
+metal_app: PASS render tri_fc (constant 1=true alone): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.150 ms)
+metal_app: PASS render tri_fc, 0 absent: 4096 of 4096 pixels 00 00 40 ff (first ff400000)
+metal_app: PASS completion handlers: 7 of 7 command buffers called theirs
+metal_app: 24 checks, 0 failed, 36.3 ms in all; cache files now 8
+metal_app: ALL PASS
+
+
+################ the plug-in's own persistent cache (/private/var/db/hakios-metal-cache), two runs (earlier binaries, 23 checks)
+logs/metal-step9-run6.txt:metal_app: device "HakiOS Adreno 640"; shader cache /private/var/db/hakios-metal-cache (6 files before)
+logs/metal-step9-run6.txt:metal_app: pipelines: fill_id 0.43 ms, tri_color 0.80 ms, tri_tex 0.46 ms, tri_fc 4.22 ms; cache files 6 before, 8 after
+logs/metal-step9-run6.txt:metal_app: 23 checks, 0 failed, 39.2 ms in all; cache files now 8
+logs/metal-step9-run6.txt:metal_app: ALL PASS
+logs/metal-step9-run7.txt:metal_app: device "HakiOS Adreno 640"; shader cache /private/var/db/hakios-metal-cache (8 files before)
+logs/metal-step9-run7.txt:metal_app: pipelines: fill_id 0.48 ms, tri_color 0.93 ms, tri_tex 0.57 ms, tri_fc 0.64 ms; cache files 8 before, 8 after
+logs/metal-step9-run7.txt:metal_app: 23 checks, 0 failed, 34.0 ms in all; cache files now 8
+logs/metal-step9-run7.txt:metal_app: ALL PASS
+
+################ device report of the new bundle (metal_test bundle)
+metal_test:   /private/var/tmp/task9/HakiosMetal.bundle: class HakiosMetalDevice, a _MTLDevice 1, conforms to MTLDevice 1
+hakios-metal: the GPU through the service HakiosGPU
+HakiosMetal[metal_test 761]: device: HakiOS Adreno 640 on IOAcceleratorES service 0x1407; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+metal_test:   -initWithAcceleratorPort: 5127 gave HakiosMetalDevice
+metal_test:   the bundle's device = "HakiOS Adreno 640", class HakiosMetalDevice
+metal_test:   registry id 4294967593, unified memory 1
+metal_test:   limits: max buffer 268435456 bytes, threads per group 1024x1024x1024, threadgroup memory 32768 bytes, sample counts 1 2 4
+metal_test:   families: Common1 yes Common2 no Common3 no Apple1 yes Apple2 yes Apple3 no Apple4 no Apple5 no Apple6 no Apple7 no Apple8 no Mac2 no Metal3 no
+metal_test:   feature sets: iOS GPU family 1 v5 1, 2 v5 1, 3 v1 0, 4 v1 0
+HakiosMetal[metal_test 761]: feature profile 1: supportsFamily answers YES for 1001 1002 3001; maxColorAttachments-limited features follow it
+HakiosMetal[metal_test 761]: a command queue takes 64 command buffers at a time (maxCommandBufferCount); each one waits on the queue's semaphore in -[_MTLCommandBuffer initWithQueue:...], and this plug-in gives the slot back when the buffer completes
+metal_test:   queue HakiosMetalCommandQueue, buffer HakiosMetalBuffer (4194304 bytes, contents 0x10323c000)
+metal_test:   command buffer HakiosMetalCommandBuffer, blit encoder HakiosMetalBlitCommandEncoder
+metal_test:   blit fill of 4186112 bytes: status 4, error none, completed handlers 1, 7274 us, 0 bytes wrong: PASS
+
+
+################ history: run 1 (first build; library without constant metadata -> tri_fc drew 'nothing supplied')
+metal_app: device "HakiOS Adreno 640"; shader cache /private/var/db/hakios-metal-cache (0 files before)
+metal_app: PASS -newCommandQueue
+metal_app: PASS -newLibraryWithURL: /private/var/tmp/task9/task9.metallib: 6 functions (fill_id tri_color_fs tri_color_vs tri_fc_fs tri_flat_vs tri_tex_fs)
+metal_app: PASS -newFunctionWithName: each function, with its type
+metal_app: PASS compute pipeline fill_id in 91.60 ms (max 1024 threads a threadgroup, width 64)
+metal_app: PASS render pipeline tri_color_vs+tri_color_fs in 10.76 ms
+metal_app: PASS render pipeline tri_color_vs+tri_tex_fs in 4.14 ms
+metal_app: note: function constants: -newFunctionWithName:constantValues: gave a function, its pipeline in 7.72 ms
+metal_app: pipelines: fill_id 91.60 ms, tri_color 10.76 ms, tri_tex 4.14 ms, tri_fc 7.72 ms; cache files 0 before, 6 after
+metal_app: PASS compute: fill_id, 64 threadgroups of 64, every one of 4096 words gid*0x9E3779B1+c: 0 wrong (status 4, GPU 0.540 ms)
+metal_app: PASS blit: fillBuffer 64 KiB with 0x5a, then copyFromBuffer 16 KiB at +8192 of another: 0 wrong bytes (status 4)
+metal_app: PASS a 64x64 RGBA8Unorm render target (shared storage)
+metal_app: PASS render tri_color: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.224 ms)
+metal_app: PASS render tri_color: 4032 of 4032 pixels within one unit of the barycentric expectation (max deviation 0/255)
+metal_app: PASS a 4x4 RGBA8 texture: -replaceRegion: then -getBytes: read the same
+metal_app: PASS -newSamplerStateWithDescriptor: nearest, clamp to edge
+metal_app: PASS render tri_tex: committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.202 ms)
+metal_app: PASS render tri_tex: 3840 of 3840 pixels their texel exactly (192 near a texel edge not judged)
+metal_app: PASS render tri_fc (constants 0=7, 1=true): committed and waited for (status 4); -getBytes: and the blit into a buffer agree: yes (GPU 0.149 ms)
+metal_app: FAIL render tri_fc: 0 of 4096 pixels 07 ff 40 ff (first 40400000)
+metal_app: PASS completion handlers: 5 of 5 command buffers called theirs
+metal_app: 18 checks, 1 failed, 148.0 ms in all; cache files now 6
+metal_app: FAILED
+
+################ history: runs 2-3 (constants declared; Metal's own specialisation waited ~30 s for a compiler service and failed)
+logs/metal-step9-run2.txt:metal_app: FAIL function constants 0=7, 1=true: -newFunctionWithName:constantValues: or its pipeline failed (2 constants declared): Compiler encountered an internal error
+logs/metal-step9-run2.txt:metal_app: FAIL function constants 1=true alone (0 left out): a function and its pipeline: Compiler encountered an internal error
+logs/metal-step9-run2.txt:metal_app: 18 checks, 2 failed, 30901.3 ms in all; cache files now 4
+logs/metal-step9-run2.txt:metal_app: FAILED
+logs/metal-step9-run3.txt:metal_app: FAIL function constants 0=7, 1=true: -newFunctionWithName:constantValues: or its pipeline failed (2 constants declared): Compiler encountered an internal error
+logs/metal-step9-run3.txt:metal_app: FAIL function constants 1=true alone (0 left out): a function and its pipeline: Compiler encountered an internal error
+logs/metal-step9-run3.txt:metal_app: 18 checks, 2 failed, 30288.6 ms in all; cache files now 4
+logs/metal-step9-run3.txt:metal_app: FAILED
+
+################ compiler-enabled probe (hakios-metal-probe, MESA=1), full stages, --transport-audit
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.22 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1133 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 28043 us at best (598 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 128 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 129 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 122 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 348 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 108 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 102 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 100 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 100 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 97 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 98 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 104 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 98 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 104 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 100 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 102 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 110 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 362 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 105 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 104 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 104 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 353 us, FAULTS 0
+probe: ok   compile fill_id.ll on the phone: 64 words, the same as the host's, layout the same (instrlen 1, constlen 12)
+probe: ok   dispatch of the kernel compiled on the phone, 16 groups of 64, c = 0x4321: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 116 us, FAULTS 0
+probe: ok   clz_id on the GPU: 1024 of 1024 words as the processor computes them, 64 of 64 canary words untouched, 115 us, FAULTS 0
+probe: ok   bytes_id on the GPU: 1024 of 1024 words as the processor computes them, 64 of 64 canary words untouched, 130 us, FAULTS 0
+probe: ok   uniform_id on the GPU: 1024 of 1024 words as the processor computes them, 64 of 64 canary words untouched, 142 us, FAULTS 0
+probe: ok   pack_id on the GPU: 1024 of 1024 words as the processor computes them, 64 of 64 canary words untouched, 131 us, FAULTS 0
+probe: ok   undef_phi_id on the GPU: 1024 of 1024 words as the processor computes them, 64 of 64 canary words untouched, 117 us, FAULTS 0
+probe: ok   width_id on the GPU: 1024 of 1024 words as the processor computes them, 64 of 64 canary words untouched, 113 us, FAULTS 0
+probe: ok   ballot_id on the GPU: 1024 of 1024 words as the processor computes them, 64 of 64 canary words untouched, 133 us, FAULTS 0
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 363 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 120 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 115 us, FAULTS 0
+probe: ok   argument buffer of an output, a sampler and two textures: 64 of 64 words 0x000703e8, 64 of 64 past them canary, 125 us, FAULTS 0
+probe: ok   argument buffer with its two texture words swapped: 64 of 64 words 0x03e80007, 64 of 64 past them canary, 126 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 109 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 105 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 109 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 104 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 103 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 105 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 106 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 107 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 135 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 134 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 116 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 111 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 112 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 111 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 127 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 124 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 139 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 121 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 115 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 126 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 130 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 127 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 126 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 129 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 126 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 137 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 109 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 109 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 112 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 108 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 109 us, FAULTS 0
+probe: FAIL compile tex_fill.ll on the phone: 96 words, DIFFERENT from the host's, layout the same, texture fields the same (numTextureSlots 0, samplerMask 0x00000000)
+probe: ok   compile tex_copy.ll on the phone: 64 words, the same as the host's, layout the same, texture fields the same (numTextureSlots 2, samplerMask 0x00000000)
+probe: ok   compile tex_sample_gid.ll on the phone: 128 words, the same as the host's, layout the same, texture fields the same (numTextureSlots 1, samplerMask 0x00000001)
+probe: ok   compile tex_fill_h.ll on the phone: 64 words, the same as the host's, layout the same, texture fields the same (numTextureSlots 0, samplerMask 0x00000000)
+probe: section 9a
+probe: ok   tri_flat, one triangle (vertices 0..3) into 64x64 RGBA8Unorm: 2016 of 2016 interior pixels the colour, 2016 of 2016 exterior canary, diagonal: 0 of 64 the colour (the top-left rule), 184 us, FAULTS 0
+probe: ok   orientation: lower-left: Metal's orientation, the viewport y scale sign is right
+probe: (tri_flat 64x64: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: section 9b
+probe: ok   tri_flat, the pair (vertices 0..6): 4096 of 4096 pixels the colour, 0 still canary, 0 wrong, 169 us, FAULTS 0
+probe: section 9c
+probe: ok   control, tri_flat in a half viewport (0, 0, 32, 64): 1024 of 1024 interior pixels the colour, 3072 of 3072 exterior canary (interior: j >= 2i + 1 in columns 0..31), 139 us, FAULTS 0
+probe: ok   control, tri_flat from vertex 3 (T2 alone, upper-right): 2016 of 2016 interior pixels the colour, 2016 of 2016 exterior canary, diagonal: 64 of 64 the colour (a bottom-right rule), 130 us, FAULTS 0
+probe: ok   control, a draw of 0 vertices: refused: a draw of 0 vertices
+probe: ok   control, a draw into a texture without MTLTextureUsageRenderTarget: refused: the 64 x 64 RGBA8Unorm texture was made without render-target usage (MTLTextureUsageRenderTarget, 4); a draw needs it
+probe: section 9g
+probe: ok   tri_cflat, one triangle with its colour from a constant buffer at [[buffer(0)]] (0xff332211): 2016 of 2016 interior pixels the colour, 2016 of 2016 exterior canary, diagonal: 0 of 64 the colour (the top-left rule), 146 us, FAULTS 0
+probe: ok   tri_cflat, one triangle with its colour from a constant buffer at [[buffer(0)]] (0x80ccddee): 2016 of 2016 interior pixels the colour, 2016 of 2016 exterior canary, diagonal: 0 of 64 the colour (the top-left rule), 137 us, FAULTS 0
+probe: ok   control, tri_cflat with nothing bound at [[buffer(0)]]: refused: tri_cflat_fs_air: no buffer bound at index 0 (its constant buffer)
+probe: section 9d
+probe: ok   tri_color, the pair (vertices 0..6), per-vertex colours interpolated: 4032 of 4032 pixels within 1/255 + 1/512 of the barycentric expectation (A exactly 255), max deviation 0/255, 0 off, 163 us, FAULTS 0
+probe: section 9h
+probe: ok   tri_attr, the pair through a vertex descriptor (Float2 at 0, UChar4Normalized at 8, stride 12): 4032 of 4032 pixels within 1/255 + 1/512 of the barycentric expectation (A exactly 255), max deviation 0/255, 0 off, 137 us, FAULTS 0
+probe: ok   control, tri_attr over 7 vertices of a 6-vertex buffer: refused: tri_attr_vs_air: [[attribute(0)]] of vertex 6 ends at byte 80 of buffer 0; 72 are bound
+probe: section 9h2
+probe: ok   tri_attr, the pair through Short2Normalized at 0, UChar4Normalized_BGRA at 8, stride 12: 4032 of 4032 pixels within 1/255 + 1/512 of the barycentric expectation (A exactly 255), max deviation 0/255, 0 off, 143 us, FAULTS 0
+probe: ok   tri_attr, the pair through Short2Normalized at 0, UShort4Normalized at 8, stride 16: 4032 of 4032 pixels within 1/255 + 1/512 of the barycentric expectation (A exactly 255), max deviation 0/255, 0 off, 136 us, FAULTS 0
+probe: section 9i
+probe: ok   clear without a draw, RGBA8Unorm (0.25, 0.5, 0.75, 1): 4096 of 4096 pixels the packed colour, 0 words outside the rectangle changed, 124 us, FAULTS 0
+probe: ok   clear without a draw, BGRA8Unorm (0.25, 0.5, 0.75, 1): B first in memory: 4096 of 4096 pixels the packed colour, 0 words outside the rectangle changed, 117 us, FAULTS 0
+probe: ok   clear without a draw, RGBA8Unorm_sRGB (0.5 x 4): 188 encoded, alpha 128 linear: 4096 of 4096 pixels the packed colour, 0 words outside the rectangle changed, 118 us, FAULTS 0
+probe: ok   clear without a draw, RGBA16Float (0.25, -2, 65504, 1e-7): 4096 of 4096 pixels the packed colour, 0 words outside the rectangle changed, 115 us, FAULTS 0
+probe: ok   clear without a draw, R32Uint (7): 4096 of 4096 pixels the packed colour, 0 words outside the rectangle changed, 115 us, FAULTS 0
+probe: ok   clear without a draw, RGBA32Float (1.5, -0, 0, 1): 4096 of 4096 pixels the packed colour, 0 words outside the rectangle changed, 115 us, FAULTS 0
+probe: ok   clear without a draw, RGBA8Unorm 48x20 (0, 1, 0, 1): row padding and the 4-row pad untouched: 960 of 960 pixels the packed colour, 0 words outside the rectangle changed, 113 us, FAULTS 0
+probe: ok   clear then tri_flat T1: 2016 of 2016 interior pixels the colour, 2016 of 2016 exterior canary, diagonal: 0 of 64 the colour (the top-left rule) (here "canary" is the clear colour 0xffbf8040), 156 us, FAULTS 0
+probe: ok   control, a pass without a draw and with load action Load: refused: a pass without a draw and with load action 1: only a Clear writes anything then
+probe: section 9j
+probe: ok   blend, source over, straight (SourceAlpha, OneMinusSourceAlpha; alpha One, OneMinusSourceAlpha): 2016 of 2016 inside within 1 of 76 53 59 ff (largest deviation 0), 2080 of 2080 outside D exactly, 143 us, FAULTS 0
+probe: ok   blend, source over, premultiplied (One, OneMinusSourceAlpha): 2016 of 2016 inside within 1 of dc 86 73 ff (largest deviation 0), 2080 of 2080 outside D exactly, 133 us, FAULTS 0
+probe: ok   blend, ReverseSubtract (D - S, clamped at 0; alpha Add of Zero and One): 2016 of 2016 inside within 1 of 00 00 4d ff (largest deviation 0), 2080 of 2080 outside D exactly, 134 us, FAULTS 0
+probe: ok   blend, Max for RGB, Min for alpha (the factors ignored): 2016 of 2016 inside within 1 of cc 66 80 80 (largest deviation 0), 2080 of 2080 outside D exactly, 132 us, FAULTS 0
+probe: ok   blend, BlendColor (0.5, 0.25, 1, 0.75): RGB S * K, alpha S * Ka + D * (1 - Ka): 2016 of 2016 inside within 1 of 66 1a 33 a0 (largest deviation 0), 2080 of 2080 outside D exactly, 128 us, FAULTS 0
+probe: ok   blend, no blend, write mask Red | Alpha: G and B keep D: 2016 of 2016 inside within 1 of cc 40 80 80 (largest deviation 0), 2080 of 2080 outside D exactly, 149 us, FAULTS 0
+probe: section 9k
+probe: ok   tri_tex, a 4x4 texture sampled at tri_color's (red, green) through the FS prefetch: 3840 of 3840 pixels their texel exactly (192 near a texel edge not judged, 0 still canary, 0 the row-flipped texel), 140 us, FAULTS 0
+probe: ok   control, tri_tex over an R32Uint texture: refused: texture 0 is R32Uint (uint); tri_tex_fs_air reads it as texture2d<float>
+probe: section 9j2
+probe: ok   tri_tex over an 8x8 ASTC 4x4 texture of four one-colour blocks: 3720 of 3720 pixels their block's colour (312 near a block edge not judged), 146 us, FAULTS 0
+probe: ok   astc hdr: tri_tex over HDR void-extent blocks of 0.25 0.5 0.75 1: 4032 pixels decoded as HDR (40 80 bf ff), 0 the LDR error colour (magenta), 0 other, 135 us, FAULTS 0
+probe: ok   tri_tex3d over a 4x4x4 3D texture at slice 2: 3840 of 3840 pixels their texel exactly (0 another slice's), 132 us, FAULTS 0
+probe: ok   tri_tex2da over a 4x4x2 2D array at layer 1: 3840 of 3840 pixels their texel exactly (0 layer 0's), 134 us, FAULTS 0
+probe: ok   tri_cube along the six axes of a 4x4 cube: 6 of 6 draws the whole target the face the axis names
+probe: ok   tri_cuba along the six axes of each of three 4x4 cubes: 18 of 18 draws the whole target that face
+probe: ok   tri_tex1da at six (texel, layer) pairs of an 8-texel, 4-layer 1D array: 6 of 6 draws the whole target that texel
+probe: ok   bicubic on a chip without the TP's cubic filter: refused (a bicubic sampler: this chip's TP has no cubic filter (freedreno_devices.py a6xx_gen2)), the linear sampler made
+probe: section 9k2
+probe: ok   tri_tex1d, a 4-texel 1D texture sampled at tri_color's red: 3684 of 3684 pixels their texel, 139 us, FAULTS 0
+probe: section 9l
+probe: ok   depth, Less + write, cleared to 1, NEAR then FAR: 4096 of 4096 as wanted (2016 red, 2080 green, 0 canary), 140 us, FAULTS 0
+probe: ok   depth, Less + write, cleared to 1, FAR then NEAR: 4096 of 4096 as wanted (2016 red, 2080 green, 0 canary), 137 us, FAULTS 0
+probe: ok   depth, Greater + write, cleared to 0, NEAR then FAR: 4096 of 4096 as wanted (0 red, 4096 green, 0 canary), 116 us, FAULTS 0
+probe: ok   depth, Less without write, cleared to 1, NEAR then FAR: 4096 of 4096 as wanted (0 red, 4096 green, 0 canary), 116 us, FAULTS 0
+probe: ok   depth, Always without write (Metal's default), NEAR then FAR: 4096 of 4096 as wanted (0 red, 4096 green, 0 canary), 115 us, FAULTS 0
+probe: ok   depth, Always without write (Metal's default), FAR then NEAR: 4096 of 4096 as wanted (2016 red, 2080 green, 0 canary), 115 us, FAULTS 0
+probe: ok   depth, Less + write, NEAR in a pass of depth alone, then FAR: 4096 of 4096 as wanted (0 red, 2080 green, 2016 canary), 115 us, FAULTS 0
+probe: ok   fragment depth: depth_fs's 0.25 kept under T1 drawn at 0.9 -- 4096 of 4096 as wanted (2016 red), 119 us, FAULTS 0
+probe: ok   dual source: white times dual_fs's second colour under T1 -- 2016 of 2016 pixels 80 40 ff bf, 0 white, 138 us, FAULTS 0
+probe: ok   shadow map, Less against 0.5: 4096 of 4096 pixels the comparison's answer, 386 us, FAULTS 0
+probe: ok   shadow map, GreaterEqual against 0.5: 4096 of 4096 pixels the comparison's answer, 136 us, FAULTS 0
+probe: ok   msaa depth, NEAR then FAR at 4 samples, resolved: 1953 of 1953 inside red, 1953 of 1953 outside green, 64 red-green mixes on the diagonal (32 or more), 0 neither, 361 us, FAULTS 0
+probe: ok   msaa depth, FAR then NEAR at 4 samples, resolved: 1953 of 1953 inside red, 1953 of 1953 outside green, 64 red-green mixes on the diagonal (32 or more), 0 neither, 356 us, FAULTS 0
+probe: ok   msaa 375x812, cleared, resolved: 304500 of 304500 pixels right, 0 rows not, 1549 us, FAULTS 0
+probe: ok   msaa 375x812, the pair drawn under Less, resolved: 304500 of 304500 pixels right, 0 rows not, 2469 us, FAULTS 0
+probe: ok   control, a depth test with no depth attachment: refused: a depth test (compare 1, write) with no depth attachment
+probe: section 9n
+probe: ok   indexed, a TRISTRIP of 16-bit indices with a restart (0 1 2 0xffff 1 3 2): 4096 of 4096 pixels the vertices' colour, 165 us, FAULTS 0
+probe: ok   mip level across the diagonal: 314 of 314 pixels by the diagonal at level 0, 3782 of 3782 elsewhere (pixels of levels 0..6/other: 4096/0/0/0/0/0/0/0), 146 us, FAULTS 0
+probe: ok   indexed, tri_flat through 32-bit indices 0 1 2 with base vertex 3 (T2 alone): 2016 of 2016 interior pixels the colour, 2016 of 2016 exterior canary, diagonal: 64 of 64 the colour (a bottom-right rule), 136 us, FAULTS 0
+probe: ok   instanced, the pair x 3 instances, colour per instance at step rate 2, One + One: 4096 of 4096 pixels 2 * C0 + C1 = 0x40144040 (pixel 0 is 0x40144040), 135 us, FAULTS 0
+probe: section 9o
+probe: ok   upos, the pair's positions pulled from a constant buffer at offset 32 through UBO descriptor 0: 4096 of 4096 pixels the colour, 0 still canary, 0 wrong, 137 us, FAULTS 0
+probe: ok   control, upos over the junk alone (bound at 0, 3 vertices off the target): 0 of 0 pixels canary, 0 still canary, 0 wrong; outside the grid 4096 of 4096 pixels canary, 131 us, FAULTS 0
+probe: ok   dpos, the pair's positions pulled from a device buffer at offset 32 through 3D IBO 0: 4096 of 4096 pixels the colour, 0 still canary, 0 wrong, 119 us, FAULTS 0
+probe: ok   control, dpos over the junk alone (bound at 0, 3 vertices off the target): 0 of 0 pixels canary, 0 still canary, 0 wrong; outside the grid 4096 of 4096 pixels canary, 116 us, FAULTS 0
+probe: section 9o2
+probe: ok   upos, a constant buffer bound at offset 4: 4096 of 4096 pixels the colour, 133 us, FAULTS 0
+probe: ok   upos, a constant buffer bound at offset 8: 4096 of 4096 pixels the colour, 129 us, FAULTS 0
+probe: ok   upos, a constant buffer bound at offset 16: 4096 of 4096 pixels the colour, 127 us, FAULTS 0
+probe: ok   upos, a constant buffer bound at offset 64: 4096 of 4096 pixels the colour, 126 us, FAULTS 0
+probe: ok   upos, a constant buffer bound at offset 120: 4096 of 4096 pixels the colour, 126 us, FAULTS 0
+probe: ok   cflat, a pushed constant range bound at offset 4: 4096 of 4096 pixels 40 80 bf ff; pixel 0 0xffbf8040, 124 us, FAULTS 0
+probe: ok   cflat, a pushed constant range bound at offset 8: 4096 of 4096 pixels 40 80 bf ff; pixel 0 0xffbf8040, 126 us, FAULTS 0
+probe: ok   cflat, a pushed constant range bound at offset 16: 4096 of 4096 pixels 40 80 bf ff; pixel 0 0xffbf8040, 125 us, FAULTS 0
+probe: ok   cflat, a pushed constant range bound at offset 120: 4096 of 4096 pixels 40 80 bf ff; pixel 0 0xffbf8040, 125 us, FAULTS 0
+probe: ok   textures 3 and 9 with samplers 0 and 1: 4096 of 4096 pixels ff 80 00 ff; pixel 0 0xff0080ff, 128 us, FAULTS 0
+probe: section 9u2
+probe: ok   derivatives, fwidth of tri_color's red in float and half: 3968 of 3968 pixels, 125 us, FAULTS 0
+probe: ok   a half constant in half arithmetic (0.25 x red x 4): 4032 of 4032 pixels tri_color's red, 126 us, FAULTS 0
+probe: section 9d2
+probe: ok   a half4 varying from VS to FS: 4032 of 4032 pixels tri_color's, 126 us, FAULTS 0
+probe: ok   a prefetch of texture 3 through sampler 1 (linear): 1365 of 1365 blended pixels, 130 us, FAULTS 0
+probe: ok   halfs from a constant buffer at 64, 66, 70, 68: 4096 of 4096 pixels 40 80 bf ff; pixel 0 0xffbf8040, 147 us, FAULTS 0
+probe: section 9q
+probe: ok   ctex, a constexpr repeat sampler at 4 x tri_color's coordinate: 3072 of 3072 judged pixels the repeat's texel (0 the clamp's instead), 161 us, FAULTS 0
+probe: section 9r
+probe: ok   200 draws in ONE command buffer (one pass), One + One of 1/255: 4096 of 4096 pixels 200 in every channel, 0 still canary, 0 wrong; 428 us on the GPU, 7627 us wall, 428 us, FAULTS 0
+probe: ok   control, the 200 draws as 200 command buffers, One + One of 1/255: 4096 of 4096 pixels 200 in every channel, 0 still canary, 0 wrong; 24943 us on the GPU, 58094 us wall, 110 us, FAULTS 0
+probe: section 9s
+probe: ok   null texture, the texel written (40 c0 11 22): both samples read it, 40 c0 40 c0: 4032 of 4032 pixels right, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0); pixel (0,1) is 0xc040c040, 118 us, FAULTS 0
+probe: ok   null texture, the texel zero, as every draw has it: 0: 4032 of 4032 pixels right, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0); pixel (0,1) is 0x00000000, 114 us, FAULTS 0
+probe: ok   null texture, the application's own texture bound at the slot: the queue's zero goes over it, 0: 4032 of 4032 pixels right, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0); pixel (0,1) is 0x00000000, 113 us, FAULTS 0
+probe: section 9t
+probe: ok   mrt, the pair into two targets: target 0 4096 of 4096 pixels 20 40 80 ff, 0 still canary, 0 wrong; target 1 4096 of 4096 pixels ff 00 40 bf, 0 still canary, 0 wrong, 119 us, FAULTS 0
+probe: ok   mrt, T1 into two targets, the second cleared first: target 0 2016 of 2016 pixels 20 40 80 ff, 0 still canary, 0 wrong; outside the grid 2080 of 2080 pixels canary; target 1 4096 of 4096 pixels ff 00 40 bf under T1, the clear colour 40 80 bf ff elsewhere, 0 still canary, 0 wrong, 123 us, FAULTS 0
+probe: ok   mrt, the pair into a pass of one attachment ([[color(1)]] written nowhere): target 0 4096 of 4096 pixels 20 40 80 ff, 0 still canary, 0 wrong; the other texture 4096 of 4096 canary, 112 us, FAULTS 0
+probe: ok   mrt, [[color(1)]] written alone: target 0 4096 of 4096 pixels still canary; target 1 4096 of 4096 pixels ff 00 40 bf, 0 still canary, 0 wrong, 117 us, FAULTS 0
+probe: section 9u
+probe: ok   framebuffer fetch, one draw over a Clear (GMEM, raster order): 4096 of 4096 pixels 80 bf 40 ff, 0 still canary, 0 wrong; 4096 read the clear (80 bf 40 ff), 0 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 120 us, FAULTS 0
+probe: ok   framebuffer fetch, two draws in one pass (GMEM, raster order): 4096 of 4096 pixels bf 40 80 ff, 0 still canary, 0 wrong; 0 read the clear (80 bf 40 ff), 4096 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 116 us, FAULTS 0
+probe: ok   framebuffer fetch, two draws in one pass (GMEM, barrier): 4096 of 4096 pixels bf 40 80 ff, 0 still canary, 0 wrong; 0 read the clear (80 bf 40 ff), 4096 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 113 us, FAULTS 0
+probe: ok   framebuffer fetch, two draws in one pass (GMEM, NEITHER: a measurement, not judged): 0 of 4096 pixels bf 40 80 ff, 0 still canary, 4096 wrong (first at 0,0 lane 0: got 0xff40bf80 expected 0xff8040bf); 4096 read the clear (80 bf 40 ff), 0 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 114 us, FAULTS 0
+probe: ok   framebuffer fetch, one draw over a Clear (sysmem, raster order): 4096 of 4096 pixels 80 bf 40 ff, 0 still canary, 0 wrong; 4096 read the clear (80 bf 40 ff), 0 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 99 us, FAULTS 0
+probe: ok   framebuffer fetch, two draws in one pass (sysmem, raster order): 4096 of 4096 pixels bf 40 80 ff, 0 still canary, 0 wrong; 0 read the clear (80 bf 40 ff), 4096 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 101 us, FAULTS 0
+probe: ok   framebuffer fetch, two draws in one pass (sysmem, barrier): 4096 of 4096 pixels bf 40 80 ff, 0 still canary, 0 wrong; 0 read the clear (80 bf 40 ff), 4096 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 100 us, FAULTS 0
+probe: ok   framebuffer fetch, two draws in one pass (sysmem, NEITHER: a measurement, not judged): 0 of 4096 pixels bf 40 80 ff, 0 still canary, 4096 wrong (first at 0,0 lane 0: got 0xff40bf80 expected 0xff8040bf); 4096 read the clear (80 bf 40 ff), 0 read the first draw (bf 40 80 ff), 0 read nothing (00 00 00 ff), 99 us, FAULTS 0
+probe: section 9v
+probe: ok   format A8Unorm, a Clear to (0.25, 0.5, 0.75, 1): 4096 of 4096 pixels the packed bytes, 104 us, FAULTS 0
+probe: ok   format A8Unorm, one texel sampled: 4032 of 4032 pixels 0x40000000, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0), 118 us, FAULTS 0
+probe: ok   format A8Unorm, tri_flat drawn into it: 4096 of 4096 pixels the colour as the format keeps it, 122 us, FAULTS 0
+probe: ok   format R16Float, a Clear to (0.25, 0.5, 0.75, 1): 4096 of 4096 pixels the packed bytes, 113 us, FAULTS 0
+probe: ok   format R16Float, one texel sampled: 4032 of 4032 pixels 0xff000040, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0), 154 us, FAULTS 0
+probe: ok   format R16Float, tri_flat drawn into it: 4096 of 4096 pixels the colour as the format keeps it, 113 us, FAULTS 0
+probe: ok   format RG16Float, a Clear to (0.25, 0.5, 0.75, 1): 4096 of 4096 pixels the packed bytes, 100 us, FAULTS 0
+probe: ok   format RG16Float, one texel sampled: 4032 of 4032 pixels 0xff00bf40, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0), 157 us, FAULTS 0
+probe: ok   format RG16Float, tri_flat drawn into it: 4096 of 4096 pixels the colour as the format keeps it, 163 us, FAULTS 0
+probe: ok   format RG32Float, a Clear to (0.25, 0.5, 0.75, 1): 4096 of 4096 pixels the packed bytes, 115 us, FAULTS 0
+probe: ok   format RG32Float, one texel sampled: 4032 of 4032 pixels 0xff0040ff, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0), 135 us, FAULTS 0
+probe: ok   format RG32Float, tri_flat drawn into it: 4096 of 4096 pixels the colour as the format keeps it, 154 us, FAULTS 0
+probe: ok   format BGR5A1Unorm, a Clear to (0.25, 0.5, 0.75, 1): 4096 of 4096 pixels the packed bytes, 104 us, FAULTS 0
+probe: ok   format BGR5A1Unorm, one texel sampled: 4032 of 4032 pixels 0xff0000ff, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0), 150 us, FAULTS 0
+probe: ok   format BGR5A1Unorm, tri_flat drawn into it: 4096 of 4096 pixels the colour as the format keeps it, 112 us, FAULTS 0
+probe: ok   format B5G6R5Unorm, a Clear to (0.25, 0.5, 0.75, 1): 4096 of 4096 pixels the packed bytes, 101 us, FAULTS 0
+probe: ok   format B5G6R5Unorm, one texel sampled: 4032 of 4032 pixels 0xff00ff00, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0), 149 us, FAULTS 0
+probe: ok   format B5G6R5Unorm, tri_flat drawn into it: 4096 of 4096 pixels the colour as the format keeps it, 111 us, FAULTS 0
+probe: ok   format R16Unorm, a Clear: refused by name (a Clear of R16Unorm: the 2D engine's intermediate format for it is not worked out here)
+probe: ok   format R16Unorm, one texel sampled: 4032 of 4032 pixels 0xff000040, 0 still canary, 0 wrong; outside the grid 0 of 64 pixels canary (first touched at 0,0), 131 us, FAULTS 0
+probe: ok   format R16Unorm, tri_flat drawn into it: 4096 of 4096 pixels the colour as the format keeps it, 112 us, FAULTS 0
+probe: section 9w
+probe: ok   mip, each of seven levels sampled through a sampler clamped to it: 7 of 7 levels their colour in every covered pixel
+probe: ok   mip, tri_flat drawn into level 2: 256 of 256 texels of level 2 the flat colour; levels 1 and 3 untouched in 1024 of 1024 and 64 of 64, 160 us, FAULTS 0
+probe: ok   mip, a copy of 16 x 8 at (8, 4) into another texture at (0, 0): 128 of 128 texels the source's, 3968 of 3968 outside still canary, 114 us, FAULTS 0
+probe: ok   2D rotation 1 of a 64 x 32 texture: clockwise: dst(i, j) = src(j, H-1-i) (texels agreeing with each candidate: 2048, 0, 0, 0 of 2048), 114 us, FAULTS 0
+probe: ok   2D rotation 2 of a 64 x 32 texture: half turn: dst(i, j) = src(W-1-i, H-1-j) (texels agreeing with each candidate: 2048, 0, 0, 0 of 2048), 108 us, FAULTS 0
+probe: ok   2D rotation 3 of a 64 x 32 texture: anticlockwise: dst(i, j) = src(W-1-j, i) (texels agreeing with each candidate: 0, 2048, 0, 0 of 2048), 109 us, FAULTS 0
+probe: ok   raw copy of RGBA8Snorm: 2048 of 2048 bytes as they were, 112 us, FAULTS 0
+probe: ok   raw copy of RGBA16Unorm: 4096 of 4096 bytes as they were, 111 us, FAULTS 0
+probe: ok   pass cost: 1 draw 18 us; 20 draws in one pass 27 us (0.5 us a draw); 20 passes of one draw 383 us (18.7 us a pass over a draw)
+probe: ok   fetch cost, 20 draws (us): sys/barrier 142 gmem/barrier 85 sys/ordered 142 gmem/ordered 54
+probe: ok   pass cost in sysmem: 1 draw 12 us; 20 draws in one pass 20 us; 20 passes of one draw 220 us
+probe: ok   memory bandwidth: a 16 MiB copy 2210 us (15.19 GB/s moved)
+probe: ok   GMEM binned by the hardware: 0 pixels differ from sysmem; the VSC wrote 8 and 4 bytes of draw stream for pipes 0 and 1
+probe: ok   GMEM: 5 blended triangles over a 1125x2436 BGRA8 pattern in 12 tiles: 0 pixels differ from sysmem; twin without the loads: 2740432 differ (must be many)
+probe: ok   GMEM: framebuffer fetch over part of the screen in 6 tiles: 0 pixels differ from sysmem; 367495 changed
+probe: ok   GMEM: framebuffer fetch 4 times over a 1125x2436 BGRA8 pattern in 12 tiles: 0 pixels differ from sysmem; 1499978 changed from the pattern
+probe: ok   full-screen cost, 4 draws (us): flat/sysmem 2626 flat/gmem 2538 fetch/sysmem/barrier 5169 fetch/gmem/barrier 4038 fetch/sysmem/ordered 5161 fetch/gmem/ordered 3996
+probe: ok   full-screen sampling, 4 blended draws (us): 4x4 5222 194x237 5234 1125x2436 9813
+probe: ok   UBWC: a 1271x1823 BGRA8 texture written by replace, sampled over the screen 4 times through its compressed copy: 0 pixels differ from the linear one's; linear 10865 us, compressed 7046 us (the copy in included in the first run)
+probe: ok   UBWC: a 1125x2436 RGBA8 picture drawn compressed and linear, then sampled over the screen 4 times: 0 pixels differ; linear 9741 us, compressed 6830 us
+probe: ok   GMEM: a Clear in the tiles of a 1125x2436 BGRA8Unorm and a triangle: 0 pixels differ from the 2D engine's fill in sysmem
+probe: ok   GMEM: a Clear in the tiles of a 1125x2436 RGBA16Float and a triangle: 0 pixels differ from the 2D engine's fill in sysmem
+probe: ok   GMEM pass shape: 2 screens, Clear, 1 or 140 tiny draws: GMEM 2011 / 3511 us (0.21 us a draw a tile), sysmem 630 / 689 us
+probe: (GMEM pass shape without the wait after each tile: 1929 us for 1 draw; 140 binned 2144 us, 2171 with it)
+probe: ok   layout cost: 16 column reads a thread over 1125x2436: linear 10032 us, tiled 9848 us (1.02x)
+probe: ok   GMEM cost: 8 full-screen blended draws 5168 us in sysmem, 2549 us in GMEM (2.03x)
+probe: ok   mip, generateMipmaps over a 0x20/0x60 checkerboard: levels 1 to 6 0x40 in 1024/1024 256/256 64/64 16/16 4/4 1/1 texels; 604 us wall, 364 us, FAULTS 0
+probe: section 9x
+probe: ok   stencil, T1 writes 1 and the pair is drawn where it is 1: 2016 of 2016 under T1 00 ff 00 ff, 2080 of 2080 elsewhere the clear colour, 2016 green in all, 0 flat under T1, 112 us, FAULTS 0
+probe: ok   stencil control, the pair without the test: 2016 of 2016 under T1 00 ff 00 ff, 0 of 2080 elsewhere the clear colour, 4096 green in all, 0 flat under T1 (all 4096 green is right), 103 us, FAULTS 0
+probe: ok   stencil control, T1 with write mask 0: 0 of 2016 under T1 00 ff 00 ff, 2080 of 2080 elsewhere the clear colour, 0 green in all, 2016 flat under T1 (none green, T1 flat is right), 138 us, FAULTS 0
+probe: section 9y
+probe: ok   driver params, vertices 3..8, two instances from 7: 4096 of 4096 pixels 03 08 00 ff, 143 us, FAULTS 0
+probe: ok   driver params, indices 0..5 from base vertex 5, two instances from 7: 4096 of 4096 pixels 05 08 00 ff, 146 us, FAULTS 0
+probe: section 9l2
+probe: ok   a line list of vertices 1 and 2: 64 of the 64 pixels with i = j drawn, 0 elsewhere, 4032 canary, 130 us, FAULTS 0
+probe: ok   a line strip of vertices 1 and 2: 64 of the 64 pixels with i = j drawn, 0 elsewhere, 4032 canary, 121 us, FAULTS 0
+probe: section 9z
+probe: ok   private memory, a[128] a fiber read at the pixel's x: 4096 of 4096 pixels red 3i + j + 1, 855 us, FAULTS 0
+probe: section 9z2
+probe: ok   a fragment program of 444 units (127 preloaded): 4096 of 4096 pixels the 700-step chain, 0 the one a step short, 392 us, FAULTS 0
+probe: ok   tri_tex with no texture and no sampler bound: 4096 of 4096 pixels the null texel 00 00 00 00, 130 us, FAULTS 0
+probe: section 9q2
+probe: ok   occlusion, tri_flat over the whole 64x64 target, counted: 4096 samples (4096)
+probe: ok   occlusion, T1 alone: 2016 samples (2016, and the diagonal's 64 if it is T1's)
+probe: ok   occlusion, T2 added to T1's word without the reset: 4096 samples (4096)
+probe: ok   points of size 8, flat: 256 of 256 pixels in the four squares right, 3840 of 3840 outside still canary, 119 us, FAULTS 0
+probe: ok   points of size 8, their [[point_coord]]: 256 of 256 pixels in the four squares right (0 with t running upward), 3840 of 3840 outside still canary, 127 us, FAULTS 0
+probe: ok   a texture in the vertex stage, texels in order: 64/64/64/64 of 64 per square right, 3840 of 3840 outside still canary, 126 us, FAULTS 0
+probe: ok   a texture in the vertex stage, texels reversed: 64/64/64/64 of 64 per square right, 3840 of 3840 outside still canary, 153 us, FAULTS 0
+probe: ok   msaa 1 sample(s), T1 resolved: 1953 of 1953 inside flat, 1953 of 1953 outside the clear colour, 0 mixes on the edge (none wanted), 0 neither, 144 us, FAULTS 0
+probe: ok   msaa 1 sample(s), edge of slope 0.625, T1 resolved: 1201 of 1201 inside flat, 2706 of 2706 outside the clear colour, 0 mixes on the edge (none wanted), 0 neither, 121 us, FAULTS 0
+probe: ok   msaa 2 sample(s), edge of slope 0.625, T1 resolved: 1201 of 1201 inside flat, 2706 of 2706 outside the clear colour, 16 mixes on the edge (8 or more wanted), 0 neither, 129 us, FAULTS 0
+probe: ok   msaa 4 sample(s), T1 resolved: 1953 of 1953 inside flat, 1953 of 1953 outside the clear colour, 64 mixes on the edge (32 or more wanted), 0 neither, 130 us, FAULTS 0
+probe: ok   msaa read by sample: 3906 of 3906 pixels off the diagonal every sample right, 64 diagonal pixels whose samples disagree (32 or more), 0 samples neither colour
+probe: ok   indirect draw, six vertices written after recording: 4032 of 4032 pixels off the diagonal as the arguments say, 138 us, FAULTS 0
+probe: ok   control, indirect draw left at three vertices: 4032 of 4032 pixels off the diagonal as the arguments say, 126 us, FAULTS 0
+probe: ok   indirect draw of vertices 3 to 5 (vertexStart from the arguments): 4032 of 4032 pixels off the diagonal as the arguments say, 125 us, FAULTS 0
+probe: ok   a constant table in the vertex stage: 4096 of 4096 pixels the flat colour, 127 us, FAULTS 0
+probe: ok   cull, no cull: 1953 of 1953 of T1 drawn, 0 canary (drawn wanted), 122 us, FAULTS 0
+probe: ok   cull, back cull, Clockwise front: 0 of 1953 of T1 drawn, 1953 canary (culled wanted), 120 us, FAULTS 0
+probe: ok   cull, front cull, Clockwise front: 1953 of 1953 of T1 drawn, 0 canary (drawn wanted), 121 us, FAULTS 0
+probe: ok   cull, back cull, CounterClockwise front: 1953 of 1953 of T1 drawn, 0 canary (drawn wanted), 163 us, FAULTS 0
+probe: ok   cull, front cull, CounterClockwise front: 0 of 1953 of T1 drawn, 1953 canary (culled wanted), 150 us, FAULTS 0
+probe: section 9m
+probe: ok   iosurface: a BGRA8Unorm texture over IOSurface 100 (256-byte rows): wrapped, GPU address 0x25cf0000
+probe: ok   iosurface, a Clear then T1, read back through IOSurfaceLock: 4096 of 4096 as wanted, 172 us, FAULTS 0
+probe: ok   iosurface, the CPU's canary loaded, then T1, read back through IOSurfaceLock: 4096 of 4096 as wanted, 163 us, FAULTS 0
+probe: ok   ycbcr, '420f' sampled as one texture: 4096 of 4096 pixels 20 60 a0 ff (Y, Cb, Cr); pixel 0 reads 0xffa06020, 155 us, FAULTS 0
+transport-audit: call 3617 request 126 answered 0xe00002f0
+probe: ok   control, a texture over an IOSurface ID nobody made: refused: IOSurface 2147483632: the driver gave no buffer for it: no such surface
+probe: section 9e
+probe: section 9f
+probe: ok   compile tri_flat_vs.ll on the phone: 64 words, the same as the host's, layout the same, texture fields the same (numTextureSlots 0, samplerMask 0x00000000), stage fields the same
+probe: ok   compile tri_flat_fs.ll on the phone: 32 words, the same as the host's, layout the same, texture fields the same (numTextureSlots 0, samplerMask 0x00000000), stage fields the same
+probe: ok   compile tri_color_vs.ll on the phone: 96 words, the same as the host's, layout the same, texture fields the same (numTextureSlots 0, samplerMask 0x00000000), stage fields the same
+probe: ok   compile tri_color_fs.ll on the phone: 32 words, the same as the host's, layout the same, texture fields the same (numTextureSlots 0, samplerMask 0x00000000), stage fields the same
+probe: ok   draw of tri_flat compiled and linked on the phone (vertices 0..3): 2016 of 2016 interior pixels the colour, 2016 of 2016 exterior canary, diagonal: 0 of 64 the colour (the top-left rule), 189 us, FAULTS 0
+probe: ok   link tri_color on the phone: cnt 2, stride 8, position at 4 (expected 2, 8, 4)
+probe: draw passes 699: 491 in GMEM (7 binned, 1051 tiles), 208 in sysmem
+probe: 1 failure
+transport-audit: FAIL handles=0 mappings=0 queues=0 calls=3718 errors=1 close=0 first_iova=0x22be0000
+
+
+################ after: kern.hakios.battery_temperature_c 31, kern.hakios.battery_soc 88; SpringBoard pid 9 Ss, backboardd pid 15 Ss

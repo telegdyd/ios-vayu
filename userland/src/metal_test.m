@@ -46,6 +46,7 @@
 #import <stdio.h>
 #import <stdlib.h>
 #import <spawn.h>
+#import <sys/stat.h>
 #import <sys/wait.h>
 #import <time.h>
 #import <unistd.h>
@@ -293,6 +294,10 @@ plugins(void)
 }
 
 /* Step 5, as a program sees it. */
+/* `metal_test app LIBRARY [BUNDLE]`: the .metallib task 9's program runs (metal_app.m) */
+int metal_app(id<MTLDevice> device, const char *library_path);
+static const char *app_library;
+
 /* a device made by hand, by `metal_test bundle PATH` (see the_bundles_device): nil for the system's own */
 static id<MTLDevice> given_device;
 
@@ -631,6 +636,9 @@ the_bundles_device(const char *path)
 	IOObjectRelease(it);
 	given_device = device;
 	printf("metal_test:   -initWithAcceleratorPort: %u gave %s\n", service, device ? class_getName([device class]) : "nil");
+	if (device != nil && app_library != NULL) {
+		exit(metal_app(device, app_library));
+	}
 	if (device != nil) {
 		the_device();
 		the_device_makes();
@@ -668,6 +676,20 @@ main(int argc, char **argv)
 			coreimage();
 		} else if (strcmp(argv[1], "plugins") == 0) {
 			plugins();
+		} else if (strcmp(argv[1], "app") == 0 && argc > 2) {
+			/* task 9: a real Metal program -- on BUNDLE's device made by hand, or on the system's */
+			app_library = argv[2];
+			/* a fifth argument: the shader cache directory to use instead of the plug-in's own (it keeps one already set) */
+			if (argc > 4) {
+				mkdir(argv[4], 0755);
+				setenv("HAKIOS_METAL_CACHE", argv[4], 1);
+			}
+			if (argc > 3) {
+				the_bundles_device(argv[3]);
+				printf("metal_test: the bundle gave no device\n");
+				return 1;
+			}
+			return metal_app(MTLCreateSystemDefaultDevice(), app_library);
 		} else if (strcmp(argv[1], "bundle") == 0 && argc > 2) {
 			the_bundles_device(argv[2]);
 		} else if (strcmp(argv[1], "metal-blit") == 0) {

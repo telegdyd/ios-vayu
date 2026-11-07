@@ -254,6 +254,7 @@ void hakios_metal_close(hakios_metal_device* d) { delete d; }
 uint64_t hakios_metal_gpu_id(hakios_metal_device* d) { return d->gpu->chipId(); }
 
 int hakios_metal_has_compiler(void) { return hasCompiler() ? 1 : 0; }
+void hakios_metal_cache_counts(uint64_t* hits, uint64_t* misses) { stageCacheCounts(hits, misses); }
 
 hakios_metal_library* hakios_metal_library_open(const void* data, size_t size) {
     auto* l = new hakios_metal_library;

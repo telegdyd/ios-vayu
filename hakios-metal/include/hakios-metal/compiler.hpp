@@ -102,6 +102,10 @@ struct CompiledProgram {
 // whether a compiler is in this build
 bool hasCompiler();
 
+// The persistent cache's lookups so far in this process (HAKIOS_METAL_CACHE / _SEED): stages and kernels found on
+// disk, and those compiled because they were not. Both stay 0 with no cache configured or no compiler.
+void stageCacheCounts(uint64_t* hits, uint64_t* misses);
+
 // A function constant's value as the pipeline supplies it (MTLFunctionConstantValues): INDEX is the module's
 // [[function_constant(n)]], BITS the value as the bits of its type -- a bool 0 or 1, an integer or a float its own bits
 // in the low end, a vector's component i at bit i * its width (nir_air.h: air_constant_value). A constant not supplied
