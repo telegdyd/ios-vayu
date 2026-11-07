@@ -28,6 +28,8 @@ HFS Plus for a real writable /private/var (in progress, 2026-11-06 late night):
   ~3500 writes / ~65 MB each, 0 refused. Late writes survive an abrupt end.
 - Images: kernel b0cba756..., root-flash.apfs a9419a0e..., flashboot.apfs 2ed5d333...; standalone.sh's default
   cmdline uses var_hfs=1. Rollback: ../backup-vayu/xnu-standalone-varstore.img (+ images-varstore/).
+- FACT: 2026-11-07 ~00:5x: xnu-standalone.img cd3e34b5... flashed into `boot` (user's OK) and rebooted. Not yet
+  seen by the user on the phone (their own change + hard restart test pending).
 
 Standalone boot (FACT unless marked):
 - Loader 2.2 (546ac05, loader.efi 103936 B sha256 539ed29f...): a payload entry "resident" is copied to the
