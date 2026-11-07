@@ -1,0 +1,137 @@
+{
+  "run": "metal-step5",
+  "groups": [
+    {
+      "console": "console.txt",
+      "mode": "paused",
+      "runs": 10,
+      "checks": 80,
+      "wired_pages": [
+        34735,
+        34743,
+        34745,
+        34745,
+        34745,
+        34745,
+        34754,
+        34748,
+        34556,
+        34556,
+        34557
+      ],
+      "first_iovas": [
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000"
+      ]
+    },
+    {
+      "console": "console.txt",
+      "mode": "live",
+      "runs": 10,
+      "checks": 80,
+      "wired_pages": [
+        34551,
+        34553,
+        34553,
+        34553,
+        34553,
+        34553,
+        34553,
+        34553,
+        34553,
+        34552,
+        34553
+      ],
+      "first_iovas": [
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000"
+      ]
+    },
+    {
+      "console": "console-active.txt",
+      "mode": "paused",
+      "runs": 10,
+      "checks": 80,
+      "wired_pages": [
+        34738,
+        34746,
+        34746,
+        34746,
+        34746,
+        34746,
+        34748,
+        34748,
+        34748,
+        34748,
+        34557
+      ],
+      "first_iovas": [
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000",
+        "0x20cb0000"
+      ]
+    },
+    {
+      "console": "console-active.txt",
+      "mode": "live",
+      "runs": 10,
+      "checks": 80,
+      "wired_pages": [
+        34561,
+        34561,
+        34561,
+        33868,
+        33870,
+        35094,
+        35099,
+        35099,
+        35095,
+        35091,
+        35091
+      ],
+      "first_iovas": [
+        "0x20cb0000",
+        "0x212c0000",
+        "0x212c0000",
+        "0x212c0000",
+        "0x212c0000",
+        "0x212c0000",
+        "0x212c0000",
+        "0x212c0000",
+        "0x212c0000",
+        "0x212c0000"
+      ]
+    }
+  ],
+  "repeated_runs": 40,
+  "repeated_checks": 320,
+  "final_health_runs": 1,
+  "sha256": {
+    "userland/obj/metal-probe": "b5f0938a571ecc601ee1d82e68c6067d3735564f4cdb283d3fce917a25a44c77",
+    "userland/obj/metal_transport_run": "b7e557f1702632cac60829c469fbd29f677a22747fa3a5c838abd9ac460475a6",
+    "userland/rc.jobs.metal-transport": "4c6b93924e4919b30f093cd5446b6b93c16a839c551e566f6f2d95af27a4ee58"
+  }
+}

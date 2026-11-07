@@ -67,6 +67,17 @@ Outputs (ignored): `out/host/tests`, `out/host/probe-fake`,
 The iOS artifacts are built, not run. `probe-fake --stages 4` executes CP buffer and
 submission operations in the simulator, not Adreno shader instructions.
 
+## Transport hardware follow-up
+
+Task-5 hardware follow-up: `../docs/metal-transport-abi.md` and
+`../docs/metal-step5-phone.log` record real A640 stages 1–4, with UI processes
+paused and resumed. This boot exposes `HakiosGPU`; `RedwoodGPU` remains an older
+fallback. `probe --transport-audit` enables opt-in IOKit lifetime/error accounting
+and logs the result after the user client is closed; `--service NAME` overrides
+discovery for diagnosis. These options are Darwin-only. Audit failures are logs
+and must be checked in addition to the probe exit status. No shader execution or
+live AIR compilation is implied by those transport results.
+
 ## AIR frontend decision
 
 **FACT (source inspection):** upstream does not carry a second AIR-to-NIR frontend

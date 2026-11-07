@@ -1,0 +1,873 @@
+# console.txt: latest rc.jobs run
+runner: mode=paused repetitions=10
+runner: SpringBoard pid=9 state=4 expected=stopped
+runner: backboardd pid=15 state=4 expected=stopped
+runner: wired_pages=34735 (system-wide observation)
+runner: iteration=1 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 147 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 317 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 4217: 1 command buffers, the first at 0x20eb0000, 18 words
+HakiosGPU: buffers: 14 made in 1157 us each, 1 kept ones given again (0 MB kept)
+HakiosGPU: 51 submissions in 203247 ms: 51 command buffers and 108 buffers named, 0 KB out of the cache in 0 us a submission; the GPU worked 2734 us on each of 51 (43 under 0.1 ms, 1 under 0.25, 0 under 0.5, 1 under 1, 1 under 2, 0 under 4, 5 longer; 139 ms in all); 8 waits of 17475 us, 0 over before they began; 0 IOSurfaces taken as buffers in 0 us each; 3 buffers, 2 MB
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1236 us
+HakiosGPU: submission 4218: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4219: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4220: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27381 us at best (612 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34743 (system-wide observation)
+runner: iteration=2 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 108 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 4268: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1071 us
+HakiosGPU: submission 4269: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4270: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4271: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27409 us at best (612 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=254 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34745 (system-wide observation)
+runner: iteration=3 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 108 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 313 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 4319: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1072 us
+HakiosGPU: submission 4320: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4321: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4322: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27554 us at best (608 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34745 (system-wide observation)
+runner: iteration=4 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 315 us; a draw's 2.5 KB of table 0.23 us)
+HakiosGPU: submission 4370: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1086 us
+HakiosGPU: submission 4371: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4372: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4373: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27596 us at best (607 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34745 (system-wide observation)
+runner: iteration=5 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 126 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 321 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 4421: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1151 us
+HakiosGPU: submission 4422: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4423: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4424: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27604 us at best (607 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34745 (system-wide observation)
+runner: iteration=6 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 108 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.23 us)
+HakiosGPU: submission 4472: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1067 us
+HakiosGPU: submission 4473: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4474: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4475: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27394 us at best (612 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=261 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34754 (system-wide observation)
+runner: iteration=7 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 188 us to a GPU buffer, 106 to its own; 16 K words read from a GPU buffer in 356 us; a draw's 2.5 KB of table 0.25 us)
+HakiosGPU: submission 4523: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1130 us
+HakiosGPU: submission 4524: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4525: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4526: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27161 us at best (617 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34748 (system-wide observation)
+runner: iteration=8 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 126 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 319 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 4574: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1104 us
+HakiosGPU: submission 4575: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4576: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4577: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27282 us at best (614 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34556 (system-wide observation)
+runner: iteration=9 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.23 us)
+HakiosGPU: submission 4625: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1082 us
+HakiosGPU: submission 4626: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4627: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4628: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27159 us at best (617 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34556 (system-wide observation)
+runner: iteration=10 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 110 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 308 us; a draw's 2.5 KB of table 0.23 us)
+HakiosGPU: submission 4676: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1072 us
+HakiosGPU: submission 4677: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4678: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4679: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27116 us at best (618 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=261 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34557 (system-wide observation)
+runner: SpringBoard pid=9 state=4 expected=stopped
+runner: backboardd pid=15 state=4 expected=stopped
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: PASS failures=0
+runner: mode=live repetitions=10
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: wired_pages=34551 (system-wide observation)
+runner: iteration=1 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 111 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.23 us)
+HakiosGPU: submission 4727: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1104 us
+HakiosGPU: submission 4728: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4729: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4730: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27134 us at best (618 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=2 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 127 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 315 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 4778: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1128 us
+HakiosGPU: submission 4779: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4780: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4781: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27262 us at best (615 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=3 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 127 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 319 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 4829: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1140 us
+HakiosGPU: submission 4830: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4831: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4832: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27132 us at best (618 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=4 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 124 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 318 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 4880: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1132 us
+HakiosGPU: submission 4881: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4882: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4883: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27094 us at best (619 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=5 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 4931: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1101 us
+HakiosGPU: submission 4932: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4933: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4934: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27077 us at best (619 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=254 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=6 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 110 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 312 us; a draw's 2.5 KB of table 0.23 us)
+HakiosGPU: submission 4982: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1060 us
+HakiosGPU: submission 4983: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 4984: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 4985: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 28078 us at best (597 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=252 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=7 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 81 to its own; 16 K words read from a GPU buffer in 317 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5033: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1074 us
+HakiosGPU: submission 5034: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5035: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5036: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27363 us at best (613 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=8 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 108 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 308 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5084: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1084 us
+HakiosGPU: submission 5085: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5086: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5087: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27498 us at best (610 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: iteration=9 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 125 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 318 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 5135: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1117 us
+HakiosGPU: submission 5136: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5137: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5138: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27570 us at best (608 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=261 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34552 (system-wide observation)
+runner: iteration=10 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 124 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 321 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 5186: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1139 us
+HakiosGPU: submission 5187: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5188: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5189: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27352 us at best (613 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34553 (system-wide observation)
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: PASS failures=0
+
+# console-active.txt: latest rc.jobs run
+runner: mode=paused repetitions=10
+runner: SpringBoard pid=9 state=4 expected=stopped
+runner: backboardd pid=15 state=4 expected=stopped
+runner: wired_pages=34738 (system-wide observation)
+runner: iteration=1 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 127 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 318 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 5237: 1 command buffers, the first at 0x20eb0000, 18 words
+HakiosGPU: buffers: 290 made in 1094 us each, 20 kept ones given again (0 MB kept)
+HakiosGPU: 1020 submissions in 62776 ms: 1020 command buffers and 2160 buffers named, 0 KB out of the cache in 0 us a submission; the GPU worked 2723 us on each of 1020 (860 under 0.1 ms, 20 under 0.25, 0 under 0.5, 20 under 1, 20 under 2, 0 under 4, 100 longer; 2778 ms in all); 160 waits of 17411 us, 0 over before they began; 0 IOSurfaces taken as buffers in 0 us each; 3 buffers, 2 MB
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1246 us
+HakiosGPU: submission 5238: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5239: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5240: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27345 us at best (613 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=252 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34746 (system-wide observation)
+runner: iteration=2 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5288: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1087 us
+HakiosGPU: submission 5289: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5290: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5291: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27327 us at best (613 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=252 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34746 (system-wide observation)
+runner: iteration=3 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 124 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 317 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 5339: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1115 us
+HakiosGPU: submission 5340: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5341: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5342: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27283 us at best (614 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34746 (system-wide observation)
+runner: iteration=4 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 309 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5390: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1069 us
+HakiosGPU: submission 5391: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5392: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5393: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27334 us at best (613 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34746 (system-wide observation)
+runner: iteration=5 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 308 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5441: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1066 us
+HakiosGPU: submission 5442: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5443: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5444: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27301 us at best (614 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34746 (system-wide observation)
+runner: iteration=6 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5492: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1073 us
+HakiosGPU: submission 5493: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5494: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5495: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27313 us at best (614 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=261 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34748 (system-wide observation)
+runner: iteration=7 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 309 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5543: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1060 us
+HakiosGPU: submission 5544: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5545: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5546: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27148 us at best (617 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=261 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34748 (system-wide observation)
+runner: iteration=8 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 81 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5594: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1063 us
+HakiosGPU: submission 5595: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5596: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5597: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27135 us at best (618 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34748 (system-wide observation)
+runner: iteration=9 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 79 to its own; 16 K words read from a GPU buffer in 307 us; a draw's 2.5 KB of table 0.22 us)
+HakiosGPU: submission 5645: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1051 us
+HakiosGPU: submission 5646: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5647: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5648: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27334 us at best (613 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=254 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34748 (system-wide observation)
+runner: iteration=10 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 127 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 317 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 5696: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1120 us
+HakiosGPU: submission 5697: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5698: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5699: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27317 us at best (614 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=261 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34557 (system-wide observation)
+runner: SpringBoard pid=9 state=4 expected=stopped
+runner: backboardd pid=15 state=4 expected=stopped
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: PASS failures=0
+runner: mode=live repetitions=10
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: wired_pages=34561 (system-wide observation)
+runner: iteration=1 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 128 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 315 us; a draw's 2.5 KB of table 0.25 us)
+HakiosGPU: submission 5747: 1 command buffers, the first at 0x20eb0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1252 us
+HakiosGPU: submission 5748: 1 command buffers, the first at 0x20eb0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5749: 1 command buffers, the first at 0x20eb0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5750: 1 command buffers, the first at 0x20eb0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27151 us at best (617 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x20cb0000
+runner: wired_pages=34561 (system-wide observation)
+runner: iteration=2 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 128 us to a GPU buffer, 92 to its own; 16 K words read from a GPU buffer in 376 us; a draw's 2.5 KB of table 0.55 us)
+HakiosGPU: submission 5799: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1580 us
+HakiosGPU: submission 5800: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5801: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5802: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+MiniIOMobileFramebuffer: S5FPS: 986381 ms: 13 frames (0 a second), 0 refreshes told (0 a second), mode 120 Hz (fb_hz 60, fb_120 1, every 1 panel frame), 41 synthetic touch samples, finger 1, 0 screen touch samples, screen finger 0; 0 waited for the frame before, 11 came a refresh late, 0 of 13 late waited for neither the GPU's fence nor the copy
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27554 us at best (608 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=34561 (system-wide observation)
+runner: iteration=3 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 187 us to a GPU buffer, 312 to its own; 16 K words read from a GPU buffer in 349 us; a draw's 2.5 KB of table 0.45 us)
+HakiosGPU: submission 5892: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 5952 us
+HakiosGPU: submission 5896: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5900: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5904: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27142 us at best (618 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=270 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=33868 (system-wide observation)
+runner: iteration=4 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 207 us to a GPU buffer, 166 to its own; 16 K words read from a GPU buffer in 935 us; a draw's 2.5 KB of table 0.28 us)
+HakiosGPU: submission 5985: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1594 us
+HakiosGPU: submission 5986: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 5987: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 5989: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27259 us at best (615 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=249 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=33870 (system-wide observation)
+runner: iteration=5 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 139 us to a GPU buffer, 99 to its own; 16 K words read from a GPU buffer in 2358 us; a draw's 2.5 KB of table 0.41 us)
+HakiosGPU: submission 6049: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 5460 us
+HakiosGPU: submission 6050: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 6051: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 6054: 1 command buffers, the first at 0x214d0000, 79 words
+MiniIOMobileFramebuffer: S5FPS: 1097 ms: 33 frames (30 a second), 0 refreshes told (0 a second), mode 120 Hz (fb_hz 60, fb_120 1, every 1 panel frame), 123 synthetic touch samples, finger 1, 0 screen touch samples, screen finger 0; 9 waited for the frame before, 31 came a refresh late, 10 of 33 late waited for neither the GPU's fence nor the copy
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27452 us at best (611 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=35094 (system-wide observation)
+runner: iteration=6 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 144 us to a GPU buffer, 96 to its own; 16 K words read from a GPU buffer in 369 us; a draw's 2.5 KB of table 0.41 us)
+HakiosGPU: submission 6153: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1984 us
+HakiosGPU: submission 6161: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 6166: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 6168: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 34129 us at best (491 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=35099 (system-wide observation)
+runner: iteration=7 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 127 us to a GPU buffer, 92 to its own; 16 K words read from a GPU buffer in 319 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 6288: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 6518 us
+HakiosGPU: submission 6290: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 6292: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 6295: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 34657 us at best (484 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=35099 (system-wide observation)
+runner: iteration=8 stages=1-4
+MiniIOMobileFramebuffer: S5FPS: 1001 ms: 45 frames (44 a second), 0 refreshes told (0 a second), mode 120 Hz (fb_hz 60, fb_120 1, every 1 panel frame), 113 synthetic touch samples, finger 1, 0 screen touch samples, screen finger 0; 14 waited for the frame before, 42 came a refresh late, 20 of 45 late waited for neither the GPU's fence nor the copy
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 128 us to a GPU buffer, 92 to its own; 16 K words read from a GPU buffer in 325 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 6398: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 2872 us
+HakiosGPU: submission 6399: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 6403: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 6405: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+HakiosGPU: buffers: 363 made in 1134 us each, 20 kept ones given again (0 MB kept)
+HakiosGPU: 1227 submissions in 5011 ms: 3258 command buffers and 19344 buffers named, 772 KB out of the cache in 56 us a submission; the GPU worked 2921 us on each of 1227 (774 under 0.1 ms, 18 under 0.25, 0 under 0.5, 24 under 1, 144 under 2, 93 under 4, 174 longer; 3584 ms in all); 254 waits of 17672 us, 0 over before they began; 2 IOSurfaces taken as buffers in 522 us each; 15 buffers, 34 MB
+probe: ok   16 MB by CP_MEMCPY in 27369 us at best (612 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=35095 (system-wide observation)
+runner: iteration=9 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 132 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 398 us; a draw's 2.5 KB of table 0.34 us)
+HakiosGPU: submission 6530: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 9519 us
+HakiosGPU: submission 6535: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 6541: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 6546: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 35786 us at best (468 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=258 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=35091 (system-wide observation)
+runner: iteration=10 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 133 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 321 us; a draw's 2.5 KB of table 0.24 us)
+HakiosGPU: submission 6675: 1 command buffers, the first at 0x214d0000, 18 words
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 9270 us
+HakiosGPU: submission 6679: 1 command buffers, the first at 0x214d0000, 8 words
+probe: ok   fill of 4 bytes at 16
+HakiosGPU: submission 6682: 1 command buffers, the first at 0x214d0000, 71 words
+probe: ok   fill of 256 bytes at 16
+HakiosGPU: submission 6683: 1 command buffers, the first at 0x214d0000, 79 words
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+MiniIOMobileFramebuffer: S5FPS: 1039 ms: 48 frames (46 a second), 0 refreshes told (0 a second), mode 120 Hz (fb_hz 60, fb_120 1, every 1 panel frame), 31 synthetic touch samples, finger 0, 0 screen touch samples, screen finger 0; 13 waited for the frame before, 46 came a refresh late, 15 of 48 late waited for neither the GPU's fence nor the copy
+probe: ok   16 MB by CP_MEMCPY in 27355 us at best (613 MB/s, commit to fence)
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x212c0000
+runner: wired_pages=35091 (system-wide observation)
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: PASS failures=0
+
+# Final health check
+runner: mode=live repetitions=1
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: wired_pages=37383 (system-wide observation)
+runner: iteration=1 stages=1-4
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 126 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 323 us; a draw's 2.5 KB of table 0.24 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1217 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27856 us at best (602 MB/s, commit to fence)
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=255 errors=0 close=0 first_iova=0x30bb0000
+probe: stopped after stage 4 (--stages)
+probe: 0 failures
+runner: wired_pages=37390 (system-wide observation)
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: PASS failures=0
+
+kern.hakios.battery_temperature_c: 33
+kern.hakios.battery_soc: 90

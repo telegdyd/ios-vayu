@@ -1,0 +1,8 @@
+# Temporary sweetd deployment: upload probe and runner to /private/var/tmp,
+# upload this file, then /redwood/sbin/init /private/var/tmp/rc.jobs.metal-transport.
+# UI state survives the isolated run; a watchdog resumes it if the runner dies.
+# This tests stopped UI processes, not a boot before those processes exist.
+/private/var/tmp/metal_transport_run paused /private/var/tmp/metal-probe 10
+# Exercise the GL compositor while the second group runs (page swipe and back).
+/redwood/bin/rwtouch swipe 0.8 0.5 0.2 0.5 600 swipe 0.2 0.5 0.8 0.5 600 swipe 0.8 0.5 0.2 0.5 600 swipe 0.2 0.5 0.8 0.5 600 &
+/private/var/tmp/metal_transport_run live /private/var/tmp/metal-probe 10

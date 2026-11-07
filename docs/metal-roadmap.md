@@ -32,7 +32,8 @@ Every agent, every task:
 ## What already exists (start here, don't redo it)
 
 - **Kernel GPU service.** The fork starts the Adreno with `gpu=1 vayu_gpu=1 vayu_keep=1`
-  (`bsd/dev/vayu_adreno.c`, IOKit service `RedwoodGPU`, an msm-DRM-like interface). The GL window
+  (`bsd/dev/vayu_adreno.c`, IOKit service `HakiosGPU` in the observed task-5 boot,
+  with `RedwoodGPU` retained as a transport fallback; an msm-DRM-like interface). The GL window
   server already draws through it: Mesa freedreno via `tools/mesa/hakios-drm`, `userland/src/eagl.c`.
 - **AIR → NIR frontend** inside our Mesa (`tools/mesa/air`, `air-frontend.patch`, `air-ir3.patch`;
   `docs/air.md`, `docs/air-report.md`). It reads 456/456 system `.metallib` modules and turns 321 of
@@ -140,7 +141,7 @@ Every agent, every task:
 
 ### Phase B: the driver on the phone's GPU
 
-- [ ] **5. Transport on the phone: `probe --stages`.**
+- [x] **5. Transport on the phone: `probe --stages`.**
   Depends on: 1.
   Do: put `probe` into the root image and run it from an rc.jobs file, first with SpringBoard not
   running, then with the GL window server holding the GPU. Each stage must be seen: open
@@ -149,7 +150,21 @@ Every agent, every task:
   ABI really lacks something, and write down the ABI that hakios-metal depends on.
   Done when: FACT logs of every stage passing, alone and alongside SpringBoard; the ABI is written
   down.
-  Result: —
+  Result: **FACT (2026-11-07, `metal-step5`):** 40 repeated hardware runs of
+  stages 1–4 / 320 checks pass, plus final health run. Twenty with both UI
+  processes stopped and twenty resumed (ten with page swipes/display frames).
+  All 41 cleanup audits: zero outstanding GEM handles/maps/queues, no transport
+  errors, successful service close. IOVA reuse and quiet wired-memory plateau
+  show no observed accumulation; no universal kernel leak claim. Actual service
+  is `HakiosGPU`; explicit `RedwoodGPU` discovery fails. No kernel fix needed.
+  **Execution adjustment:** temporary upload + existing init rc.jobs runner;
+  isolation via verified SIGSTOP/resume, with UI resources retained, rather than
+  replacing the root image or rebooting. A cold boot before UI initialization
+  remains untested; this result covers transport without UI execution and with
+  the GL compositor active. ABI/limits: `docs/metal-transport-abi.md`; evidence:
+  `docs/metal-step5-{phone.log,build.log,summary.json}`. FAULTS is a stub zero,
+  not reset telemetry. 261 host tests and fake stages pass; iOS build passes.
+  Phone resumed normally, 33 C / 90%; no reboot or partition command. Task 6 next.
 
 - [ ] **6. Compute on the phone.**
   Depends on: 3, 5.
@@ -319,6 +334,8 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
 - **Answered (task 1, source):** the driver links the parent tree's Mesa AIR frontend;
   our `tools/mesa/air` is the same lineage but has an older API. Keep this one frontend
   and reconcile the newer metadata before compiler-enabled builds (task 9).
-- Did 0040/0043 ever run on vayu's GPU, or only on `fake_gpu`? (task 1 or 5)
+- **Answered for transport (task 5):** the ported driver passes real A640
+  stages 1–4 (CP copies/fills/fences/ordering); shader fixtures are not run by
+  those stages. 0043's shader hardware coverage starts at tasks 6–7.
 - Does QuartzCore switch to Metal on its own once a device is registered? (task 8)
 - Which third-party Metal apps or games matter to the user? (task 12)

@@ -69,6 +69,30 @@ Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt a
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 5 (2026-11-07; transport on the phone)
+
+- **FACT (`metal-step5`, `docs/metal-step5-phone.log`):** 40 repeated hardware
+  probe runs through stages 1–4 / 320 checks pass, plus a final health run.
+  Twenty with SpringBoard/backboardd SIGSTOPed (states verified), twenty resumed,
+  including ten with page swipes and interleaved display frames. All 41 audits:
+  no live GEM handles/maps/queues, no transport errors, successful service close.
+  Reused first-allocation IOVAs and quiet wired-memory plateau show no observed
+  accumulating leak; this is not a proof of all kernel/long-duration leak freedom.
+- **FACT:** current service is `HakiosGPU`, not assumed `RedwoodGPU`; explicit
+  RedwoodGPU discovery fails. No kernel ABI patch needed. ABI, limitations,
+  reproduction and evidence: `docs/metal-transport-abi.md`, `metal-step5-*`.
+  Vayu's FAULTS parameter is hardcoded zero; do not treat it as reset telemetry.
+- **FACT (execution adjustment):** temporary uploads plus the existing init
+  rc.jobs runner, no root-image replacement/reboot/partition command. Isolation
+  used stopped UI processes with retained resources, not a boot before UI exists;
+  that startup-only case remains untested. Independent watchdog resumes stopped
+  processes. Final original UI PIDs resumed, phone responsive, battery 33 C / 90%.
+- **FACT (build):** WSL pull refused unrelated dirty work; preserved it, synced
+  only two driver sources. 261 host tests / zero failed checks, fake stages 1–4
+  pass, iOS library/probe/runner cross-built. No compiler enabled, no shaders run.
+  Task 5 transport acceptance complete with the isolation adjustment above;
+  task 6 (compute fixtures on A640) is next. Stay on the existing GL fallback.
+
 ## Metal step 4 (2026-11-07; freedreno reference captures on the phone)
 
 - **FACT (run `metal-step4`, `docs/metal-step4-validation.log`):** new off-screen

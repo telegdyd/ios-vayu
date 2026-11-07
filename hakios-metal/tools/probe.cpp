@@ -387,6 +387,10 @@ int main(int argc, char** argv) {
         // submission (28 October: with them every dispatch hung, without them end_only completed in 48 us)
         if (strcmp(argv[i], "--notail") == 0) chosen.tail = false;
         if (strcmp(argv[i], "--stages") == 0 && i + 1 < argc) lastStage = atoi(argv[++i]);
+#if defined(__APPLE__)
+        if (strcmp(argv[i], "--transport-audit") == 0) setenv("HAKIOS_METAL_AUDIT", "1", 1);
+        if (strcmp(argv[i], "--service") == 0 && i + 1 < argc) setenv("HAKIOS_METAL_SERVICE", argv[++i], 1);
+#endif
         if (strcmp(argv[i], "--metallib") == 0 && i + 2 < argc) {
             metallibs.emplace_back(argv[i + 1], argv[i + 2]);
             i += 2;
