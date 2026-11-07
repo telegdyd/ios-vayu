@@ -3,6 +3,31 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Wi-Fi plan (2026-11-07, agreed with the user)
+
+The author's vayu radio code underneath, ios-jasmine's iOS layer on top. Steps: 1 firmware + boot settings (done,
+below); 2 radio and scan only; 3 jasmine's iOS layer (wifid answers incl. RSSI_BOUNDS 106 and LQM event 39, ADT
+`wlan` node, configd en0 service, MAC from persist, Settings off/on = real leave), first join from Settings; 4 clean
+leave/stop in jasmine's order (peer delete before vdev down); 5 on by default + jasmine's acceptance checks.
+The author's kernel-side join to a fixed network with a PMK file (vayu_wifi_join/pmk_file) is NOT used (user).
+
+- FACT: same chip family as jasmine (WCN3990, ath10k-snoc protocols, WLFW on the modem), different SoC around it:
+  vayu boots the MPSS through TrustZone PAS (vayu_pas.c, pas-id 4), RPMh rails, other addresses.
+- FACT: firmware reaches drivers only through hakios_image_file("fw", ...) = fw/ of the RAM disks md1/md0
+  (hakios.image.c); compressed APFS files are read out into kernel memory. In the flashed boot md1 =
+  root-flash.apfs (fw/: GPU, touch, BT, ipa_fws, bdwlan.bin) and md0 = flashboot.apfs (no fw/).
+- FACT: missing from the images: modem.mdt + modem.bNN (77.5 MB, the modem driver's header: ~38 MB compressed),
+  wlanmdsp.mbn (4.05 MB), and the TFTP tree the modem reads (modem_pr/mcfg/configs/... and *.jsn: not pulled,
+  source ../backup-vayu/20261106/modem.img, FAT). day1.sh drops modem/wlanmdsp from root.apfs because the loader
+  takes one download of at most 63 MB (0x3f00000); the boot partition is 128 MB, today's image 14 MB.
+  regdb.bin is not needed (vayu_wifi_regdb=0 default).
+- INFERENCE: the cheapest fit is the modem files compressed (not --plain) in root-flash.apfs: ~14 + 38 + ~3 MB <
+  63 MB. Fallback: read fw from /private/var (HFS on darwin, sweetd `put` can fill it) by a vnode path.
+- FACT: the author's exact run command lines are not in the repo (their runs were RAM boots with system.apfs /fw).
+  INFERENCE for step 2 from the code: vayu_modem=3 vayu_modem_listen=86400 vayu_rmtfs=2 vayu_wifi=2 + the
+  CE/HTC/WMI/scan chain (vayu_wifi_ce, vayu_wifi_htc_connect, vayu_wifi_wmi, vayu_wifi_scan=1); to be read out of
+  the code before the run. No vayu_cell (mobile data hangs the SoC, author). Watch the temperature.
+
 ## Active handoff (2026-11-07: the battery on in `boot`)
 
 - **FACT (2026-11-07, later):** `boot` now 65d7eede... = 88bc4689 plus `vayu_wled=2` (88bc4689 kept in
