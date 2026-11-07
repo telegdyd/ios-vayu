@@ -1,6 +1,10 @@
 # ios-vayu notes
 
-## Active handoff (2026-11-07 ~01:40: USB shell works; flashed image does not have it yet)
+## Active handoff (2026-11-07 ~01:50: iOS in `boot` with the USB shell; the agent reaches the phone itself)
+
+- **FACT (2026-11-07 ~01:50):** xnu-standalone.img a4373c63... flashed into `boot` (user's OK), `fastboot reboot`:
+  ping 169.254.7.2 at +77 s, sweetd answered (var boot counter 8, the four usbnet args in kern.bootargs, ps -A with
+  SpringBoard). Loader 2.3's standalone USB start is confirmed. Rollback: ../backup-vayu/xnu-standalone-hfs.img.
 
 USB shell (2026-11-07 01:1x-01:3x):
 - FACT: the kernel's USB networking (vayu_usbnet=3, usb_handover=1) was CDC-ECM, which Windows has no driver for.
@@ -23,8 +27,7 @@ USB shell (2026-11-07 01:1x-01:3x):
 - Images: kernel 98cb2a20..., root-flash.apfs a447c783..., flashboot.apfs 2ed5d333... (unchanged);
   xnu-standalone.img a4373c63... (standalone.sh's default cmdline has the four usbnet args). NOT flashed yet: `boot`
   still holds cd3e34b5..., kept as ../backup-vayu/xnu-standalone-hfs.img (rollback).
-- Next: flash a4373c63 (user's OK; needs fastboot: the loader cannot reboot into it); then the agent can inspect the
-  standalone phone without the user. Later: Procursus (or a toolbox) via `put`; MS OS descriptors are not needed.
+- Next: Procursus (or a toolbox) via `put`; MS OS descriptors are not needed.
 
 ## Earlier (2026-11-07 ~01:00: iOS in `boot`, starts by itself, /private/var is HFS Plus on the flash)
 
