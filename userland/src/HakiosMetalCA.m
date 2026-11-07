@@ -2243,7 +2243,9 @@ hm_m2v_missing(const char *class, const char *selector)
  *
  *   metal=1  only the program metal_test (userland/src/metal_test.m): the default, and what task 9's tests run
  *   metal=2  every process but backboardd
- *   metal=3  every process, backboardd too (task 11's: the window server on Metal)
+ *   metal=3  the window server (backboardd) and metal_test: what task 11 validated, the UI on Metal and every
+ *            application still on its own path (changed 2026-11-07; it was "every process")
+ *   metal=4  every process, backboardd too (task 12's: applications and system frameworks on Metal)
  *
  * CoreAnimation's window server tries Metal first and takes OpenGL ES only when no device exists, so the level keeps
  * it on GL (task 8's console log: four processes loaded the bundle and were refused, backboardd drew on FD640).
@@ -2304,13 +2306,14 @@ hm_shown_to_this_process(void)
 	}
 	if (name == NULL) {
 		shown = NO;
-	} else if (level >= 3 || (level == 2 && strcmp(name, "backboardd") != 0) || (level == 1 && strcmp(name, "metal_test") == 0)) {
+	} else if (level >= 4 || (level == 3 && (strcmp(name, "backboardd") == 0 || strcmp(name, "metal_test") == 0)) ||
+		   (level == 2 && strcmp(name, "backboardd") != 0) || (level == 1 && strcmp(name, "metal_test") == 0)) {
 		shown = YES;
 	} else if (hm_listed_beside_the_bundle(name)) {
 		hm_print("%s is shown the device: HakiosMetal.clients beside the bundle names it\n", name);
 		shown = YES;
 	} else {
-		hm_print("%s is not shown the device (metal=%d; 1 is metal_test only, 2 all but backboardd, 3 all)\n", name, level);
+		hm_print("%s is not shown the device (metal=%d; 1 is metal_test only, 2 all but backboardd, 3 backboardd, 4 all)\n", name, level);
 		shown = NO;
 	}
 	return shown;
