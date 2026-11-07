@@ -28,7 +28,7 @@ RES=userland/flashboot.apfs
 RD=userland/root-flash.apfs
 OUT=xnu-standalone.img
 BOOT_BYTES=134217728            # the boot partition (the backup's boot.img is this size)
-ARGS=${STANDALONE_CMDLINE-root_apfs=ufs_darwin ufs=2 bootcpu=7 cpus=8 fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1 gpu=1 vayu_gpu=1 vayu_keep=1 ufs_write=1 var_hfs=1 ufs_var_first=3145728 ufs_var_blocks=2097152 vayu_usbnet=3 usb_handover=1 usbnet_static=1 usbnet_ip=0xa9fe0702 battery=1}
+ARGS=${STANDALONE_CMDLINE-root_apfs=ufs_darwin ufs=2 bootcpu=7 cpus=8 fb_threads=6 vtimer_intid=19 touchscreen=1 nvt_qup=1 nvt_fw=1 gpu=1 vayu_gpu=1 vayu_keep=1 ufs_write=1 var_hfs=1 ufs_var_first=3145728 ufs_var_blocks=2097152 vayu_usbnet=3 usb_handover=1 usbnet_static=1 usbnet_ip=0xa9fe0702 battery=1 vayu_wled=2}
 LOG=logs/standalone.log
 mkdir -p logs
 say() { echo "standalone: $*"; echo "$(date '+%F %T') $*" >> $LOG; }

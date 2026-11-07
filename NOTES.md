@@ -5,6 +5,14 @@ task, in order; each ticks its task there and adds a line to the handoff below.
 
 ## Active handoff (2026-11-07: the battery on in `boot`)
 
+- **FACT (2026-11-07, later):** `boot` now 65d7eede... = 88bc4689 plus `vayu_wled=2` (88bc4689 kept in
+  ../backup-vayu/xnu-standalone-battery-88bc4689.img). Before it the backlight stayed lit with the screen "off": iOS did
+  send DisplayBrightnessFactor(WithFade) 0/1 on lock/wake, but no backlight driver ran. Now (logs/wled2-net.txt):
+  WLED control channel 334 and sink 335 written by system 0 (us), strings 0-3 on modulator A, brightness 491/4095,
+  "writes allowed", "backlight on". Lock/wake and the slider: to be checked on the screen.
+- **FACT (logs/wled-net.txt):** with the screen off SpringBoard sets digitizerEnabled NO + WakeOnTapEnabled; vayu_nvt.c
+  has no hook for it, so every touch is a normal touch and the screen wakes at once (pocket touches). Next for touch.
+
 - **FACT (2026-11-07):** `boot` holds xnu-standalone.img 88bc4689... = 4b79c0ce plus `battery=1` on the command line (same
   kernel 87b9c382, loader 4894c295; 4b79c0ce kept in ../backup-vayu/xnu-standalone-usbshell-4b79c0ce.img). Deployed by
   `phone.sh deploy` alone (1 min 48 s). Before: no `battery=1`, so kern.hakios.battery_soc -1 and iOS's UserEventAgent
