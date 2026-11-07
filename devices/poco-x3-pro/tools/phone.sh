@@ -67,6 +67,13 @@ reboot_ios() {
 	pause 10
 	wait_for ios 240
 }
+# The user's decision (2026-11-07): no deploys through our loader's USB mode -- it hangs inside Qualcomm's
+# USB driver after a forced restart (NOTES.md, "Loader-mode hang (parked)"). LOADER_MODE=yes only on the
+# user's word, for work on that hang.
+case "${1:-}" in
+loader|flash|deploy)
+	[ "${LOADER_MODE:-}" = yes ] || { echo "phone: '$1' goes through our loader's USB mode, which is off (NOTES.md: Loader-mode hang); deploy from iOS, or stock fastboot with the user" >&2; exit 2; } ;;
+esac
 case "${1:-}" in
 state) state ;;
 loader) to_loader ;;

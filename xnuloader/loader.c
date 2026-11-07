@@ -170,6 +170,43 @@ str_eq(const char *a, const char *b)
  */
 static int screen_quiet;
 
+/*
+ * 2.6 (debug, the loader-mode hang after a forced restart, NOTES 2026-11-07 L3): in the flag path only,
+ * each step draws a bar on the screen through the firmware's GOP (Blt fill, so a command-mode panel
+ * is refreshed too) -- bar N at y = 160 + 110 * N -- and usb_wait() flips a square at the top right
+ * every half second while it pumps the USB stack. After a hang: the bars say how far it got, the
+ * square whether this core still runs the loop. marks_on is never set when a kernel runs.
+ */
+static int marks_on;
+static void *marks_gop;                 /* efi_gop *, set in efi_main */
+static uint64_t mark_at[20];            /* CNTVCT when step N was first reached (2.6: timings) */
+static uint64_t mark_now(void);
+
+static void
+mark_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t bgrx)
+{
+	typedef uint64_t (EFIAPI *blt_fn)(void *self, void *buf, uint32_t op, uint64_t sx, uint64_t sy, uint64_t dx,
+	    uint64_t dy, uint64_t w, uint64_t h, uint64_t delta);
+	struct { void *qm, *sm; blt_fn blt; } *g = marks_gop;
+	uint32_t px = bgrx;
+
+	if (g != NULL && g->blt != NULL) {
+		g->blt(g, &px, 0 /* EfiBltVideoFill */, 0, 0, x, y, w, h, 0);
+	}
+}
+
+static void
+mark(unsigned n)
+{
+	if (!marks_on) {
+		return;
+	}
+	if (n < 20 && mark_at[n] == 0) {
+		mark_at[n] = mark_now();
+	}
+	mark_fill(80, 1480 + 50 * n, 800, 36, (n & 1) ? 0x0000ff00u : 0x00ff8000u);   /* green / orange, alternating */
+}
+
 static void
 put_char(char c)
 {
@@ -425,6 +462,7 @@ write_logs(const char *klog, uint64_t klog_len)
 	if (!prev_log_checked) {
 		prev_log_check(bio);
 	}
+	mark(7);                /* logdump read (prev_log_check) */
 	compose_logs(klog, klog_len);
 	if (prev_log != NULL && !kernel_started_this_session && !logdump_force) {
 		return;                 /* (logdump keeps the last run's log until a kernel runs in this session) */
@@ -458,10 +496,13 @@ write_logs(const char *klog, uint64_t klog_len)
 		compose_logs(klog, klog_len);
 		return;
 	}
+	mark(8);                /* about to write logdump */
 	ws = bio->write_blocks(bio, bio->media->media_id, 0, len, out_buf);
+	mark(9);                /* written */
 
 	if (!EFI_ERROR(ws)) {
 		bio->flush_blocks(bio);
+		mark(10);       /* flushed */
 		/*
 		 * And read back: that the log is in the partition is what a run of the kernel's own UFS
 		 * driver must leave possible (the controller is shared with this one). The line goes into
@@ -472,6 +513,7 @@ write_logs(const char *klog, uint64_t klog_len)
 			same = !EFI_ERROR(rs) && memcmp(block_buffer, out_buf, len) == 0;
 		}
 	}
+	mark(11);               /* read back */
 	print("log: %d bytes written to logdump (%x), read back %s (%x)\n", len, ws,
 	    EFI_ERROR(ws) ? "not tried" : same ? "the same" : "DIFFERENT", rs);
 	compose_logs(klog, klog_len);
@@ -4697,6 +4739,7 @@ run_kernel(int have_checkpoint, uint64_t checkpoint)
 		return 0;
 	}
 	kernel_started_this_session = 1;        /* (from here on, logdump is this session's: loader 1.8) */
+	marks_on = 0;                           /* (the screen is the kernel's) */
 	if (!have_checkpoint) {
 		checkpoint = pi.checkpoint;
 	}
@@ -5544,6 +5587,51 @@ usb_dummy_notify(void *event, void *ctx)
 
 static usb_device_descriptor_set usb_set;      /* what start_ex() was given: again after a run that saw the cable change */
 
+/*
+ * 2.7 (NOTES 2026-11-07 L5-L8): the controller is already powered, clocked and halted when the flag path
+ * starts (snap1: GDSC on, master clock on, DSTS 0x420004), left so by an earlier stage; after a forced
+ * restart Qualcomm's stack then never comes back from handle_event during enumeration. Before usb_start
+ * the core is stopped and soft-reset, as the kernel's USB driver does when it takes the controller
+ * (vayu_usbnet.c dwc3_take, Linux gadget.c:2150 / core.c:206): events off, RUN_STOP cleared, pending
+ * events acknowledged until the core halts, then DCTL.CSFTRST until it clears. Only when the block is
+ * powered and clocked (an unclocked read stops the CPU). Registers only of the controller: no PMIC.
+ */
+static void
+usb_core_reset(void)
+{
+	volatile uint32_t *dctl = (volatile uint32_t *)(uintptr_t)(0x0a600000UL + 0xc704);
+	volatile uint32_t *dsts = (volatile uint32_t *)(uintptr_t)(0x0a600000UL + 0xc70c);
+	volatile uint32_t *devten = (volatile uint32_t *)(uintptr_t)(0x0a600000UL + 0xc708);
+	volatile uint32_t *evcount = (volatile uint32_t *)(uintptr_t)(0x0a600000UL + 0xc40c);
+	uint32_t gdsc = *(volatile uint32_t *)(uintptr_t)(0x00100000UL + 0xf004);
+	uint32_t master = *(volatile uint32_t *)(uintptr_t)(0x00100000UL + 0xf010);
+	uint32_t before, halted_ms = 0, reset_ms = 0;
+
+	if ((gdsc >> 31) != 1 || (master >> 31) != 0) {
+		print("usb: core reset skipped: gdsc %x master %x (not powered/clocked)\n", (uint64_t)gdsc, (uint64_t)master);
+		return;
+	}
+	before = *dsts;
+	*devten = 0;
+	*dctl = *dctl & ~(1u << 31);                    /* RUN_STOP off */
+	while (halted_ms < 500 && (*dsts & (1u << 22)) == 0) {
+		uint32_t pending = *evcount & 0xfffc;
+
+		if (pending != 0) {
+			*evcount = pending;
+		}
+		BS->stall(1000);
+		halted_ms++;
+	}
+	*dctl = *dctl | (1u << 30);                     /* CSFTRST */
+	while (reset_ms < 100 && (*dctl & (1u << 30)) != 0) {
+		BS->stall(1000);
+		reset_ms++;
+	}
+	print("usb: core reset: DSTS %x before, halted after %d ms, CSFTRST %s after %d ms, DSTS %x\n", (uint64_t)before,
+	    (uint64_t)halted_ms, (*dctl & (1u << 30)) ? "STILL SET" : "cleared", (uint64_t)reset_ms, (uint64_t)*dsts);
+}
+
 static int
 usb_start(void)
 {
@@ -5561,6 +5649,7 @@ usb_start(void)
 		BS->signal_event(event);
 		BS->close_event(event);
 	}
+	mark(2);                /* the platform's USB init event signalled */
 	if (EFI_ERROR(BS->locate_protocol(&usb_guid, NULL, (void **)&USB))) {
 		print("usb: device protocol not found\n");
 		return 0;
@@ -5573,7 +5662,9 @@ usb_start(void)
 	set.bos = usb_bos;
 	set.string_count = 5;
 	set.strings = strings;
+	mark(3);                /* the USB device protocol found */
 	efi_status s = USB->start_ex(&set);
+	mark(4);                /* start_ex returned */
 	if (EFI_ERROR(s)) {
 		print("usb: start failed %x\n", s);
 		return 0;
@@ -5583,6 +5674,7 @@ usb_start(void)
 		print("usb: no transfer buffers\n");
 		return 0;
 	}
+	mark(5);                /* transfer buffers */
 	print("usb: started\n");
 	return 1;
 #undef set
@@ -5642,7 +5734,169 @@ usb_note_change(uint32_t state)
 		}
 	}
 }
+
+static uint64_t
+mark_now(void)
+{
+	return READ_SYSREG(CNTVCT_EL0);
+}
+
+/* into the log (not the screen): ms from step 1 to each step reached */
+static void
+mark_report(void)
+{
+	uint64_t freq = READ_SYSREG(CNTFRQ_EL0);
+
+	print("2.6 timings, ms after step 1:");
+	for (unsigned n = 2; n < 20; n++) {
+		if (mark_at[n] != 0 && mark_at[1] != 0) {
+			print(" %d=%d", (uint64_t)n, (mark_at[n] - mark_at[1]) * 1000 / freq);
+		}
+	}
+	print("\n");
+}
+
+/*
+ * 2.6 snapshot (debug, read only; NOTES 2026-11-07 L5: the hang is inside Qualcomm's USB stack after
+ * "connected", only on the second start after a forced restart). What the USB block and the PMIC's
+ * Type-C / USB input / power-on blocks look like, at three points of the flag path: 1 before USB
+ * starts, 2 after, 3 when the stack first says "connected". GCC's registers are always readable; the
+ * controller's only with its power domain and master clock on (an unclocked read stops the CPU).
+ * PMIC registers through this system's observer channel of the arbiter (the kernel's
+ * hakios.buttons.c spmi_read), UEFI's timers held off (TPL_HIGH_LEVEL) for each read.
+ */
+#define SNAP_GCC        0x00100000UL
+#define SNAP_DWC3       0x0a600000UL
+#define SNAP_ARB_CORE   0x0c440000UL
+#define SNAP_ARB_OBS    0x0e600000UL
+
+static uint32_t
+snap_rd(uint64_t a)
+{
+	return *(volatile uint32_t *)(uintptr_t)a;
+}
+
+static int
+snap_pmic(uint16_t id, uint8_t reg, uint8_t *out)       /* 8 registers from reg; 0 on success */
+{
+	typedef uint64_t (EFIAPI *raise_fn)(uint64_t);
+	typedef void (EFIAPI *restore_fn)(uint64_t);
+	static uint16_t ids[24], chans[24];
+	static unsigned known;
+	uint32_t channels = snap_rd(SNAP_ARB_CORE + 0x004) & 0x7ff, ch = 0xffff, status = 0, d0, d1;
+	uint64_t old, t0, freq = READ_SYSREG(CNTFRQ_EL0);
+	volatile uint32_t *obs;
+
+	for (unsigned i = 0; i < known; i++) {
+		if (ids[i] == id) {
+			ch = chans[i];
+		}
+	}
+	if (ch == 0xffff) {
+		if (channels == 0 || channels > 512) {
+			channels = 512;
+		}
+		for (uint32_t n = 0; n < channels && ch == 0xffff; n++) {
+			uint32_t map = snap_rd(SNAP_ARB_CORE + 0x900 + 4 * n);
+
+			if (map != 0 && ((map >> 8) & 0xfff) == id) {
+				ch = n;
+			}
+		}
+		if (ch == 0xffff) {
+			return -1;
+		}
+		if (known < 24) {
+			ids[known] = id;
+			chans[known++] = (uint16_t)ch;
+		}
+	}
+	obs = (volatile uint32_t *)(uintptr_t)(SNAP_ARB_OBS + 0x80UL * ch);
+	old = ((raise_fn)BS->raise_tpl)(31);
+	obs[0] = (1u << 27) | (uint32_t)reg << 4 | 7;
+	t0 = READ_SYSREG(CNTVCT_EL0);
+	do {
+		status = obs[2];
+	} while (!(status & 1) && READ_SYSREG(CNTVCT_EL0) - t0 < freq / 500);
+	d0 = obs[6];
+	d1 = obs[7];
+	((restore_fn)BS->restore_tpl)(old);
+	if ((status & 0xf) != 1) {
+		return (int)(status & 0xf) | 0x100;
+	}
+	for (int i = 0; i < 8; i++) {
+		out[i] = (uint8_t)((i < 4 ? d0 : d1) >> (8 * (i & 3)));
+	}
+	return 0;
+}
+
+static void
+snapshot(int point)
+{
+	static const uint32_t gcc[] = { 0xf000, 0xf004, 0xf010, 0xf014, 0xf018, 0xf050, 0xf054, 0xf058, 0xf078, 0xf07c,
+	    0x8c008, 0x12000, 0x50000, 0x50008 };
+	static const uint32_t dwc[] = { 0xc110, 0xc118, 0xc120, 0xc164, 0xc200, 0xc2c0, 0xc700, 0xc704, 0xc708, 0xc70c,
+	    0xc40c, 0xf8808, 0xf8810, 0xf8830, 0xf8858 };
+	static const struct { uint16_t id; uint8_t reg; } pm[] = {
+		{ 0x008, 0x08 }, { 0x008, 0xc0 }, { 0x008, 0xc8 },             /* PM8150 PON: reasons */
+		{ 0x215, 0x06 }, { 0x215, 0x0e }, { 0x215, 0x40 }, { 0x215, 0x48 },     /* PM8150B Type-C */
+		{ 0x213, 0x06 }, { 0x213, 0x40 }, { 0x213, 0x60 },             /* USB input (APSD at 0x08) */
+		{ 0x211, 0x06 }, { 0x216, 0x06 },                               /* DCDC, misc */
+	};
+	uint32_t gdsc, master;
+	uint8_t b[8];
+
+	if (!marks_on) {
+		return;
+	}
+	print("snap%d gcc", (uint64_t)point);
+	for (unsigned i = 0; i < sizeof(gcc) / sizeof(gcc[0]); i++) {
+		print(" %x", (uint64_t)snap_rd(SNAP_GCC + gcc[i]));
+	}
+	print("\n");
+	gdsc = snap_rd(SNAP_GCC + 0xf004);
+	master = snap_rd(SNAP_GCC + 0xf010);
+	if ((gdsc >> 31) == 1 && (master >> 31) == 0) {
+		print("snap%d dwc3", (uint64_t)point);
+		for (unsigned i = 0; i < sizeof(dwc) / sizeof(dwc[0]); i++) {
+			print(" %x", (uint64_t)snap_rd(SNAP_DWC3 + dwc[i]));
+		}
+		print("\n");
+	} else {
+		print("snap%d dwc3 not read: gdsc %x master %x\n", (uint64_t)point, (uint64_t)gdsc, (uint64_t)master);
+	}
+	print("snap%d pmic", (uint64_t)point);
+	for (unsigned i = 0; i < sizeof(pm) / sizeof(pm[0]); i++) {
+		int e = snap_pmic(pm[i].id, pm[i].reg, b);
+
+		print(" %x:", (uint64_t)((uint32_t)pm[i].id << 8 | pm[i].reg));
+		if (e != 0) {
+			print("E%x", (uint64_t)(uint32_t)e);
+			continue;
+		}
+		for (int k = 0; k < 8; k++) {
+			print("%s%x", k ? "." : "", (uint64_t)b[k]);
+		}
+	}
+	print("\n");
+}
+
 static uint64_t usb_rx_since;   /* CNTVCT when the receive now queued was queued */
+
+static void
+mark_beat(void)
+{
+	static uint64_t last;
+	static int on;
+	uint64_t now = READ_SYSREG(CNTVCT_EL0);
+
+	if (!marks_on || now - last < READ_SYSREG(CNTFRQ_EL0) / 2) {
+		return;
+	}
+	last = now;
+	on = !on;
+	mark_fill(920, 1530, 100, 100, on ? 0x00ffffffu : 0x000000ffu);   /* white / blue */
+}
 
 /*
  * Pump controller events until a transfer on `endpoint` finishes.
@@ -5667,9 +5921,12 @@ usb_wait(uint8_t endpoint)
 			write_logs(returned_klog, returned_klog_len);
 			ST->rt->reset_system(0 /* EfiResetCold */, 0, 0, NULL);
 		}
+		mark_beat();
 		USB->handle_event(&msg, &size, &data);
 		if (msg == UsbDeviceEventDeviceStateChange) {
 			usb_connected = (data.device_state == UsbDeviceStateConnected);
+			mark(usb_connected ? 13 : 14);  /* the stack says: connected (configured) / gone */
+
 			usb_reconnected = 1;
 			usb_note_change(data.device_state);
 			return -1;
@@ -5719,8 +5976,15 @@ usb_rx(uint8_t *buf, uint64_t len)
 {
 	if (usb_rx_queued) {
 		usb_rx_queued = 0;      /* (every command is received the same way, into the same buffer) */
-	} else if (EFI_ERROR(USB->send(USB_EP_OUT, len, buf))) {
-		return -1;
+	} else {
+		efi_status e;
+
+		mark(16);       /* queueing a receive */
+		e = USB->send(USB_EP_OUT, len, buf);
+		mark(17);       /* queued */
+		if (EFI_ERROR(e)) {
+			return -1;
+		}
 	}
 	return usb_wait(USB_EP_OUT);
 }
@@ -5802,7 +6066,7 @@ fb_command(char *cmd)
 			if (str_eq(var, "product")) {
 				fb_reply("OKAY", "xnuloader");
 			} else if (str_eq(var, "version")) {
-				fb_reply("OKAY", "2.5");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host); 2.3: a standalone boot with usb_handover=1 starts USB, for the kernel to take; 2.4: reboot-bootloader, and a kernel's reboot_mode 2 ends a standalone run in fastboot; 2.5: reboot_mode 3 keeps a standalone run's loader in USB mode, flash:boot */
+				fb_reply("OKAY", "2.7-corereset");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host); 2.3: a standalone boot with usb_handover=1 starts USB, for the kernel to take; 2.4: reboot-bootloader, and a kernel's reboot_mode 2 ends a standalone run in fastboot; 2.5: reboot_mode 3 keeps a standalone run's loader in USB mode, flash:boot */
 			} else if (str_eq(var, "max-download-size")) {
 				fb_reply("OKAY", download_to_ramdisk ? "0xffffffff" : "0x03f00000");
 			} else if (str_eq(var, "result")) {
@@ -6064,6 +6328,7 @@ static void
 usb_command_loop(void)
 {
 	screen_quiet = 1;
+	mark(12);               /* the command loop */
 	for (;;) {
 		char cmd[128];
 		int64_t n;
@@ -6077,6 +6342,10 @@ usb_command_loop(void)
 			continue;
 		}
 		usb_reconnected = 0;    /* (a command came: the channel works) */
+		if (marks_on && mark_at[15] == 0) {
+			mark(15);       /* a command arrived */
+			mark_report();
+		}
 		if (idle_reset_at != 0) {
 			idle_reset_at = READ_SYSREG(CNTVCT_EL0) + IDLE_RESET_SECONDS * READ_SYSREG(CNTFRQ_EL0);
 		}
@@ -6207,6 +6476,7 @@ efi_main(efi_handle image, efi_system_table *st)
 		GOP = NULL;                     /* no display (QEMU without -device ramfb) */
 	} else {
 		SCREEN.base = GOP->mode->fb_base;
+		marks_gop = GOP;
 		SCREEN.width = GOP->mode->info->width;
 		SCREEN.height = GOP->mode->info->height;
 		SCREEN.stride = GOP->mode->info->pixels_per_scanline * 4;
@@ -6254,11 +6524,25 @@ efi_main(efi_handle image, efi_system_table *st)
 		 * device until the handover, then the kernel's USB Ethernet.
 		 */
 		if (standalone_loader_flag()) {
+			marks_on = 1;
+			mark_fill(0, 0, SCREEN.width, SCREEN.height, 0);        /* black: the marks on their own */
+			mark(1);        /* the flag found and cleared */
+			(void)snapshot;        /* (not called: its PMIC reads are suspected of upsetting the USB stack, L6/L7) */
+			/*
+			 * 2.6 order: the slow things (console lines, logdump written and read back) BEFORE USB
+			 * is turned on, then nothing between usb_start() and the loop that pumps the stack --
+			 * the host enumerates from the moment the controller runs (trial L6: a delay there,
+			 * and Qualcomm's stack never came back from handle_event).
+			 */
+			print("standalone: the flag in darwin asks for the loader: USB command mode (2.6 order: log first)\n");
+			usb_core_reset();
+			mark(6);        /* the log to logdump, before USB */
+			flush_log();
+			screen_quiet = 1;
 			if (usb_start()) {
-				print("standalone: the flag in darwin asks for the loader: USB command mode\n");
-				flush_log();
 				usb_command_loop();
 			}
+			screen_quiet = 0;
 			print("standalone: USB did not start: iOS instead\n");
 		}
 		if (aud_word(pi.cmdline, "usb_handover=1") && USB == NULL) {

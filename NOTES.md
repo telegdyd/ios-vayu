@@ -1,5 +1,51 @@
 # ios-vayu notes
 
+**Deploys (user decision 2026-11-07): flash from iOS, never through our loader's USB mode.** No agent sends
+"loader"/"fastboot" to the command port, runs `phone.sh loader|flash|deploy`, or flashes `boot` in our
+loader (`flash:boot`, `xl` there). Loader mode hangs inside Qualcomm's USB driver after any forced restart
+(below, "Loader-mode hang (parked)"). Until the flash-from-iOS command exists: `boot` is written only from
+vayu's stock fastboot (the user: volume down + power), `fastboot flash boot IMAGE`, `fastboot reboot`,
+with a copy of the image in ../backup-vayu first. `phone.sh` refuses the loader paths (LOADER_MODE=yes
+overrides: only on the user's word, for work on the hang itself).
+
+## Loader-mode hang (parked 2026-11-07; come back to it later)
+
+Symptom: "loader" from iOS (flag XNULOADR in darwin block 3145727, cold reset, the loader's flag path, USB
+command mode) -> Windows lists a fastboot device with serial "????????????", every command times out
+(AdbWriteEndpointSync), then it drops off the bus; the phone shows the loader screen until a forced restart.
+Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt are git-ignored).
+
+- **FACT (trigger):** reliable after a forced restart (power held) earlier in the chain: 5 of 5 (H1-H3 in the
+  morning, L3, L5, L8, L9 -- all of them with the forced restart as the last reset before the iOS session that
+  sent "loader"). 0 of 13+ hung after software resets only, with the 2.5 and marks-only loaders.
+  L4: one software reboot after the forced restart cleared it.
+- **FACT (not the cause):** the modem or Wi-Fi running (L1 without, L2 with: both OK); iOS uptime (6.5 h OK, 2 min
+  OK); the loader binary (4894c295 in every image of the morning); the logdump write (it completes: bar 11,
+  "read back the same"); the order of work after usb_start (2.6-order moved the console lines and the log write
+  before USB: still hangs, L8); leftover DWC3 core state (2.7 stops the core, waits for DEVCTRLHLT and does
+  DCTL.CSFTRST before Qualcomm's start: still hangs, L9).
+- **FACT (where, loader 2.6 bars):** flag cleared, Qualcomm's USB init event, protocol, start_ex, buffers, the
+  log, the command loop, the stack's "connected" event, the first receive queued (send returned) -- then the
+  loader never comes back from Qualcomm's `handle_event` (the blinking square freezes). The PC has the device
+  descriptor but not the serial string: enumeration stops inside Qualcomm's UEFI USB device driver.
+- **FACT:** when the flag path starts, the controller is already powered, clocked and halted (snap1: GDSC on,
+  master clock on, DSTS 0x420004, GCTL 0x102000), left so by an earlier stage of the boot.
+- **FACT:** the snapshot loaders (2.6-snap, 2.6-order: PMIC reads through the arbiter's observer channel at TPL
+  high, before and around usb_start) hung twice on good chains, same spot (L6, L7). HYPOTHESIS: those PMIC reads
+  disturb Qualcomm's stack (it uses the PMIC for Type-C/charger detection) -- a confounder, not the original bug.
+- **On vayu there is no watchdog** (the hypervisor's SMCs return -1) and the loader's idle reset applies only
+  after a kernel's return: a hung loader and an idle one look the same from outside.
+- **Left to try (not done):** compare the USB PHYs (QUSB2 HS PHY 0x088e2000, QMP SS PHY) and PM8150B Type-C/APSD
+  between a good and a bad start without disturbing the stack (read once, before the init event, no TPL games;
+  or from the kernel at the end of the iOS session before the reset); a full USB block reset through GCC
+  (USB30_PRIM_BCR, QUSB2PHY_PRIM_BCR, USB3_PHY_PRIM_BCR) before the init event; HS-only descriptors (no SS).
+  Why a forced restart matters is not known: its effect survives one cold ResetSystem and the iOS session in
+  between, and is gone after the next.
+- **Code:** xnuloader/loader.c 2.7-corereset holds the bars (flag path only), the unused snapshot code and
+  usb_core_reset(). `boot` now holds image b7820c77 (loader c57af185, kernel 734bff34, args = step 3's).
+  Images: ../backup-vayu/xnu-standalone-{marks-de64333e,snap-a296b56a,order-5a2999b0,nosnap-0530ab82,
+  corereset-b7820c77}.img; the last plain-2.5 one is xnu-standalone-wifiios-0c82c913.img.
+
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
@@ -89,6 +135,81 @@ task, in order; each ticks its task there and adds a line to the handoff below.
   11 earlier transitions worked. Since then flashed from vayu's stock fastboot (volume down + power,
   `standalone.sh flash`). Cause not known (kernel af1e6779? the power-key restarts before both?). Also: the
   loader's USB mode shows briefly on EVERY boot -- not a state to flash into.
+- **FACT (trial L1, 2026-11-07 12:57, logs/loader1-before.txt):** modem NOT armed this boot (modem.mdt never put,
+  the 600 s wait ran out; so no Wi-Fi), iOS up ~6.5 h, same boot/kernel as the two failures (0c82c913): "loader"
+  from iOS -> loader 2.5 answered fastboot at +20 s (product xnuloader, version 2.5, max-download-size), still
+  answering a little later. HYPOTHESIS strengthened: the hang needs the modem / Wi-Fi running at the reset.
+- **FACT (trial L2, 13:00, logs/loader2-net.txt):** fresh boot (fastboot reboot from the loader), modem armed
+  (found after 43 s), Wi-Fi auto-joined (4-way OK, en0 link up), iOS up ~2.5 min: "loader" -> loader 2.5 answered
+  at +20 s again. So the modem / Wi-Fi running at the reset is NOT enough to hang it (L1 + L2: 2/2 OK). The
+  HYPOTHESIS above is weakened; left: what came before the two failures (power-key restarts? the flash just
+  before?), or a rare race (2 of ~15).
+- **Desk work (transcript, 2026-11-07 ~13:10; times local):** THREE dead loader sessions, not two, all 05:17-05:31:
+  H1 05:17:50 ("loader" ~10 s after phone.sh first said ios; then an unnamed fastboot device, serial ????????????),
+  H2 05:25:00 (~6 s after pong; AdbWriteEndpointSync timeouts), H3 05:30:59 (~1 min after iOS). FACT: each came
+  after a forced restart by the user (05:15/16 when the USB link died under Wi-Fi; after H1; after H2). FACT:
+  every good trip (11 between 04:09 and 05:04, L1, L2) came after a software reset (the loader's cold
+  ResetSystem, fastboot reboot) -- none after a forced restart. FACT: loader.efi is the same in every image
+  (4894c29548c13fed, built 02:56: af1e6779, 3b6ea36f, 572a6527, 0c82c913) -- the loader binary is ruled out;
+  the kernel never runs in that mode. FACT (loader.c): after the flag, usb_start() then usb_command_loop(),
+  which resets after 120 s without a host command (1.0), the watchdog armed; in the hangs the logo stayed for
+  minutes, no reset -- so the loader is stuck inside a call (USB start / its first transfers: Windows got the
+  device descriptor, not the serial string), not idling in its loop. The resets are all EfiResetCold.
+  HYPOTHESIS (best fit): the hang needs a forced (PMIC) restart earlier in the chain -- something it leaves
+  (USB PHY / charger detection / PON state) survives the loader's soft cold reset. Second candidate: "loader"
+  too soon after boot (H1, H2 within seconds), but the step-2 runs deployed right after "ios" too, and worked.
+  Next: trial L3 = forced restart, settle in iOS >= 2 min, "loader". Recovery from a hang = a forced restart
+  (05:24 it came back into iOS that way); then "oem prevlog" in the next loader session, in case logdump kept
+  the dead session's last words.
+- **FACT (trial L3, 13:08-13:11, logs/loader3-net.txt):** the user's forced restart (power held, from loader
+  mode), iOS settled (pong 13:08), modem NOT armed, 2 min wait, "loader" at 13:10:27 -> at +20 s Windows lists
+  "????????????  fastboot", then nothing ("waiting for any device"): the hang REPRODUCED. With L1/L2 (software
+  reset before, OK): a forced restart earlier in the chain is what it needs (3 of 3 before + L3; 0 of 13 OK
+  ones had one). Not the modem, not the uptime, not the loader binary.
+- **FACT (trial L4, 13:14-13:18):** the user's forced restart out of L3's dead loader -> iOS; then a software
+  "reboot" (13:14, iOS again 13:15), 2 min settled, "loader" 13:17:45 -> loader 2.5 answered at +20 s (product,
+  version, max-download-size). So one software (cold ResetSystem) reset clears what the forced restart left.
+  Reading: the bad state is made by the boot that follows a forced restart and lives only until the next reset
+  -- i.e. something the boot chain (XBL/ABL/loader) sets differently after a PMIC reset, not damage.
+- **Correction:** the "idle reset after 120 s" applies only after a kernel's return, and on vayu the watchdog is
+  never armed (its SMCs return -1) -- so "no reset during the hangs" said nothing about where it hung.
+- **Loader 2.6-marks** (xnuloader/loader.c, debug, flag path only; loader 83c3dd9a, image de64333e =
+  ../backup-vayu/xnu-standalone-marks-de64333e.img, kernel 734bff34 unchanged): a bar per step through GOP Blt
+  (1 flag cleared, 2 USB init event, 3 protocol, 4 start_ex, 5 buffers, 6 USB started, 7 logdump read, 8-11 write /
+  written / flushed / read back, 12 command loop, 13 stack says connected, 14 gone, 15 a command arrived) and a
+  square flipped every 0.5 s by usb_wait(). (Colours come out green/orange and white/blue: RGB order, cosmetic.)
+  Control run 13:33 (software chain): OK, bars and a blinking square.
+- **FACT (trial L5, 13:35-13:39, photo):** forced restart, iOS 2 min, "loader" -> ???????????? at +45 s, getvar
+  timed out. Screen: 13 bars, text "log: 4096 bytes written to logdump (0), read back the same (0)", the square
+  FROZEN. So: flag, USB start, the logdump write all fine; the command loop ran, Qualcomm's USB stack reported
+  "connected" -- then this core never came back from a call into that stack (handle_event / send), before any
+  command. The hang is inside Qualcomm's UEFI USB device driver during enumeration (the PC got the device
+  descriptor, not the serial string). Not storage.
+- **Loader 2.6-snap** (cdc08a07, image a296b56a = ../backup-vayu/xnu-standalone-snap-a296b56a.img): read-only
+  dumps (GCC USB clocks/GDSC/BCRs, DWC3 + QSCRATCH when clocked, PMIC PON / PM8150B Type-C / USBIN / DCDC / misc
+  through the observer channel, TPL high per read) at 1 before usb_start, 2 after it, 3 at the first "connected"
+  (printed to the screen there); bars moved down, 16/17 around the receive's queueing (USB->send).
+- **FACT (trial L6, 13:52, photo):** a GOOD chain (forced restart, then two software resets) with 2.6-snap HUNG
+  the same way: ???????????? at +20 s; snap1-3 all printed; bars 1-13, 16, 17 (no 14, no 15); square frozen.
+  So: the receive was queued (send returned), then the core never came back from handle_event. And the snapshot
+  code -- which delays the pumping of the stack right after usb_start (snap2) and at "connected" (snap3, three
+  long lines through the firmware's slow text console) -- made a good chain hang. HYPOTHESIS (best fit now):
+  Qualcomm's UEFI USB stack wedges inside handle_event if it is not pumped promptly while the host enumerates;
+  the forced-restart chain makes the gap after usb_start longer somehow (to measure). 2.5 already does slow work
+  in that gap: three console lines and the logdump write+read-back (flush_log) between usb_start and the loop.
+- **FACT (trial L7, 14:03, photo):** 2.6-order (5a2999b0: log written and console lines BEFORE usb_start, the loop
+  right after, snapshot 1 still taken before USB) on a good chain: HUNG, same spot (bars 1-13, 16, 17, square
+  frozen). snap1 (before usb_start): the controller already powered and clocked (GDSC on, master clock on), DSTS
+  0x420004 (halted), GCTL 0x102000 -- left on by an earlier stage.
+- **FACT (trial L8, 14:15):** 2.6-order-nosnap (loader 1c9e132f, image 0530ab82, flashed through stock fastboot;
+  no register/PMIC reads at all): forced restart, iOS ~30 s, "loader" -> ???????????? at +20 s: HUNG. So the
+  order (slow work before USB) does NOT fix it; the timing HYPOTHESIS is refuted for that gap. Still standing:
+  stuck inside Qualcomm's UEFI USB driver (handle_event) after the first receive is queued; reliable after a
+  forced restart, and seen twice on good chains with the snapshot loaders (PMIC reads suspected there).
+- **FACT (trial L9, 14:24):** loader 2.7-corereset (c57af185, image b7820c77, flashed through stock fastboot):
+  before usb_start, if powered and clocked, DEVTEN 0, RUN_STOP off until halted, DCTL.CSFTRST until clear (as
+  vayu_usbnet.c dwc3_take). Forced restart, iOS ~30 s, "loader" -> ???????????? at +20 s: HUNG. A DWC3 core soft
+  reset before Qualcomm's start does not fix it.
 
 ## Earlier (2026-11-07 ~05:00: Wi-Fi step 2 done -- the radio scans under iOS)
 
