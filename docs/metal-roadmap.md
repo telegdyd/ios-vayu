@@ -342,8 +342,9 @@ Every agent, every task:
     Safari's toolbar as a grey band, and a launch-snapshot card in one solid colour. The plug-in now compiles
     CoreAnimation's own specialised uber shaders (this image ships them; `metal_ca_variants=1` gives the old path).
   - Task 9's program 24/24 and new ASTC/half-sampling checks 72/72 pass on the same bundle.
-  - **Open:** the persistent form, `metal=3` with this plug-in in the ramdisk, needs a reflash (user's OK). A cold
-    boot straight into Metal is untested. No frame-timing comparison with GL yet (task 13).
+  - **Deployed (user's OK):** image 76cb40d9, `metal=3` (now: backboardd alone; `metal=4` every process). On the
+    first boot backboardd took the device and no GL frames were drawn. The user is checking the UI by hand.
+    `metal=1` (image 4cb4ccbf) is GL. No frame-timing comparison with GL yet (task 13).
 
 - [ ] **12. System frameworks and third-party apps.**
   Depends on: 11.

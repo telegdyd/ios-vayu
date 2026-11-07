@@ -85,8 +85,14 @@ task, in order; each ticks its task there and adds a line to the handoff below.
   - Clients file: `/private/var/tmp/HakiosMetal.clients`. Diagnostic switches: `/private/var/tmp/HakiosMetal.args`.
   - All of it is gone after a reboot.
   - bindfs at run time is refused (pid 1 only), and dyld interposing does not reach Metal's IOKit calls in the cache.
-- **Phone state:** left on GL (backboardd 2118). `/private/var/tmp/task11` holds the test files (emptied at boot).
-  `boot` is still 4cb4ccbf; nothing flashed.
+- **`boot` now: 76cb40d9** (= ../backup-vayu/xnu-standalone-metal11-76cb40d9.img; deployed from iOS with the user's OK,
+  `logs/metal-step11-deploy.log`). It is 4cb4ccbf with ramdisk 37cac8e3 (this plug-in; the previous one is kept as
+  ../backup-vayu/root-flash-d2186bb7.apfs) and `metal=3` in place of `metal=1`.
+  - `metal=3` now means backboardd (and metal_test) alone. Every process is `metal=4`, which is untested.
+  - Rollback: deploy 4cb4ccbf (GL).
+  - **FACT (first boot):** kern.bootargs has metal=3; backboardd 15 took the device with the specialised shaders,
+    SpringBoard 9 was refused, no `hakios-gl` frames, frames reach the framebuffer.
+  - No UI tests were run on this boot; the user checks it by hand.
 - **Upstream checked:** `main` = our pin 63fc2b46; nothing newer for Metal (mtk drops it, legacy-hackios is GL-era).
 - **Next:** with the user's OK, an image with this plug-in and `metal=3` (backboardd on Metal from boot; `metal=1` is
   GL). Then task 12, or task 13 to measure Metal against GL.
