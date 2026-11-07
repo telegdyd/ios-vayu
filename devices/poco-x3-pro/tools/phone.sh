@@ -22,7 +22,11 @@ T=devices/poco-x3-pro/tools
 PY=${PY:-python}
 pause() { $PY -c "import time; time.sleep($1)"; }
 is_ios() { $PY $T/sweet-cmd.py ping 2>/dev/null | grep -q pong; }
-fb_var() { fastboot getvar "$1" 2>&1 | sed -n "s/^$1: //p" | tr -d '\r'; }
+# (fastboot getvar waits for a device forever when there is none: ask only when "fastboot devices" lists one)
+fb_var() {
+	fastboot devices 2>/dev/null | grep -q fastboot || return 0
+	timeout 10 fastboot getvar "$1" 2>&1 | sed -n "s/^$1: //p" | tr -d '\r'
+}
 state() {
 	if is_ios; then echo ios; return; fi
 	case "$(fb_var product)" in
