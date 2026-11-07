@@ -3,6 +3,39 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Active handoff (2026-11-07 ~05:00: Wi-Fi step 2 done -- the radio scans under iOS)
+
+- **FACT (run wifi8, logs/wifi8-net.txt, git-ignored: it has nearby SSIDs):** modem up through TrustZone PAS, WLFW
+  (chip 0x30224, fw WLAN.HL.3.0.c2-00417), BDF + MAC + CAL_REPORT, FW_READY, WLAN_CFG + MISSION, CE rings,
+  HTC READY (22 endpoints, clamped to 8), CONNECT WMI/HTT, SERVICE_READY, INIT, WMI READY, HTT 3.70, passive scan
+  26 channels: 6 BSSIDs on ch 6/13/36/40, -68..-82 dBm. iOS stayed up (sweetd/command port answer), 35 C, no PFR.
+  Regulatory from the firmware: country CN (to fix later: the phone is in Hungary).
+- `boot` holds xnu-standalone.img 9dba0c7e... (kernel 2dc1507a..., loader 4894c295, same root-flash/flashboot;
+  ../backup-vayu/xnu-standalone-wifiscan-9dba0c7e.img). standalone.sh's default ARGS are NOT changed: the Wi-Fi
+  args go in STANDALONE_EXTRA:
+  `vayu_modem=3 vayu_modem_listen=86400 vayu_modem_fw_wait=600 vayu_rmtfs=2 vayu_wifi=2 vayu_wifi_qdss=1
+  vayu_wifi_mac=1 vayu_wifi_bus=1 vayu_wifi_reattach=1 vayu_wifi_smmu=1 vayu_wifi_smmu_ttbrfix=1 vayu_wifi_ce=1
+  vayu_wifi_ce_addrmask=1 vayu_wifi_htc_connect=1 vayu_wifi_wmi=8 vayu_wifi_scan=1 vayu_wifi_htc_lenient=1`
+- Firmware: does not fit the 64 MB payload (UEFI's fixed window at 0xF0000000; with modem 38 MB zlib the payload
+  was 70.6 MB). Now on the phone in /private/var/hakios/fw (HFS on darwin): modem.bNN, wlanmdsp.mbn, modem_pr/
+  (MCFG, from ../backup-vayu/20261106/modem.img), *.jsn, uploaded with sweet-sh.py --put (235 files, sizes checked).
+  hakios.image.c: hakios_image_file() falls back to /private/var/hakios/<dir>/<name> (kept in memory).
+  vayu_modem.c: step 2 waits up to vayu_modem_fw_wait s (default 300) for fw/modem.mdt.
+- **Arming (safety):** modem.mdt is NOT kept on the phone. Per test boot: put fw-poco-x3-pro/modem.mdt to
+  /private/var/hakios/fw/modem.mdt, wait for "fw/modem.mdt found", rm it (the kernel keeps its copy). A crash then
+  reboots into plain iOS with the modem waiting (it gives up after 600 s): no button press needed. Used 8 times.
+- What each fix was (FACT, one run each): wifi1 plain: WLAN PD crash after CAL_REPORT (EX:wlan_process RT:0x3092
+  PC 0xb0193960) -> wifi2 `vayu_wifi_qdss=1 vayu_wifi_mac=1` (rails + AOP qdss clock before the modem, MAC_ADDR):
+  FW_READY; then the SoC froze at the first CE DMA (wifi2-5; wifi4/5 with the new debug `vayu_wifi_ce_slow=MS`
+  in vayu_wifi_ce.c: logs each step and the first 400 CE accesses with a pause, found it after RX posting) ->
+  wifi6 `vayu_wifi_smmu_ttbrfix=1` (TTBR0 had only the ASID: the WLAN SMMU context walked tables at PA 0): no
+  freeze, HTC READY arrives -> wifi7 `vayu_wifi_ce_addrmask=1` (flag bits 0x3000... in the RX descriptor address)
+  -> wifi8 `vayu_wifi_htc_lenient=1` (READY says 22 endpoints): scan. `vayu_wifi_bus=1` (SNOC keepalive) is in
+  but was not shown to matter.
+- Next (step 3 of the plan below): jasmine's iOS layer on top -- wifid scan results/join, RSSI_BOUNDS, LQM, ADT
+  `wlan` node, configd en0 service, MAC from persist; then the arming goes away (modem.mdt stays) once the start
+  is trusted. Also: regulatory domain (CN).
+
 ## Wi-Fi plan (2026-11-07, agreed with the user)
 
 The author's vayu radio code underneath, ios-jasmine's iOS layer on top. Steps: 1 firmware + boot settings (done,
@@ -28,7 +61,7 @@ The author's kernel-side join to a fixed network with a PMK file (vayu_wifi_join
   CE/HTC/WMI/scan chain (vayu_wifi_ce, vayu_wifi_htc_connect, vayu_wifi_wmi, vayu_wifi_scan=1); to be read out of
   the code before the run. No vayu_cell (mobile data hangs the SoC, author). Watch the temperature.
 
-## Active handoff (2026-11-07: the battery on in `boot`)
+## Earlier (2026-11-07: the battery on in `boot`)
 
 - **FACT (2026-11-07, later):** `boot` now 65d7eede... = 88bc4689 plus `vayu_wled=2` (88bc4689 kept in
   ../backup-vayu/xnu-standalone-battery-88bc4689.img). Before it the backlight stayed lit with the screen "off": iOS did

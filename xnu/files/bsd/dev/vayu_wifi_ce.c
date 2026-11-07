@@ -158,15 +158,44 @@ ce_barrier(void)
 	__asm__ volatile("dsb sy" ::: "memory");
 }
 
+/*
+ * vayu_wifi_ce_slow=MS (debug): a log line and a pause of MS ms at each step of the CE bring-up and before
+ * each of the first 400 CE register accesses, so that the line naming a step that stops the SoC reaches
+ * the USB log before the step runs (a frozen SoC loses whatever was still queued). Default 0: off.
+ */
+static uint32_t ce_slow, ce_slow_accesses;
+
+static void
+ce_step(const char *what)
+{
+	if (ce_slow != 0) {
+		say("vayu-wifi: ce: slow: %s" "\n", what);
+		delay_for_interval(ce_slow, NSEC_PER_MSEC);
+	}
+}
+
+static void
+ce_slow_access(const char *kind, uint32_t engine, uint32_t offset, uint32_t value)
+{
+	if (ce_slow != 0 && ce_slow_accesses < 400) {
+		ce_slow_accesses++;
+		say("vayu-wifi: ce: slow: %s ce%u +%#x (pa %#lx) %#x" "\n", kind, engine, offset,
+		    (unsigned long)(VAYU_CE_BASE + (unsigned long)engine * VAYU_CE_STRIDE + offset), value);
+		delay_for_interval(ce_slow, NSEC_PER_MSEC);
+	}
+}
+
 static uint32_t
 ce_rd(uint32_t engine, uint32_t offset)
 {
+	ce_slow_access("read", engine, offset, 0);
 	return *(volatile uint32_t *)(ce.ce_va + (vm_offset_t)engine * VAYU_CE_STRIDE + offset);
 }
 
 static void
 ce_wr(uint32_t engine, uint32_t offset, uint32_t value)
 {
+	ce_slow_access("write", engine, offset, value);
 	*(volatile uint32_t *)(ce.ce_va + (vm_offset_t)engine * VAYU_CE_STRIDE + offset) = value;
 	ce_barrier();
 }
@@ -1083,6 +1112,11 @@ vayu_wifi_ce_stage(bool qmi_ok, vayu_ce_abort_fn abort)
 	say("vayu-wifi: ce: waiting %u ms after WLAN_MODE MISSION before the first CE access\n",
 	    VAYU_CE_MISSION_DELAY_MS);
 	delay_for_interval(VAYU_CE_MISSION_DELAY_MS, NSEC_PER_MSEC);
+	PE_parse_boot_argn("vayu_wifi_ce_slow", &ce_slow, sizeof(ce_slow));
+	if (ce_slow > 5000) {
+		ce_slow = 5000;
+	}
+	ce_step("after the 100 ms wait");
 	why = ce_abort(abort);
 	if (why != VAYU_CE_ABORT_NONE) {
 		ce.result = VAYU_CE_BLOCKED;
@@ -1093,10 +1127,12 @@ vayu_wifi_ce_stage(bool qmi_ok, vayu_ce_abort_fn abort)
 		}
 		return ce.result;
 	}
+	ce_step("pool alloc");
 	if (!ce_pool_alloc()) {
 		ce.result = VAYU_CE_BLOCKED;
 		return ce.result;
 	}
+	ce_step("SMMU map of the pool");
 	if (!vayu_wifi_smmu_map_dma(ce.pool_pa, ce.pool_size, "ce pool")) {
 		say("vayu-wifi: ce: the SMMU refused the pool map; no CE register is touched\n");
 		ce_pool_free();
@@ -1108,6 +1144,7 @@ vayu_wifi_ce_stage(bool qmi_ok, vayu_ce_abort_fn abort)
 		ce.result = VAYU_CE_BLOCKED;
 		return ce.result;
 	}
+	ce_step("register map");
 	ce.ce_va = ml_io_map_unmappable((vm_offset_t)VAYU_CE_BASE, VAYU_CE_MAP_SIZE, VM_WIMG_IO);
 	ce.shadow_va = ml_io_map_unmappable((vm_offset_t)VAYU_CE_SHADOW_BASE, VAYU_CE_SHADOW_SIZE,
 	    VM_WIMG_IO);
@@ -1133,6 +1170,7 @@ vayu_wifi_ce_stage(bool qmi_ok, vayu_ce_abort_fn abort)
 		ce.result = VAYU_CE_BLOCKED;
 		return ce.result;
 	}
+	ce_step("ce_program");
 	if (!ce_program()) {
 		say("vayu-wifi: ce: programming readback failed; stopping the rings\n");
 		(void)ce_mark_down_if_fault(abort);
@@ -1151,6 +1189,7 @@ vayu_wifi_ce_stage(bool qmi_ok, vayu_ce_abort_fn abort)
 		ce.result = VAYU_CE_BLOCKED;
 		return ce.result;
 	}
+	ce_step("RX posting");
 	if (!ce_post_all()) {
 		say("vayu-wifi: ce: RX posting failed; stopping the rings\n");
 		(void)ce_mark_down_if_fault(abort);
@@ -1177,6 +1216,7 @@ vayu_wifi_ce_stage(bool qmi_ok, vayu_ce_abort_fn abort)
 	say("vayu-wifi: ce: polling for HTC READY (cap %u ms, %u ms period, %u descriptors/CE/pass; "
 	    "addrmask %u)\n", VAYU_CE_TIMEOUT_MS, VAYU_CE_POLL_MS, VAYU_CE_DRAIN_MAX,
 	    vayu_ce_rx_addr_mask ? 1 : 0);
+	ce_step("HTC READY poll");
 	if (!vayu_ce_rx_addr_mask) {
 		enum vayu_ce_result r = ce_poll(abort);
 

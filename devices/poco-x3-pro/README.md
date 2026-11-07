@@ -46,7 +46,7 @@ user-space sources compile and link, and it has not been booted since. Run it be
 | Sensors | SLPI (SSC) accelerometer and others | `vayu_slpi.c`, `vayu_ssc.c`, `vayu_fastrpc.c`, `userland/src/motion.c` | built; a stream for iOS auto-rotate exists, not confirmed on hardware |
 | Modem | MPSS through the remote file system | `vayu_modem.c`, `vayu_rmtfs.c`, `vayu_pas.c` | hardware: the modem boots, its remote file system is served, WLFW is announced |
 | Cellular | QMI DMS/UIM/NAS, WDS | `vayu_cell.c` | hardware: SIM ready, registration on LTE seen. **Data is not working**: the modem asserts on the first data session because the IPA initialisation message is not sent yet |
-| Wi-Fi | WCN399x on the modem's DSP | `vayu_wifi.c` | not working: the firmware accepts the board data, then crashes; no association |
+| Wi-Fi | WCN399x on the modem's DSP | `vayu_wifi.c` | the radio scans under iOS (the Wi-Fi arguments in NOTES.md; firmware in /private/var/hakios/fw); not yet joined, not yet in Settings |
 | Bluetooth | Qualcomm WCN3998 on a QUP UART | `vayu_bt.c`, `userland/src` extras: `bluetool_stub.c` | built; the controller initialises and `bluetoothd` reports its stack up on hardware, then stops at a vendor-specific command that times out (a workaround for it is written and has not been seen to work); no pairing |
 | NFC | NXP PN553 on I2C | `vayu_nfc.c` | built; the controller answers `CORE_RESET` and `CORE_INIT` on hardware, discovery is not reached |
 | IR blaster | SPI engine | `vayu_ir.c`, `vayu_irtest.c` | built, not confirmed |

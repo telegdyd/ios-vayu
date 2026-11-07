@@ -10,6 +10,13 @@
  * Any other APFS file is read out once by apfs_lib -- the same code as the volume's when
  * mounted, compressed or not -- into memory of its own, and kept: firmware is asked for once
  * or twice a session and its driver keeps it while the phone runs, so nothing gives it back.
+ *
+ * Firmware too big for the small images (the boot partition's payload is at most 64 MB: the modem's 77 MB
+ * of modem.mdt/modem.bNN, wlanmdsp.mbn, the modem's MCFG tree) is looked for last in
+ * /private/var/hakios/fw/NAME of the running root -- with the iOS volume as the root, /private/var is HFS
+ * Plus on the flash (init: var_hfs=1), filled once over the USB shell (sweet-sh.py --put) -- read whole
+ * into memory of its own and kept like the APFS copies. Before the root and /private/var are there, it is
+ * simply not found (a driver that needs it waits: vayu_modem.c, vayu_modem_fw_wait).
  */
 #include <kern/kalloc.h>
 #include <kern/locks.h>
@@ -18,6 +25,8 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
+#include <sys/vnode.h>
+#include <sys/vnode_internal.h>
 #include <miscfs/apfs/apfs_lib.h>
 
 extern dev_t mdevlookup(int devid);
@@ -51,7 +60,7 @@ static struct {
 	char      path[96];
 	uint8_t  *data;
 	uint64_t  size;
-} kept[64];
+} kept[128];
 
 static const uint8_t *
 apfs_file(int disk, const uint8_t *base, uint64_t length, const char *dir, const char *name, uint64_t *size)
@@ -163,6 +172,91 @@ out:
 	return data;
 }
 
+#define VAR_DISK        (-1)            /* kept[].disk of a file read from /private/var/hakios/<dir>/ */
+
+/* /private/var/hakios/<dir>/<name> of the running root, whole, kept (see the top of this file). */
+static const uint8_t *
+var_file(const char *dir, const char *name, uint64_t *size)
+{
+	char key[96], path[160];
+	vfs_context_t context = vfs_context_kernel();
+	vnode_t vnode = NULLVP;
+	struct vnode_attr attributes;
+	uint8_t *data;
+	uint32_t i;
+	int left = 0, error;
+
+	if (rootvnode == NULLVP) {
+		return NULL;                    /* no root yet */
+	}
+	for (const char *c = name; *c != 0; c++) {
+		if (*c == '.' && (c == name || c[-1] == '/')) {
+			return NULL;            /* no "..", no hidden names */
+		}
+	}
+	snprintf(key, sizeof(key), "/%s/%s", dir, name);
+	if (snprintf(path, sizeof(path), "/private/var/hakios/%s/%s", dir, name) >= (int)sizeof(path)) {
+		return NULL;
+	}
+	lck_mtx_lock(&image_lock);
+	for (i = 0; i < sizeof(kept) / sizeof(kept[0]) && kept[i].data != NULL; i++) {
+		if (kept[i].disk == VAR_DISK && strcmp(kept[i].path, key) == 0) {
+			*size = kept[i].size;
+			lck_mtx_unlock(&image_lock);
+			return kept[i].data;
+		}
+	}
+	lck_mtx_unlock(&image_lock);
+	if (vnode_lookup(path, 0, &vnode, context) != 0) {
+		return NULL;
+	}
+	VATTR_INIT(&attributes);
+	VATTR_WANTED(&attributes, va_data_size);
+	if (vnode_vtype(vnode) != VREG || vnode_getattr(vnode, &attributes, context) != 0 ||
+	    attributes.va_data_size == 0 || attributes.va_data_size > 256 * 1024 * 1024) {
+		vnode_put(vnode);
+		return NULL;
+	}
+	data = kalloc_data((vm_size_t)attributes.va_data_size, Z_WAITOK);
+	if (data == NULL) {
+		vnode_put(vnode);
+		return NULL;
+	}
+	error = vn_rdwr(UIO_READ, vnode, (caddr_t)data, (int)attributes.va_data_size, 0, UIO_SYSSPACE, 0,
+	    vfs_context_ucred(context), &left, vfs_context_proc(context));
+	vnode_put(vnode);
+	if (error != 0 || left != 0) {
+		printf("hakios_image: %s: read error %d, %d bytes left\n", path, error, left);
+		kfree_data(data, (vm_size_t)attributes.va_data_size);
+		return NULL;
+	}
+	lck_mtx_lock(&image_lock);
+	for (i = 0; i < sizeof(kept) / sizeof(kept[0]) && kept[i].data != NULL; i++) {
+		if (kept[i].disk == VAR_DISK && strcmp(kept[i].path, key) == 0) {
+			break;                  /* read by another driver meanwhile: keep the first */
+		}
+	}
+	if (i == sizeof(kept) / sizeof(kept[0])) {
+		lck_mtx_unlock(&image_lock);
+		printf("hakios_image: %s: kept %lu files already, no room for another\n", path, (unsigned long)i);
+		kfree_data(data, (vm_size_t)attributes.va_data_size);
+		return NULL;
+	}
+	if (kept[i].data != NULL) {
+		*size = kept[i].size;
+		lck_mtx_unlock(&image_lock);
+		kfree_data(data, (vm_size_t)attributes.va_data_size);
+		return kept[i].data;
+	}
+	kept[i].disk = VAR_DISK;
+	strlcpy(kept[i].path, key, sizeof(kept[i].path));
+	kept[i].size = attributes.va_data_size;
+	kept[i].data = data;
+	*size = attributes.va_data_size;
+	lck_mtx_unlock(&image_lock);
+	return data;
+}
+
 const uint8_t *
 hakios_image_file(const char *dir, const char *name, uint64_t *size, int *disk_out)
 {
@@ -183,5 +277,12 @@ hakios_image_file(const char *dir, const char *name, uint64_t *size, int *disk_o
 			return data;
 		}
 	}
-	return NULL;
+	{
+		const uint8_t *data = var_file(dir, name, size);
+
+		if (data != NULL && disk_out != NULL) {
+			*disk_out = VAR_DISK;
+		}
+		return data;
+	}
 }

@@ -40,6 +40,9 @@
  *   vayu_modem_cx=1    RPMh's "cx.lvl" raised with "mss.lvl" while it boots, and left there
  *   vayu_modem_rails=0 no RPMh vote at all (default 1: "mss.lvl" only, given back at the stop)
  *   vayu_pause=MS      before each first-time write (default 2200, given to vayu_pas_set_pause)
+ *   vayu_modem_fw_wait=S  how long step 2 waits for fw/modem.mdt to be readable (default 300; 0: no wait):
+ *                     the modem's 77 MB do not fit the boot partition's payload, so a flash boot keeps them in
+ *                     /private/var/hakios/fw (hakios.image.c), which is there only once init has mounted it
  *   vayu_wifi=N  (bsd/dev/vayu_wifi.c) our pd-mapper + tftp (1), and the WLFW probe (2)
  *   vayu_rmtfs=N (bsd/dev/vayu_rmtfs.c) the EFS service the modem asks for: 1 publishes it and logs
  *                the requests, 2 serves modemst1/modemst2/fsc/fsg from RAM (writes never reach storage)
@@ -95,7 +98,8 @@
 extern kern_return_t thread_terminate(thread_t thread);
 extern void loader_log_putc(char c);
 
-static uint32_t level, wait_s = 15, listen_s = 20, secs = 2;
+static uint32_t level, wait_s = 15, listen_s = 20, secs = 2, fw_wait_s = 300;
+extern const uint8_t *hakios_image_file(const char *dir, const char *name, uint64_t *size, int *disk_out);
 static bool glink_prepared;             /* its items were made: vayu_glink_down() on the way out */
 
 /* Every line to the loader's log as well: what is done to the modem should be known even if the kernel dies. */
@@ -260,6 +264,22 @@ step_up(void)
 		say("vayu-modem: 2: FAILED: TrustZone does not answer IS_CALL_AVAILABLE either way\n");
 		return false;
 	}
+	{
+		uint64_t size = 0;
+		uint32_t waited = 0;
+
+		while (hakios_image_file("fw", "modem.mdt", &size, NULL) == NULL && waited < fw_wait_s) {
+			if (waited == 0) {
+				say("vayu-modem: 2: waiting up to %u s for fw/modem.mdt (small image or /private/var/hakios/fw)\n",
+				    fw_wait_s);
+			}
+			delay_for_interval(1, NSEC_PER_SEC);
+			waited++;
+		}
+		if (waited != 0) {
+			say("vayu-modem: 2: fw/modem.mdt %s after %u s\n", size != 0 ? "found" : "NOT found", waited);
+		}
+	}
 	vayu_wifi_pre_modem();       /* W13: WLAN rails + AOP QDSS clock before the modem (vayu_wifi_qdss=1) */
 	if (!vayu_pas_load(&mpss)) {
 		say("vayu-modem: 2: FAILED: not loaded\n");
@@ -403,6 +423,7 @@ vayu_modem_init(void)
 	if (listen_s > 86400) {
 		listen_s = 86400;                       /* vayu: the modem stays up for a usable system (was a 120 s probe) */
 	}
+	PE_parse_boot_argn("vayu_modem_fw_wait", &fw_wait_s, sizeof(fw_wait_s));
 	PE_parse_boot_argn("vayu_modem_secs", &secs, sizeof(secs));
 	if (secs > 60) {
 		secs = 60;
