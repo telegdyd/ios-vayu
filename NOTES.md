@@ -3,6 +3,21 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 1 (2026-11-07; phone not used)
+
+- **FACT (`docs/metal-step1-build.log`):** task 1 done: `hakios-metal/` vendored from
+  upstream `63fc2b4633bac3af8e57dadab9f5a8d4cb940438`, MIT; 0040/0043 ported.
+  Clean WSL driver build: `make -C ~/vayu/hakios-metal -j3 vayu-check CXX=clang++`:
+  arm64 iOS archive + probe built, 261 host tests / 0 failed checks, fake probe
+  `--stages 4` / 0 failures. No phone commands. Pin, patch conflicts, build details
+  and AIR choice in `hakios-metal/VAYU.md`; task 2 is next.
+- **FACT (source):** driver uses Mesa's AIR frontend, not a second implementation.
+  Choose `tools/mesa/air` as the one frontend; its API is older than the pinned
+  driver's. Baseline has no `MESA=1`, so live AIR compilation is not validated;
+  reconcile APIs before task 9. Extra upstream fixtures beyond 0043 also need
+  A640 validation before hardware use. WSL pull refused unrelated local changes;
+  preserved them and synced only the new driver directory for the build.
+
 ## Active handoff (2026-11-07 ~05:50: Wi-Fi step 3 -- joined from Settings, internet works; Safari freezes)
 
 - **FACT (run wifi10, logs/wifi10-net.txt, git-ignored):** with `vayu_wifi_ios=1` added to the step 2 args, en0

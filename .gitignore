@@ -30,6 +30,8 @@
 !/xnu-deps/
 !/prebuilt/
 !/wifi/
+!/hakios-metal/
+/hakios-metal/out/
 
 __pycache__/
 *~

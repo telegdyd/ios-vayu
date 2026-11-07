@@ -42,11 +42,13 @@ Every agent, every task:
   `IOAcceleratorES` service with `MetalPluginName`/`MetalPluginClassName` → a bundle in
   `/System/Library/Extensions` → a subclass of `_MTLDevice` → `-initWithAcceleratorPort:`. A bare
   `IOAcceleratorES` stub is in `xnu/files/iokit/Kernel/MiniIOMobileFramebuffer.cpp`.
-- **A640 port of hakios-metal, as patches only** (against the separate hakios-metal tree, which is
-  not in this checkout): `docs/vayu-patches/0040-hakios-metal-a640-gen2-port.patch` (chip id
+- **A640 port of hakios-metal, vendored in task 1** (`hakios-metal/`, pinned upstream
+  `63fc2b4633bac3af8e57dadab9f5a8d4cb940438`; see `hakios-metal/VAYU.md`):
+  `docs/vayu-patches/0040-hakios-metal-a640-gen2-port.patch` (chip id
   0x06040001, gen2 chip facts, no LPAC, the `RedwoodGPU` transport, `probe --stages`) and
-  `0043-hakios-metal-a640-fixtures.patch` (test shaders regenerated for FD640). As far as is known
-  they have only been tested against the simulated GPU (`fake_gpu`).
+  `0043-hakios-metal-a640-fixtures.patch` (test shaders regenerated for FD640). Task 1
+  built the arm64 library/probe and passed 261 host tests plus fake-probe stages 1–4;
+  no vayu hardware validation yet. Additional upstream fixtures are not yet ported.
 - **Upstream** keeps hakios-metal in `oosexgang/hakios-xnu-kernel`, `main`, `hakios-metal/`, with
   `docs/reference/metal.md` (integration) and `metal-measurements.md`. The old standalone repository
   `oosexgang/hakios-metal` points there.
@@ -55,7 +57,7 @@ Every agent, every task:
 
 ### Phase A: the driver source, building and checked
 
-- [ ] **1. Bring hakios-metal into the tree and build it.**
+- [x] **1. Bring hakios-metal into the tree and build it.**
   Depends on: nothing.
   Do: choose and pin an upstream revision of `hakios-metal/` and record why that one. Bring it in on
   `vayu-dev` (as a subtree or vendored directory, with its licence and a note in
@@ -65,7 +67,17 @@ Every agent, every task:
   how that relates to our `tools/mesa/air`. Choose one, and say which.
   Done when: one build command produces the library and tests from a clean `~/vayu`; the host test
   suite passes against `fake_gpu` (FACT, with output); the choice of AIR frontend is written down.
-  Result: —
+  Result: **FACT (2026-11-07, `docs/metal-step1-build.log`):** vendored `hakios-metal/`
+  from upstream `63fc2b4633bac3af8e57dadab9f5a8d4cb940438`, MIT notices preserved;
+  0040/0043 applied (one compiler diagnostic hunk resolved manually). Clean WSL driver
+  build: `make -C ~/vayu/hakios-metal -j3 vayu-check CXX=clang++` after `make clean`:
+  arm64 iOS archive and probe built, 261 host tests / 0 failed checks, fake probe
+  `--stages 4` / 0 failures. Provenance, complete patch ledger and AIR decision:
+  `hakios-metal/VAYU.md`. Use the existing Mesa frontend in `tools/mesa/air`, not a
+  duplicate; its API is older than upstream's and needs reconciliation before
+  `MESA=1`. This baseline intentionally tests the no-compiler refusal and committed
+  fixtures, not live AIR compilation or hardware. WSL pull refused existing local
+  changes; only the new driver was synced for this build. No phone operations.
 
 - [ ] **2. Inventory what the driver implements.**
   Depends on: 1.
@@ -155,6 +167,9 @@ Every agent, every task:
   textures, a `.metallib` built on the PC, a render pipeline, a compute pipeline, blits, completion
   handlers, `waitUntilCompleted`. Pipelines compile at creation (`docs/air.md` section 7, item 1),
   and the shader cache persists across runs.
+  Before enabling `MESA=1`, reconcile our older `tools/mesa/air` API with the pinned
+  driver's newer metadata requirements (task 1 findings in `hakios-metal/VAYU.md`),
+  and validate the compiler-enabled host/iOS builds and A640 shader fixtures.
   Done when: the program's render and compute results match expected values on the phone, and a
   second run shows the cache warm (FACT).
   Result: —
@@ -236,8 +251,9 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
 
 ## Open questions (whoever learns the answer writes it here)
 
-- Does upstream hakios-metal ship its own AIR frontend, and is it the same lineage as
-  `tools/mesa/air`? (task 1)
+- **Answered (task 1, source):** the driver links the parent tree's Mesa AIR frontend;
+  our `tools/mesa/air` is the same lineage but has an older API. Keep this one frontend
+  and reconcile the newer metadata before compiler-enabled builds (task 9).
 - Did 0040/0043 ever run on vayu's GPU, or only on `fake_gpu`? (task 1 or 5)
 - Does QuartzCore switch to Metal on its own once a device is registered? (task 8)
 - Which third-party Metal apps or games matter to the user? (task 12)

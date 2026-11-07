@@ -16,6 +16,7 @@ This supersedes the summary in `NOTICE`, which stays as the short, canonical lis
 | LinuxKPI / Linux headers | `wifi/lx/include/linux/`, `wifi/lx/include/net/` | Linux / FreeBSD LinuxKPI | GPL-2.0 (Linux) / BSD-2-Clause (FreeBSD) | small compatibility headers; see each file's notice |
 | Linux DRM shim | `tools/mesa/hakios-drm/`, `xf86drm.h` | Linux / X.Org | MIT | build-time shim for Mesa |
 | AIR / Metal-library tooling | `tools/mesa/air/` | HakiOS (Darwin on redwood contributors) | MIT | our own; LLVM bitcode layout is a published format |
+| hakios-metal direct Metal driver | `hakios-metal/` | `oosexgang/hakios-xnu-kernel`, revision `63fc2b4633bac3af8e57dadab9f5a8d4cb940438`, `hakios-metal/` | MIT (`hakios-metal/LICENSE`, Mesa notice in `hakios-metal/NOTICE`) | vendored with A640 patches; provenance, patch ledger and AIR choice in `hakios-metal/VAYU.md` |
 | mkbootimg.py | `devices/poco-x5-pro/prebuilt/mkbootimg.py` | Android Open Source Project | Apache-2.0 | |
 | Mu-Silicium / Project Mu derived files | `devices/poco-x5-pro/uefi/` | Project Silicium, Microsoft, contributors | BSD-2-Clause-Patent; some GPL-2.0+ OR MIT | derived parts keep upstream license |
 | Qualcomm/Xiaomi UEFI driver binaries | `devices/poco-x5-pro/uefi/files/Binaries/` | Qualcomm / Xiaomi (from device `xbl.img`) | vendor's — **to verify** | needed only to rebuild UEFI; removable, re-extract with UEFIReader |
