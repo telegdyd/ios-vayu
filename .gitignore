@@ -7,6 +7,7 @@
 !/.gitattributes
 !/VERSION
 !/README.md
+!/UPSTREAM.md
 !/CONTRIBUTING.md
 !/CHANGELOG.md
 !/ci/
