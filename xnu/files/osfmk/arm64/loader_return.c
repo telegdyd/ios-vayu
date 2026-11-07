@@ -77,7 +77,7 @@ extern void vayu_venus_quiesce(void);          /* bsd/dev/vayu_venus.c: the vide
 extern void hakios_camera_quiesce(void);
 extern void hakios_mic_quiesce(void);
 extern void hakios_ufs_quiesce(void);
-extern void hakios_var_save_on_return(void);   /* bsd/dev/hakios.ufs.c: the data volume into the flash */
+extern void hakios_var_save_on_return(void);   /* drivers/storage/hakios.ufs.c: the data volume into the flash */
 extern void vayu_ir_quiesce(void);              /* bsd/dev/vayu_ir.c: an IR transfer in flight, cancelled */
 extern void vayu_usbnet_quiesce(void);          /* bsd/dev/vayu_usbnet.c: the USB controller, if it took it */
 void loader_checkpoint(uint64_t n);

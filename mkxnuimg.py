@@ -7,8 +7,8 @@ into an Android boot image for `fastboot boot`.
 
 The boot shim copies the FD to its base and the payload to PAYLOAD_BASE.
 
-The UEFI pieces are taken from a Mu-Silicium tree built here (Mu-Silicium/, see devices/poco-x5-pro/uefi/README.md)
-or, when there is none, from devices/poco-x5-pro/prebuilt/.
+The UEFI pieces are taken from a Mu-Silicium tree built here (Mu-Silicium/, see uefi/README.md)
+or, when there is none, from devices/redwood/prebuilt/.
 
 usage: mkxnuimg.py [-p payload.bin] [-o out.img]
 """
@@ -17,8 +17,8 @@ import argparse, gzip, os, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 MU = os.path.join(HERE, 'Mu-Silicium')
 # another phone: DEVICE=<name> picks devices/<name>/, whose boot.conf (KEY=VALUE lines) may set
-# UEFI_TARGET (the Mu-Silicium platform), FD_BASE and FD_SIZE; the defaults are the POCO X5 Pro's
-DEVICE = os.environ.get('DEVICE', 'poco-x5-pro')
+# UEFI_TARGET (the Mu-Silicium platform), FD_BASE and FD_SIZE; the defaults are the POCO X5 Pro's (redwood)
+DEVICE = os.environ.get('DEVICE', 'redwood')
 DEVDIR = os.path.join(HERE, 'devices', DEVICE)
 PREBUILT = os.path.join(DEVDIR, 'prebuilt')
 conf = {'UEFI_TARGET': 'redwood', 'FD_BASE': '0x9FD00000', 'FD_SIZE': '0x200000'}
@@ -60,6 +60,13 @@ else:
     if (FD_BASE, FD_SIZE) != (0x9FD00000, 0x200000) and not os.path.isfile(os.path.join(PREBUILT, 'BootShim.bin')):
         sys.exit(f'mkxnuimg: no Mu-Silicium/BootShim and no {PREBUILT}/BootShim.bin for FD_BASE={FD_BASE:#x} '
                  f'FD_SIZE={FD_SIZE:#x}: build the UEFI first (devices/{DEVICE}/uefi/)')
+for name, path in parts.items():
+    if not os.path.isfile(path):
+        hint = ''
+        if name == 'fd':
+            hint = ("\n  The UEFI image is not in the repository: it carries the phone vendor's own drivers, which are not\n"
+                    "  redistributed here. Build it from your own phone's firmware: uefi/README.md")
+        sys.exit(f'mkxnuimg.py: {path} not found{hint}')
 shim = open(parts['shim'], 'rb').read()
 fd = open(parts['fd'], 'rb').read()
 assert len(fd) == FD_SIZE, hex(len(fd))
