@@ -85,14 +85,9 @@ OSDefineMetaClassAndStructors(HakiosWLAN, IONetworkInterface);
 /*
  * A wired interface (vayu's USB network, en2, bsd/dev/vayu_usbnet.c): SystemConfiguration calls an
  * IFT_ETHER interface whose parent is no radio (nor Bluetooth) plain Ethernet, and configd makes it a
- * service (DHCP) like any other. Properties only, as above.
+ * service (DHCP) like any other. Its parent is a plain IOEthernetController (the class above, which
+ * upstream made an IONetworkController); properties only, as above.
  */
-class IOEthernetController : public IOService
-{
-	OSDeclareDefaultStructors(IOEthernetController);
-};
-
-OSDefineMetaClassAndStructors(IOEthernetController, IOService);
 
 class HakiosEthernet : public IONetworkInterface
 {
