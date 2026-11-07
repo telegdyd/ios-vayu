@@ -1,6 +1,32 @@
 # ios-vayu notes
 
-## Active handoff (2026-11-07 ~01:00: iOS in `boot`, starts by itself, /private/var is HFS Plus on the flash)
+## Active handoff (2026-11-07 ~01:40: USB shell works; flashed image does not have it yet)
+
+USB shell (2026-11-07 01:1x-01:3x):
+- FACT: the kernel's USB networking (vayu_usbnet=3, usb_handover=1) was CDC-ECM, which Windows has no driver for.
+  vayu_usbnet_ecm.c now speaks CDC-NCM by default (usbnet_ecm=1: ECM): IAD + subclass 0x0d descriptors (product
+  0xd00f), the NCM class requests (an ep0 OUT data stage for SET_NTB_INPUT_SIZE/SET_MAX_DATAGRAM_SIZE), NTB-16 in
+  (any number of frames) and out (one per block, pad byte instead of a ZLP), layout from ios-jasmine's sweet_usb.
+  Also jasmine's mbuf fix (one mbuf + cluster; mbuf_allocpacket's empty first mbuf panicked there).
+- FACT: usbnet_static=1 usbnet_ip=0xa9fe0702: en2 = 169.254.7.2/16, no default route. Windows' UsbNcm adapter
+  gives itself a 169.254 address (nobody answers its DHCP), so the PC needs no setup.
+- FACT: loader 2.3 (loader.efi 118fa46c...): a one-shot (standalone) boot with usb_handover=1 starts the UEFI USB
+  stack before the kernel, else the kernel's usb_take went unanswered (3 s, "left alone"). Tested only via xl so far.
+- FACT: sweetd (userland/src/sweetd.c, from ios-jasmine, MIT, same author) is a launchd job (com.hakios.sweetd),
+  root, TCP 5143; token userland/sweetd.token (made by build.sh, git-ignored, copied into the image as
+  /redwood/etc/sweetd.token). iOS has only /bin/ps and /bin/df, and the flash has no Procursus prefix, so sweetd has
+  built-ins: ls cat sysctl put rm mkdir kill. Client: devices/poco-x3-pro/tools/sweet-sh.py (Windows python;
+  MSYS_NO_PATHCONV=1 from Git Bash), `--put LOCAL REMOTE [MODE]` uploads.
+- FACT: xl runs 012613 and the next (240 s / 150 s, flashboot.apfs resident): Windows enumerated it, ping
+  169.254.7.2 answered from ~45 s after the start until the run ended; sweetd ran sysctl/cat/ls and /bin/ps -A
+  (var boot counter 7). Windows asks for string 0xEE (MS OS descriptor): stalled, harmless.
+- Images: kernel 98cb2a20..., root-flash.apfs a447c783..., flashboot.apfs 2ed5d333... (unchanged);
+  xnu-standalone.img a4373c63... (standalone.sh's default cmdline has the four usbnet args). NOT flashed yet: `boot`
+  still holds cd3e34b5..., kept as ../backup-vayu/xnu-standalone-hfs.img (rollback).
+- Next: flash a4373c63 (user's OK; needs fastboot: the loader cannot reboot into it); then the agent can inspect the
+  standalone phone without the user. Later: Procursus (or a toolbox) via `put`; MS OS descriptors are not needed.
+
+## Earlier (2026-11-07 ~01:00: iOS in `boot`, starts by itself, /private/var is HFS Plus on the flash)
 
 HFS Plus for a real writable /private/var (in progress, 2026-11-06 late night):
 - Why: /private/var is a RAM disk (ramfs) restored from / saved to darwin by var_store at Shut Down only; the APFS

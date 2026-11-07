@@ -1,5 +1,14 @@
 /*
- * CDC-ECM on vayu's USB controller: the upper half of bsd/dev/vayu_usbnet.c (levels 2 and 3).
+ * CDC-NCM (CDC-ECM with usbnet_ecm=1) on vayu's USB controller: the upper half of bsd/dev/vayu_usbnet.c
+ * (levels 2 and 3).
+ *
+ * NCM is the default because Windows has a driver for it in the box (UsbNcm) and none for ECM; Linux
+ * (cdc_ncm) and macOS drive it too. The two differ in the descriptors (an interface association, subclass
+ * 0x0d, the NCM functional descriptor, data protocol 1), in six class requests, two of them with an OUT
+ * data stage, and on the bulk endpoints: every NCM transfer is a block (NTB-16) -- a header ("NCMH"), a
+ * table ("NCM0") of the frames in it, the frames. One frame per block going out, as ios-jasmine's sweet_usb
+ * sends them (the layout there, tested with Windows); any number coming in. Blocks are at most 2 KiB both
+ * ways (GET_NTB_PARAMETERS), so a block is one TRB of the rings below, as a frame is with ECM.
  *
  * vayu_usbnet=2: the descriptors and the control endpoint, so that the host enumerates the phone
  * as an Ethernet device (Linux's cdc_ether says "new high-speed USB device"); nothing is carried.
@@ -79,6 +88,8 @@ tee_printf(const char *format, ...)
 #define USB_CLASS_CDC           2
 #define USB_CLASS_CDC_DATA      0x0a
 #define USB_CDC_SUBCLASS_ECM    6
+#define USB_CDC_SUBCLASS_NCM    0x0d
+#define USB_DT_IAD              0x0b
 
 #define USB_ENDPOINT_XFER_BULK  2
 #define USB_ENDPOINT_XFER_INT   3
@@ -126,6 +137,56 @@ static const uint8_t usbnet_config[] = {
 	7, USB_DT_ENDPOINT, 0x02, USB_ENDPOINT_XFER_BULK, 0, 2, 0,
 };
 
+/*
+ * NCM: the same function behind an interface association (device class 0xef/2/1, which Windows wants
+ * before it gives a function of two interfaces to one driver), its own product number (0xd00f: so that
+ * a host that met the ECM one does not reuse what it decided then), subclass 0x0d, the NCM functional
+ * descriptor (1.00, no optional requests) and protocol 1 on the data interface. The layout of Linux's
+ * f_ncm.c and of ios-jasmine's sweet_usb; the endpoints are the ECM ones.
+ */
+static const uint8_t usbnet_device_ncm[] = {
+	18, USB_DT_DEVICE,
+	0x00, 0x02,
+	0xef, 0x02, 0x01,
+	64,
+	0xd1, 0x18,
+	0x0f, 0xd0,
+	0x00, 0x01,
+	1, 2, 3,
+	1,
+};
+
+static const uint8_t usbnet_config_ncm[] = {
+	9, USB_DT_CONFIG, 0, 0, 2, 1, 0, 0xc0, 250,
+	/* interface association: interfaces 0-1, CDC NCM */
+	8, USB_DT_IAD, 0, 2, USB_CLASS_CDC, USB_CDC_SUBCLASS_NCM, 0, 0,
+	9, USB_DT_INTERFACE, 0, 0, 1, USB_CLASS_CDC, USB_CDC_SUBCLASS_NCM, 0, 0,
+	5, USB_DT_CS_INTERFACE, 0x00, 0x10, 0x01,
+	5, USB_DT_CS_INTERFACE, 0x06, 0, 1,
+	13, USB_DT_CS_INTERFACE, 0x0f, 4, 0, 0, 0, 0, 0xea, 0x05, 0, 0, 0,
+	/* NCM functional descriptor: bcdNcmVersion 1.00, bmNetworkCapabilities 0 */
+	6, USB_DT_CS_INTERFACE, 0x1a, 0x00, 0x01, 0x00,
+	7, USB_DT_ENDPOINT, 0x81, USB_ENDPOINT_XFER_INT, 16, 0, 9,
+	9, USB_DT_INTERFACE, 1, 0, 0, USB_CLASS_CDC_DATA, 0, 0x01, 0,
+	9, USB_DT_INTERFACE, 1, 1, 2, USB_CLASS_CDC_DATA, 0, 0x01, 0,
+	7, USB_DT_ENDPOINT, 0x82, USB_ENDPOINT_XFER_BULK, 0, 2, 0,
+	7, USB_DT_ENDPOINT, 0x02, USB_ENDPOINT_XFER_BULK, 0, 2, 0,
+};
+
+static bool usbnet_ncm = true;          /* usbnet_ecm=1: false */
+
+/* NTB-16 (CDC NCM 1.0, 3.2-3.3): little-endian fields */
+#define NCM_NTB_MAX             2048    /* = USB_FRAME_MAX: one block, one TRB */
+#define NCM_NTH16_SIG           0x484d434eu     /* "NCMH" */
+#define NCM_NDP16_SIG           0x304d434eu     /* "NCM0": no CRC */
+#define NCM_NDP16_SIG_CRC       0x314d434eu     /* "NCM1": each frame followed by its CRC */
+#define NCM_TX_HDR              28      /* NTH16 12 + NDP16 8 + one entry 4 + the terminating entry 4 */
+
+static inline uint32_t ld16(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8; }
+static inline uint32_t ld32(const uint8_t *p) { return ld16(p) | ld16(p + 2) << 16; }
+static inline void st16(uint8_t *p, uint32_t v) { p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); }
+static inline void st32(uint8_t *p, uint32_t v) { st16(p, v); st16(p + 2, v >> 16); }
+
 /* Strings 1..4, and 0 the language: UTF-16LE in the wire format, built into the caller's buffer. */
 static uint32_t
 usbnet_string(uint32_t index, uint8_t *out)
@@ -171,6 +232,8 @@ enum {
 	EP0_STATUS_IN_SENT,
 	EP0_STATUS_OUT,         /* after a data stage: waiting for XferNotReady(STATUS) on ep0 OUT */
 	EP0_STATUS_OUT_SENT,
+	EP0_DATA_OUT_SENT,      /* a control write: the host's data is the controller's to receive */
+	EP0_STATUS_IN3,         /* ... then the status, an IN, three-stage: waiting for XferNotReady(STATUS) */
 };
 
 static uint32_t ep0_state;
@@ -256,11 +319,31 @@ ep0_data_stage(void)
 	ep0_state = EP0_DATA_SENT;
 }
 
+/*
+ * The OUT data stage of a control write (NCM's SET_NTB_INPUT_SIZE, SET_MAX_DATAGRAM_SIZE): one 64-byte
+ * packet's room, a multiple of the packet size as DWC3 wants for ep0 OUT (ep0.c bounces what is not).
+ * What arrives is not used: the sizes the host may set are no larger than what this side sends anyway.
+ */
 static void
-ep0_status_in(void)                     /* two-stage: the status is an IN on ep0 */
+ep0_data_out(void)
 {
+	vayu_usbnet_trb(USB_DMA_EP0_TRB, vayu_usbnet_dma_pa(USB_DMA_EP0_DATA), 64,
+	    USB_TRB_HWO | USB_TRB_LST | USB_TRB_ISP_IMI | USB_TRB_IOC | USB_TRB_TYPE(USB_TRBCTL_CONTROL_DATA));
+	if (ep0_start(USB_EP_EP0OUT) != 0) {
+		printf("vayu-usbnet: ep0: the OUT data stage cannot be started\n");
+		ep0_restart();
+		return;
+	}
+	ep0_state = EP0_DATA_OUT_SENT;
+}
+
+static void
+ep0_status_in(void)                     /* the status is an IN on ep0: two-stage, or three after OUT data */
+{
+	uint32_t kind = ep0_state == EP0_STATUS_IN3 ? USB_TRBCTL_CONTROL_STATUS3 : USB_TRBCTL_CONTROL_STATUS2;
+
 	vayu_usbnet_trb(USB_DMA_EP0_TRB, vayu_usbnet_dma_pa(USB_DMA_EP0_SETUP), 0,
-	    USB_TRB_HWO | USB_TRB_LST | USB_TRB_ISP_IMI | USB_TRB_IOC | USB_TRB_TYPE(USB_TRBCTL_CONTROL_STATUS2));
+	    USB_TRB_HWO | USB_TRB_LST | USB_TRB_ISP_IMI | USB_TRB_IOC | USB_TRB_TYPE(kind));
 	if (ep0_start(USB_EP_EP0IN) != 0) {
 		printf("vayu-usbnet: ep0: the status stage cannot be started\n");
 		ep0_restart();
@@ -319,15 +402,22 @@ ep0_setup(void)
 		number = value & 0xff;
 
 		if (kind == USB_DT_DEVICE) {
-			ep0_data(usbnet_device, sizeof(usbnet_device));
+			if (usbnet_ncm) {
+				ep0_data(usbnet_device_ncm, sizeof(usbnet_device_ncm));
+			} else {
+				ep0_data(usbnet_device, sizeof(usbnet_device));
+			}
 			return;
 		}
 		if (kind == USB_DT_CONFIG) {
+			const uint8_t *config = usbnet_ncm ? usbnet_config_ncm : usbnet_config;
+			uint32_t size = usbnet_ncm ? sizeof(usbnet_config_ncm) : sizeof(usbnet_config);
+
 			/* (the one field the table cannot carry: its own length) */
-			memcpy((void *)vayu_usbnet_dma_va(USB_DMA_EP0_DATA), usbnet_config, sizeof(usbnet_config));
-			((uint8_t *)vayu_usbnet_dma_va(USB_DMA_EP0_DATA))[2] = (uint8_t)sizeof(usbnet_config);
-			((uint8_t *)vayu_usbnet_dma_va(USB_DMA_EP0_DATA))[3] = (uint8_t)(sizeof(usbnet_config) >> 8);
-			ep0_data(NULL, sizeof(usbnet_config));
+			memcpy((void *)vayu_usbnet_dma_va(USB_DMA_EP0_DATA), config, size);
+			((uint8_t *)vayu_usbnet_dma_va(USB_DMA_EP0_DATA))[2] = (uint8_t)size;
+			((uint8_t *)vayu_usbnet_dma_va(USB_DMA_EP0_DATA))[3] = (uint8_t)(size >> 8);
+			ep0_data(NULL, size);
 			return;
 		}
 		if (kind == USB_DT_STRING && number <= 4) {
@@ -405,6 +495,74 @@ ep0_setup(void)
 		return;
 	}
 
+	if (usbnet_ncm && type == 0xa1) {                       /* NCM's class requests in (NCM 1.0, 6.2) */
+		uint8_t *data = (uint8_t *)vayu_usbnet_dma_va(USB_DMA_EP0_DATA);
+
+		switch (request) {
+		case 0x80:                      /* GET_NTB_PARAMETERS, 28 bytes */
+			bzero(data, 28);
+			st16(data + 0, 28);             /* wLength */
+			st16(data + 2, 1);              /* bmNtbFormatsSupported: NTB-16 only */
+			st32(data + 4, NCM_NTB_MAX);    /* dwNtbInMaxSize: ours to the host */
+			st16(data + 8, 4);              /* wNdpInDivisor */
+			st16(data + 10, 0);             /* wNdpInPayloadRemainder */
+			st16(data + 12, 4);             /* wNdpInAlignment */
+			st32(data + 16, NCM_NTB_MAX);   /* dwNtbOutMaxSize: the host's to us */
+			st16(data + 20, 4);             /* wNdpOutDivisor */
+			st16(data + 22, 0);             /* wNdpOutPayloadRemainder */
+			st16(data + 24, 4);             /* wNdpOutAlignment */
+			st16(data + 26, 0);             /* wNtbOutMaxDatagrams: no limit */
+			ep0_data(NULL, 28);
+			return;
+		case 0x83:                      /* GET_NTB_FORMAT: 0, NTB-16 */
+		case 0x89:                      /* GET_CRC_MODE: 0, none */
+			st16(data, 0);
+			ep0_data(NULL, 2);
+			return;
+		case 0x85:                      /* GET_NTB_INPUT_SIZE */
+			st32(data, NCM_NTB_MAX);
+			ep0_data(NULL, 4);
+			return;
+		case 0x87:                      /* GET_MAX_DATAGRAM_SIZE */
+			st16(data, ETHER_MAX_LEN - ETHER_CRC_LEN);
+			ep0_data(NULL, 2);
+			return;
+		default:
+			break;
+		}
+	}
+
+	if (usbnet_ncm && type == 0x21 && request != 0x43) {    /* NCM's class requests out */
+		switch (request) {
+		case 0x84:                      /* SET_NTB_FORMAT: only NTB-16 is offered */
+			if (value != 0) {
+				break;
+			}
+			/* FALLTHROUGH */
+		case 0x8a:                      /* SET_CRC_MODE (frames with a CRC are taken either way) */
+		case 0x44:                      /* SET_ETHERNET_MULTICAST_FILTERS (none: all come in) */
+			if (ep0_wlength == 0) {
+				ep0_status_only();
+				return;
+			}
+			break;
+		case 0x86:                      /* SET_NTB_INPUT_SIZE: 4 or 8 bytes */
+		case 0x88:                      /* SET_MAX_DATAGRAM_SIZE: 2 bytes */
+			if (ep0_wlength != 0 && ep0_wlength <= 64) {
+				printf("vayu-usbnet: NCM request %02x with %u bytes (taken, not used)\n", request, ep0_wlength);
+				ep0_data_out();
+				return;
+			}
+			if (ep0_wlength == 0) {
+				ep0_status_only();
+				return;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
 	if (type == 0x21 && request == 0x43) {                  /* CDC SET_ETHERNET_PACKET_FILTER */
 		printf("vayu-usbnet: packet filter %04x\n", value);
 		ep0_status_only();
@@ -441,6 +599,10 @@ ep0_complete(unsigned int phys)
 			ep0_restart();
 			return;
 		}
+		if (ep0_state == EP0_DATA_OUT_SENT) {
+			ep0_state = EP0_STATUS_IN3;     /* (the status of a control-OUT is an IN) */
+			return;
+		}
 		if (ep0_state != EP0_ARMED) {
 			/* (the host gave up on the request and sent a new SETUP: start over) */
 			printf("vayu-usbnet: ep0: a SETUP while state %u was pending\n", ep0_state);
@@ -466,7 +628,7 @@ ep0_notready(unsigned int phys, uint32_t status)
 	if ((status & 3) == 1) {
 		return;                 /* DATA: already started with the request (ep0_data) */
 	}
-	if (phys == USB_EP_EP0IN && (status & 3) == 2 && ep0_state == EP0_STATUS_IN) {   /* STATUS */
+	if (phys == USB_EP_EP0IN && (status & 3) == 2 && (ep0_state == EP0_STATUS_IN || ep0_state == EP0_STATUS_IN3)) {
 		ep0_status_in();
 		return;
 	}
@@ -532,6 +694,56 @@ out_refill(uint32_t slot)
 static void
 usbnet_input(const uint8_t *frame, size_t length);
 
+/*
+ * One NTB-16 from the host: every frame its tables list (NCM 1.0, 3.3). Whatever does not add up --
+ * a signature, an index past the block -- ends the block there; the frames before it have gone up.
+ */
+static void
+ncm_input(const uint8_t *block, uint32_t length)
+{
+	uint32_t ndp, guard;
+
+	if (length < 12 || ld32(block) != NCM_NTH16_SIG || ld16(block + 4) != 12) {
+		usbnet_count.drops++;
+		return;
+	}
+	if (ld16(block + 8) != 0 && ld16(block + 8) < length) {
+		length = ld16(block + 8);       /* wBlockLength */
+	}
+	ndp = ld16(block + 10);
+	for (guard = 0; ndp != 0 && guard < 8; guard++) {
+		uint32_t signature, end, entry;
+
+		if ((ndp & 3) != 0 || ndp + 16 > length) {
+			break;
+		}
+		signature = ld32(block + ndp);
+		if (signature != NCM_NDP16_SIG && signature != NCM_NDP16_SIG_CRC) {
+			break;
+		}
+		end = ndp + ld16(block + ndp + 4);
+		if (end > length) {
+			end = length;
+		}
+		for (entry = ndp + 8; entry + 4 <= end; entry += 4) {
+			uint32_t index = ld16(block + entry), size = ld16(block + entry + 2);
+
+			if (index == 0 || size == 0) {
+				break;
+			}
+			if (signature == NCM_NDP16_SIG_CRC) {
+				size = size > 4 ? size - 4 : 0;
+			}
+			if (index + size > length || size == 0) {
+				usbnet_count.drops++;
+				break;
+			}
+			usbnet_input(block + index, size);
+		}
+		ndp = ld16(block + ndp + 6);    /* wNextNdpIndex */
+	}
+}
+
 /* The frames the controller has finished with, oldest first: hand them up and refill their TRBs. */
 static void
 out_drain(void)
@@ -555,7 +767,12 @@ out_drain(void)
 		length = size > USB_FRAME_MAX ? 0 : USB_FRAME_MAX - size;
 		if (length != 0) {
 			vayu_usbnet_inval(vayu_usbnet_dma_va(USB_DMA_OUT_DATA + USB_FRAME_MAX * out_next), length);
-			usbnet_input((const uint8_t *)vayu_usbnet_dma_va(USB_DMA_OUT_DATA + USB_FRAME_MAX * out_next), length);
+			if (usbnet_ncm) {
+				ncm_input((const uint8_t *)vayu_usbnet_dma_va(USB_DMA_OUT_DATA + USB_FRAME_MAX * out_next), length);
+			} else {
+				usbnet_input((const uint8_t *)vayu_usbnet_dma_va(USB_DMA_OUT_DATA + USB_FRAME_MAX * out_next),
+				    length);
+			}
 		}
 		out_refill(out_next);
 		refilled++;
@@ -621,8 +838,8 @@ notify_send(uint32_t phase)
 	if (notify_phase != 0) {
 		return;                         /* (one at a time: the first one is still the controller's) */
 	}
-	if (phase == 1) {
-		/* NETWORK_CONNECTION (CDC 1.2 6.3.1): connected */
+	if (phase == (usbnet_ncm ? 2u : 1u)) {
+		/* NETWORK_CONNECTION (CDC 1.2 6.3.1): connected; NCM's second, as f_ncm.c sends it */
 		data[0] = 0xa1;
 		data[1] = 0x00;
 		data[2] = 0x01;                 /* wValue: 1 = connected */
@@ -791,8 +1008,10 @@ static bool
 usbnet_tx(mbuf_t packet, uint32_t length)
 {
 	uint32_t slot = in_tail, next = (in_tail + 1) % USB_TRB_DATA;
-	bool zlp = (length % USB_MAXPACKET) == 0;
+	uint32_t offset = usbnet_ncm ? NCM_TX_HDR : 0;
+	bool zlp;
 	uint8_t *buffer;
+	static uint16_t sequence;
 
 	if (!data_up) {
 		return false;                   /* (stopped between the caller's look and the lock) */
@@ -801,10 +1020,36 @@ usbnet_tx(mbuf_t packet, uint32_t length)
 	if (in_used + (zlp ? 2 : 1) > USB_TRB_DATA - 1) {
 		return false;                   /* (the ring is full: the frame is dropped) */
 	}
-	buffer = (uint8_t *)vayu_usbnet_dma_va(USB_DMA_IN_DATA + USB_FRAME_MAX * slot);
-	if (mbuf_copydata(packet, 0, length, buffer) != 0) {
+	if (offset + length + 1 > USB_FRAME_MAX) {
 		return false;
 	}
+	buffer = (uint8_t *)vayu_usbnet_dma_va(USB_DMA_IN_DATA + USB_FRAME_MAX * slot);
+	if (mbuf_copydata(packet, 0, length, buffer + offset) != 0) {
+		return false;
+	}
+	if (usbnet_ncm) {
+		uint32_t frame = length;
+
+		length += NCM_TX_HDR;
+		/* (a block of a multiple of 512 bytes would want a zero-length packet after it; a pad
+		 * byte inside the block, which wBlockLength counts, ends it as well: sweet_usb) */
+		if ((length % USB_MAXPACKET) == 0) {
+			buffer[length++] = 0;
+		}
+		st32(buffer + 0, NCM_NTH16_SIG);
+		st16(buffer + 4, 12);                   /* wHeaderLength */
+		st16(buffer + 6, sequence++);           /* wSequence */
+		st16(buffer + 8, length);               /* wBlockLength */
+		st16(buffer + 10, 12);                  /* wNdpIndex */
+		st32(buffer + 12, NCM_NDP16_SIG);
+		st16(buffer + 16, 16);                  /* wLength */
+		st16(buffer + 18, 0);                   /* wNextNdpIndex */
+		st16(buffer + 20, NCM_TX_HDR);          /* the frame: index, length */
+		st16(buffer + 22, frame);
+		st16(buffer + 24, 0);                   /* the table's end */
+		st16(buffer + 26, 0);
+	}
+	zlp = (length % USB_MAXPACKET) == 0;
 	if (zlp) {
 		vayu_usbnet_trb(USB_DMA_IN_TRB + USB_TRB_STRIDE * next,
 		    vayu_usbnet_dma_pa(USB_DMA_IN_DATA + USB_FRAME_MAX * next), 0,
@@ -836,7 +1081,7 @@ usbnet_output(ifnet_t ifp, mbuf_t packet)
 	size_t length = mbuf_pkthdr_len(packet);
 	bool queued = false;
 
-	if (link_up && data_up && length != 0 && length <= USB_FRAME_MAX) {
+	if (link_up && data_up && length != 0 && length <= ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		lck_mtx_lock(&usbnet_lock);
 		queued = usbnet_tx(packet, (uint32_t)length);
 		lck_mtx_unlock(&usbnet_lock);
@@ -860,22 +1105,30 @@ static void
 usbnet_input(const uint8_t *frame, size_t length)
 {
 	struct ifnet_stat_increment_param stats = { .packets_in = 1, .bytes_in = (uint32_t)length };
-	unsigned int chunks = 1;
 	mbuf_t packet = NULL;
 	char *header;
 
 	usbnet_count.rx_frames++;
 	usbnet_count.rx_bytes += length;
-	if (usbnet_ifp == NULL || length < ETHER_HDR_LEN || length > USB_FRAME_MAX ||
-	    mbuf_allocpacket(MBUF_DONTWAIT, length, &chunks, &packet) != 0) {
+	/*
+	 * One mbuf with a 2 KiB cluster, which holds any frame: ios-jasmine's sweet_usb found that
+	 * mbuf_allocpacket may hand back a first mbuf of length 0, and taking the header off that one
+	 * panicked ("Failed mbuf validity check: len -14").
+	 */
+	if (usbnet_ifp == NULL || length < ETHER_HDR_LEN || length > ETHER_MAX_LEN - ETHER_CRC_LEN ||
+	    mbuf_gethdr(MBUF_DONTWAIT, MBUF_TYPE_DATA, &packet) != 0) {
 		usbnet_count.drops++;
 		return;
 	}
-	if (mbuf_copyback(packet, 0, length, frame, MBUF_DONTWAIT) != 0) {
+	if (mbuf_mclget(MBUF_DONTWAIT, MBUF_TYPE_DATA, &packet) != 0 || (mbuf_flags(packet) & MBUF_EXT) == 0 ||
+	    mbuf_maxlen(packet) < length) {
 		mbuf_freem(packet);
 		usbnet_count.drops++;
 		return;
 	}
+	memcpy(mbuf_data(packet), frame, length);
+	mbuf_setlen(packet, length);
+	mbuf_pkthdr_setlen(packet, length);
 	header = mbuf_data(packet);
 	mbuf_pkthdr_setrcvif(packet, usbnet_ifp);
 	mbuf_pkthdr_setheader(packet, header);
@@ -1038,6 +1291,13 @@ usbnet_ipv4(void)
 	struct sockaddr_in *sin;
 	socket_t so = NULL;
 	uint32_t ip = vayu_usbnet_ip();
+	/*
+	 * 169.254/16 (usbnet_ip=0xa9fe0702: 169.254.7.2): the host's own link-local network, the one
+	 * Windows gives an adapter nobody answers DHCP on. Then the mask is /16 and there is no default
+	 * route; anything else is a /24 with the host at .1, as before.
+	 */
+	bool link_local = (ip >> 16) == 0xa9fe;
+	uint32_t mask = link_local ? 0xffff0000 : 0xffffff00;
 	errno_t error;
 
 	error = sock_socket(PF_INET, SOCK_DGRAM, 0, NULL, NULL, &so);
@@ -1059,14 +1319,14 @@ usbnet_ipv4(void)
 	sin = &ifra.ifra_mask;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl(0xffffff00);
+	sin->sin_addr.s_addr = htonl(mask);
 	sin = &ifra.ifra_broadaddr;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl((ip & 0xffffff00) | 0xff);
+	sin->sin_addr.s_addr = htonl((ip & mask) | ~mask);
 	error = sock_ioctl(so, SIOCAIFADDR, &ifra);
-	printf("vayu-usbnet: SIOCAIFADDR en2 %u.%u.%u.%u/24: %d\n", (ip >> 24) & 0xff, (ip >> 16) & 0xff,
-	    (ip >> 8) & 0xff, ip & 0xff, error);
+	printf("vayu-usbnet: SIOCAIFADDR en2 %u.%u.%u.%u/%u: %d\n", (ip >> 24) & 0xff, (ip >> 16) & 0xff,
+	    (ip >> 8) & 0xff, ip & 0xff, link_local ? 16 : 24, error);
 
 	bzero(&ifr, sizeof(ifr));
 	strlcpy(ifr.ifr_name, "en2", sizeof(ifr.ifr_name));
@@ -1078,8 +1338,8 @@ usbnet_ipv4(void)
 	printf("vayu-usbnet: en2 up: %d\n", error);
 	sock_close(so);
 
-	/* the default route through the host (10.11.0.1: the same /24, host part 1) */
-	{
+	/* the default route through the host (10.11.0.1: the same /24, host part 1); none on link-local */
+	if (!link_local) {
 		struct sockaddr_in dst = { .sin_len = sizeof(dst), .sin_family = AF_INET };
 		struct sockaddr_in mask = { .sin_len = sizeof(mask), .sin_family = AF_INET };
 		struct sockaddr_in gateway = { .sin_len = sizeof(gateway), .sin_family = AF_INET };
@@ -1100,8 +1360,11 @@ vayu_usbnet_ecm_init(void)
 	if (vayu_usbnet_level() < 3) {
 		return;
 	}
-	uint32_t manual = 0;
+	uint32_t manual = 0, ecm = 0;
 
+	PE_parse_boot_argn("usbnet_ecm", &ecm, sizeof(ecm));
+	usbnet_ncm = ecm == 0;
+	printf("vayu-usbnet: %s\n", usbnet_ncm ? "CDC-NCM (usbnet_ecm=1: CDC-ECM)" : "CDC-ECM (usbnet_ecm=1)");
 	if (!usbnet_attach()) {
 		return;
 	}

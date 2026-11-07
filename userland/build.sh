@@ -13,6 +13,8 @@
 #                      WIFID=0      without wifid, iOS's Wi-Fi daemon, which is in by default (see below)
 #                      OSLOG="..."  labels of the jobs whose os_log output goes to the console ("all": every
 #                                   one of JOBS; default: only the window server, which says little)
+#                      SWEETD=0     without com.hakios.sweetd (the command runner on TCP 5143 of the USB
+#                                   Ethernet link; its token is userland/sweetd.token, made here once)
 #                      OSLOGFWD=0   without com.hakios.oslogfwd: the program that carries the os_log of the
 #                                   subsystems named in the boot-arg oslog=... to the console (docs/oslog.md).
 #                                   It is the only thing that shows an application's os_log -- OSLOG above
@@ -227,6 +229,9 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 		${LDID:-ldid} -Ssrc/oslogfwd.entitlements obj/oslogfwd 2>/dev/null ||
 			${LDID:-ldid} -S obj/oslogfwd 2>/dev/null ||
 			echo "build.sh: no ldid: oslogfwd is unsigned"
+		# the command runner on the USB Ethernet link (TCP 5143; com.hakios.sweetd.plist)
+		$DYN -o obj/sweetd src/sweetd.c
+		${LDID:-ldid} -S obj/sweetd 2>/dev/null || echo "build.sh: no ldid: sweetd is unsigned"
 		$DYN -Wno-four-char-constants -framework CoreFoundation -framework IOSurface -o obj/surf_test src/surf_test.c
 		$DYN -o obj/rwtouch src/rwtouch.c
 		$DYN -framework CoreFoundation -framework AudioToolbox -framework AVFoundation -lobjc -o obj/sound_test src/sound_test.c
@@ -356,6 +361,16 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 	fi
 	cp obj/hello_dyn obj/svc_test obj/surf_test obj/rwtouch obj/mg_test root/bin/
 	[ -f obj/oslogfwd ] && cp obj/oslogfwd root/bin/
+	if [ -f obj/sweetd ] && [ "${SWEETD-1}" != 0 ]; then
+		cp obj/sweetd root/bin/
+		# its token: made once on this machine, kept beside this script and out of git (.gitignore
+		# tracks only what it names), and the same file the PC's sweet-sh.py reads
+		if [ ! -s sweetd.token ]; then
+			(umask 077; od -An -N24 -tx1 /dev/urandom | tr -d ' \n' > sweetd.token)
+			echo "build.sh: made userland/sweetd.token (for sweetd and sweet-sh.py)"
+		fi
+		install -m 600 sweetd.token root/etc/sweetd.token
+	fi
 	[ -f obj/cpu_test ] && cp obj/cpu_test root/bin/        # (a prebuilt/ from before this program has none)
 	[ -f obj/cow_test ] && cp obj/cow_test root/bin/
 	[ -f obj/cg_test ] && cp obj/cg_test root/bin/
@@ -492,6 +507,7 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 	# fairplayd among them).
 	cp com.hakios.demo.plist com.hakios.wifi.plist root/LaunchDaemons/
 	[ "${OSLOGFWD-1}" != 0 ] && cp com.hakios.oslogfwd.plist root/LaunchDaemons/
+	[ -f root/bin/sweetd ] && cp com.hakios.sweetd.plist root/LaunchDaemons/
 	# the unattended self-test's own job (src/selftest.m, devices/<name>/userland), which reads
 	# kern.bootargs and exits at once unless selftest=1 is there. Only when the device build made
 	# the program; with SELFTEST=1 the rc.jobs list above carries the same stages, so this job is

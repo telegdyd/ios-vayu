@@ -5630,7 +5630,7 @@ fb_command(char *cmd)
 			if (str_eq(var, "product")) {
 				fb_reply("OKAY", "xnuloader");
 			} else if (str_eq(var, "version")) {
-				fb_reply("OKAY", "2.2");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host) */
+				fb_reply("OKAY", "2.3");      /* 0.6: idle "oem log" stages the last kernel log; 0.7: USB receive re-armed; 0.8: vayu-ufs; 0.9: USB stack restarted after cable changes; 1.0: restart after 120 s without a host command; 1.1: usb_handover=1; 1.2: fb_spare=N frames below 4 GB; 1.3: the vayu train (cam/bt/jack/nfc pin paths, all opt-in by cmdline); 1.4: vayu_ir_pins=1 (TLMM exception 7); 1.5: vayu_ir_clk=1 (GCC exception 7a); 1.6: fb_spare frames of 12 MiB (zero-copy surfaces); 1.7: fb_spare clear of the vendor's reserved ranges, oem fbspare / oem fbtouch; 1.8: logdump kept at boot if it holds the last run's log, oem prevlog; 1.8a: idle reset 600 s with usb_handover=1; 1.9: the whole command line in /chosen hakios-bootargs; 2.0: vayu darwin (sda33) known, writes served with ufs_write=1; 2.1: vayu_cam_pins also sets GPIO 24 (rear VAF enable); 2.2: standalone boot ("resident" payload entry, no time limit without a host); 2.3: a standalone boot with usb_handover=1 starts USB, for the kernel to take */
 			} else if (str_eq(var, "max-download-size")) {
 				fb_reply("OKAY", download_to_ramdisk ? "0xffffffff" : "0x03f00000");
 			} else if (str_eq(var, "result")) {
@@ -6059,6 +6059,17 @@ efi_main(efi_handle image, efi_system_table *st)
 			resident_rd_size = pi.resident_size;
 			print("standalone: resident image (%x bytes) copied to pa %x\n", (uint64_t)pi.resident_size,
 			    win_base + RESIDENT_RD_OFFSET);
+		}
+		/*
+		 * usb_handover=1 (2.3): the kernel's USB networking asks for the controller about half a minute
+		 * in, and gets it from usb_poll_command() -- which has nothing to hand over unless this loader
+		 * started its USB stack. A one-shot boot never did, so the kernel's ask went unanswered (3 s,
+		 * then "left alone"). Started here as for the command loop: the host sees the loader's fastboot
+		 * device until the handover, then the kernel's USB Ethernet.
+		 */
+		if (aud_word(pi.cmdline, "usb_handover=1") && USB == NULL) {
+			print("standalone: usb_handover=1: %s\n", usb_start() ? "USB started, for the kernel to take" :
+			    "USB did not start: the kernel will have none");
 		}
 		run_kernel(0, 0);
 	}
