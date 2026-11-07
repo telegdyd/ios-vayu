@@ -2256,10 +2256,18 @@ publishDisplayNode(void)
 }
 
 /*
- * The graphics accelerator. There is none, but CoreAnimation waits half a minute for a
- * service of this class to appear before it looks for a GPU at all (once per process). An
- * accelerator without the properties that name its Metal and OpenGL ES drivers is passed
- * over by both, which leaves CoreAnimation with its software renderer, as before.
+ * The graphics accelerator. CoreAnimation waits half a minute for a service of this class to
+ * appear before it looks for a GPU at all (once per process). An accelerator without the
+ * properties that name its Metal and OpenGL ES drivers is passed over by both; the window
+ * server then draws through our OpenGL ES (userland/src/eagl.c, gpu=1) or in software.
+ *
+ * Boot-arg metal=N (docs/metal-roadmap.md, task 8; upstream hakios-xnu-kernel does the same): the
+ * accelerator names Metal's plug-in. Metal.framework's MTLRegisterDevices reads these two
+ * properties, opens /System/Library/Extensions/HakiosMetal.bundle (init binds it there from the
+ * boot image) and sends -initWithAcceleratorPort: this service to the class. Which processes are
+ * then given a device is the plug-in's choice, by the same N (hakios-metal/plugin/HakiosMetal.m,
+ * shownToThisProcess: 1 metal_test only, 2 all but backboardd, 3 all). Never by default: the
+ * window server tries Metal first, and until the device draws, GL is the working screen.
  */
 class IOAcceleratorES : public IOService
 {
@@ -2274,7 +2282,14 @@ publishAccelerator(IOService * provider)
 	IOAcceleratorES * accelerator = OSTypeAlloc(IOAcceleratorES);
 
 	if (accelerator != NULL && accelerator->init() && accelerator->attach(provider)) {
+		uint32_t metal = 0;
+
 		accelerator->setName("sgx");
+		if (PE_parse_boot_argn("metal", &metal, sizeof(metal)) && metal != 0) {
+			accelerator->setProperty("MetalPluginName", "HakiosMetal");
+			accelerator->setProperty("MetalPluginClassName", "HakiosMetalDevice");
+			IOLog("MiniIOMobileFramebuffer: metal=%u: the accelerator names HakiosMetal as its Metal plug-in\n", metal);
+		}
 		accelerator->registerService();
 	}
 	OSSafeReleaseNULL(accelerator);

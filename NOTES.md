@@ -26,7 +26,7 @@ start: vayu's stock fastboot (the user: volume down + power), `fastboot flash bo
   flashtest=1 in kern.bootargs (1 min 37 s); then 5478afe2 deployed back -> "boot holds" it, flashtest gone,
   rc 0 (1 min 38 s). Staging 14 MB: ~1 s. The staged copy lives in /private/var/hakios (/private/var/tmp is
   emptied at boot).
-- `boot` now: 5478afe2 (= ../backup-vayu/xnu-standalone-loader28-5478afe2.img).
+- `boot` was 5478afe2 (= ../backup-vayu/xnu-standalone-loader28-5478afe2.img); now 1252556b (Metal step 8 below).
 
 ## Loader-mode hang (parked 2026-11-07; come back to it later)
 
@@ -68,6 +68,22 @@ Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt a
 
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
+
+## Metal step 8 (2026-11-07; Metal.framework sees the device)
+
+- **`boot` now: 1252556b** (= ../backup-vayu/xnu-standalone-metal8-1252556b.img): kernel 34b989e3, ramdisk
+  fcb7ecfa (root-flash.apfs, with lib/HakiosMetal.bundle; same 21 fw files as a447c783, backed up as
+  ../backup-vayu/root-flash-a447c783.apfs), loader fa305e53, resident 2ed5d333, cmdline = 5478afe2's + `metal=1`.
+  Deployed from iOS with the user's OK (`logs/metal-step8-deploy.log`). Rollback: 5478afe2.
+- **FACT (`docs/metal-step8-phone.log`):** `metal_test device` -> `MTLCreateSystemDefaultDevice()` =
+  "HakiOS Adreno 640", A640 limits/families as in the roadmap's task 8 result; public-API GPU blit PASS.
+- **FACT (`logs/metal-step8-console.txt`):** SpringBoard, backboardd, chronod, mediaserverd load the bundle and are
+  refused (metal=1 = metal_test only); backboardd draws on GL (FD640). Code: MiniIOMobileFramebuffer.cpp
+  (metal=N names the plug-in), init.c (synthetic dir + bindfs at /System/Library/Extensions), build.sh (builds
+  the bundle over hakios-metal/out/ios), userland/src/HakiosMetal.plist, hakios-metal/plugin/HakiosMetal.m.
+- `metal_test bundle PATH` tries a plug-in by hand (no reflash): upload to /private/var/tmp (emptied at boot).
+- Open: `-registryID` fix (entry ID at init) is committed but not in the flashed ramdisk; `-featureProfile`
+  answered zero. Task 9 is next (needs encoders, pipelines, MESA=1 reconciliation).
 
 ## Metal step 7 (2026-11-07; rendering on A640)
 

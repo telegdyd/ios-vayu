@@ -222,7 +222,7 @@ Every agent, every task:
 
 ### Phase C: Metal.framework sees a device
 
-- [ ] **8. Register the device with iOS.**
+- [x] **8. Register the device with iOS.**
   Depends on: 5.
   Do: give the kernel's `IOAcceleratorES` (or a service that inherits from it) the
   `MetalPluginName`/`MetalPluginClassName` properties and an accelerator port Metal can open. Install
@@ -236,7 +236,23 @@ Every agent, every task:
   inventory. Audit both `metal=` and `HakiosMetal.clients` so backboardd stays on GL.
   Done when: `metal_test` on the phone prints a non-nil device with the expected name, family and
   limits; SpringBoard still comes up on GL.
-  Result: —
+  Result: **FACT (2026-11-07, image 1252556b, `docs/metal-step8-phone.log`):** with boot-arg
+  `metal=1` the kernel's `IOAcceleratorES` "sgx" carries `MetalPluginName` HakiosMetal /
+  `MetalPluginClassName` HakiosMetalDevice (`MiniIOMobileFramebuffer.cpp`); init binds the
+  ramdisk's bundle on a synthetic `/System/Library/Extensions/HakiosMetal.bundle` (root stays
+  read only). `metal_test device`: `MTLCreateSystemDefaultDevice()` = "HakiOS Adreno 640" (chip
+  0x06040001 read from the opened GPU), max buffer 256 MiB, 1024x1024x1024 threads/group, 32 KiB
+  threadgroup memory, samples 1/2/4, families Common1/Apple1/Apple2 only (Apple3 held back: indirect
+  and base-vertex draws not yet run on A640), iOS feature sets 1 and 2; a 4 MB public-API blit
+  fill on the GPU, 0 wrong bytes, ~7.5 ms. **GL fallback, FACT (`docs/metal-step8-gl.log`, from the
+  boot's console ring):** exactly four processes loaded the bundle (SpringBoard, backboardd,
+  chronod, mediaserverd) and each logged "is not shown the device (metal=1)"; backboardd then
+  made its OpenGL ES 3.2 context on FD640 and frames flowed; SpringBoard/backboardd PIDs 9/15
+  unchanged for 3+ min. No `HakiosMetal.clients` file is shipped. Open: Metal asks the private
+  `-featureProfile` (answered zero, logged); `-registryID` on the system path returned the port
+  number (Metal releases it after init) -- fixed in source (entry ID read at init, by-hand check
+  4294967593) but **not in the flashed image** until the next ramdisk. parsecd hit SIGTRAP on this
+  boot without loading the bundle (INFERENCE: unrelated; mobileactivationd's crash loop predates it).
 
 - [ ] **9. A real Metal program draws and computes.**
   Depends on: 7, 8.
@@ -380,5 +396,7 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
   rule on A640 in GMEM and sysmem. The pinned frontend's A640 output is what a
   reconciled `tools/mesa/air` must reproduce (task 9). The remaining
   differences between the frontends are listed in `docs/metal-render-results.md`.
-- Does QuartzCore switch to Metal on its own once a device is registered? (task 8)
+- **Answered for `metal=1` (task 8):** backboardd does ask Metal first (it loads the bundle),
+  and with no device shown to it QuartzCore stays on OpenGL ES with no further sign. Whether it
+  switches when shown the device (`metal=3` or a clients entry) is task 11's to measure.
 - Which third-party Metal apps or games matter to the user? (task 12)

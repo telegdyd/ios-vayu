@@ -314,6 +314,17 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 			-o obj/libhakios.fairplay.dylib src/inject_fairplay.c
 		# the output device of the audio server: a plug-in for CoreAudio's HAL
 		$DYN -bundle -framework CoreFoundation -o obj/HakiosAudio src/audio_plugin.c
+		# the plug-in Metal loads when the kernel names it (boot-arg metal=N, MiniIOMobileFramebuffer.cpp): hakios-metal's
+		# plugin/ over its core (hakios-metal/out/ios, `make -C hakios-metal ios`; the Makefile's vayu-check builds it). The
+		# core without its compiler (no MESA=1, docs/metal-roadmap.md task 9): buffers, queues and blits on the GPU.
+		HM=../hakios-metal
+		if [ -f $HM/out/ios/libhakios-metal.a ]; then
+			$DYN -bundle -fno-objc-arc -Wno-deprecated-declarations -DHAKIOS_METAL_GPU -I$HM/include -I$HM/plugin \
+				-framework Foundation -framework Metal -framework IOKit -framework IOSurface -lobjc -lc++ \
+				-o obj/HakiosMetal $HM/plugin/HakiosMetal.m $HM/plugin/hakios_metallib.c $HM/out/ios/libhakios-metal.a
+		else
+			echo "build.sh: no $HM/out/ios/libhakios-metal.a: no Metal plug-in in this image"
+		fi
 		if [ -n "$GL" ]; then
 			# the OpenGL ES library, and the table of functions that hands CoreAnimation's calls to it
 			# (Mesa says beside the library what it was built from: one from other patches is built again)
@@ -419,6 +430,13 @@ if [ -d $IOS/rootfs/usr/lib ]; then
 		# the system images (system-ru10) name this plug-in RedwoodAudio.driver -> /redwood/lib/RedwoodAudio.driver;
 		# without that name the link dangles and the HAL loads no device (no output, no input). One bundle, two names.
 		ln -sfn HakiosAudio.driver root/lib/RedwoodAudio.driver
+	fi
+	if [ -f obj/HakiosMetal ]; then
+		# init binds it at /System/Library/Extensions/HakiosMetal.bundle (flash root); system.apfs links it there below
+		rm -rf root/lib/HakiosMetal.bundle
+		mkdir -p root/lib/HakiosMetal.bundle
+		cp obj/HakiosMetal root/lib/HakiosMetal.bundle/
+		cp src/HakiosMetal.plist root/lib/HakiosMetal.bundle/Info.plist
 	fi
 	if [ -n "$GL" ]; then
 		# a PREBUILT build has none of these (../prebuilt/userland carries no Mesa, no gl_test):
@@ -784,6 +802,9 @@ if [ -f $IOS/system.manifest ] && [ -f $CACHE/dyld_shared_cache_arm64 ] &&
 	# our audio device, where the audio server looks for such plug-ins (and for no others: Apple's are left out)
 	mkdir -p sysroot/System/Library/Audio/Plug-Ins/HAL
 	ln -s /redwood/lib/HakiosAudio.driver sysroot/System/Library/Audio/Plug-Ins/HAL/HakiosAudio.driver
+	# the Metal plug-in, where Metal opens it when the accelerator names it (boot-arg metal=N)
+	mkdir -p sysroot/System/Library/Extensions
+	[ -d root/lib/HakiosMetal.bundle ] && ln -sfn /redwood/lib/HakiosMetal.bundle sysroot/System/Library/Extensions/HakiosMetal.bundle
 	# the OS cryptex: on a device a separate volume grafted at /System/Cryptexes/OS. It holds the dyld
 	# shared cache (dyld looks there first) and a few libraries and resources outside the cache.
 	mkdir -p sysroot/System/Cryptexes

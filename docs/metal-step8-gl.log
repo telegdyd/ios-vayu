@@ -1,0 +1,8 @@
+# Task 8, image 1252556b: lines of the boot's console ring (logs/metal-step8-console.txt, ignored)
+MiniIOMobileFramebuffer: metal=1: the accelerator names HakiosMetal as its Metal plug-in
+hakios-gl: 8 of 8 methods of EAGLContext are ours; OpenGL ES by Mesa, off-screen (OSMesa)
+1970-01-01 01:00:47.673498+0100 backboardd[15:245] HakiosMetal: backboardd is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+hakios-gl: an OpenGL ES 3 context for CoreAnimation, by Mesa, off-screen (OSMesa): OpenGL ES 3.2 Mesa 25.0.7; FD640; shaders OpenGL ES GLSL ES 3.20
+1970-01-01 01:00:50.-973 mediaserverd[41:384] HakiosMetal: mediaserverd is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+1970-01-01 01:00:58.-656 SpringBoard[9:223] HakiosMetal: SpringBoard is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)
+1970-01-01 01:01:09.-700 chronod[79:743] HakiosMetal: chronod is not shown the device (metal=1; 1 is metal_test only, 2 all but backboardd, 3 all)

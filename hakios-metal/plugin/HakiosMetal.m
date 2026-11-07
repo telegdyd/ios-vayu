@@ -22,11 +22,15 @@
  * Darwin userland 16.5 and run on a Mac only, against the Mac's own Metal (tools/metal-plugin-test.sh, under the address sanitizer: every
  * buffer written and read back and freed, the system's five MTLB libraries read, all of their functions by name with their
  * bitcode); it has not run on Darwin yet: metal_test's "what the device makes" is the check for that (QEMU, metal=1).
+ *
+ * vayu (ios-vayu docs/metal-roadmap.md, task 8): the device is named for the A640 it opens and answers that GPU's limits and
+ * families (deviceMaxBufferLength and below), not the A642L's; init.c binds the bundle at /System/Library/Extensions.
  */
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#include <IOKit/IOKitLib.h>
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,11 +41,42 @@
 static Class gBase;                     /* Metal's private _MTLDevice */
 static unsigned int gPort;              /* the IOAcceleratorES service this device was made for */
 static id gDevice;                      /* the device, once made: there is one */
+static uint64_t gEntryID;               /* its IORegistry entry ID (-registryID) */
+static NSString *gName;                 /* -name: made at -initWithAcceleratorPort:, from the GPU's chip ID where it is open */
 
 static void
 say(NSString * text)
 {
 	NSLog(@"HakiosMetal: %@", text);
+}
+
+#ifdef HAKIOS_METAL_GPU
+struct hakios_metal_device;
+static struct hakios_metal_device *gpu(void);
+uint64_t hakios_metal_gpu_id(struct hakios_metal_device *device);
+#endif
+
+/*
+ * The name. The core's tables are for one chip (hakios-metal/VAYU.md: chip ID 0x06040001, the A640 of the SM8150-AC, a6xx gen2) and
+ * hakios_metal_open() refuses any other, so the name says the chip it was opened on. Without the core (a build with no
+ * hakios-metal) or with no GPU from the kernel, the device holds buffers in plain memory and says that instead of a GPU.
+ */
+static NSString *
+nameOfTheGPU(void)
+{
+#ifdef HAKIOS_METAL_GPU
+	struct hakios_metal_device *d = gpu();
+
+	if (d != NULL) {
+		uint64_t chip = hakios_metal_gpu_id(d);
+
+		if ((chip >> 16) == 0x0604) {
+			return @"HakiOS Adreno 640";
+		}
+		return [NSString stringWithFormat:@"HakiOS Adreno (chip %#llx)", (unsigned long long)chip];
+	}
+#endif
+	return @"HakiOS Adreno 640 (no GPU open: plain memory only)";
 }
 
 /* -initWithAcceleratorPort: the fifth step of how Metal finds a device. */
@@ -53,36 +88,98 @@ deviceInit(id self, SEL _cmd, unsigned int port)
 
 	self = send(&sup, @selector(init));
 	gPort = port;
+	if (IORegistryEntryGetRegistryEntryID(port, &gEntryID) != KERN_SUCCESS) {
+		gEntryID = 0;
+	}
 	gDevice = self;                         /* what the objects it hands out answer to -device */
-	say([NSString stringWithFormat:@"a device for the accelerator port %u (%@)", port, self ? @"made" : @"_MTLDevice's init gave nil"]);
+	if (gName == nil) {
+		gName = [nameOfTheGPU() retain];
+	}
+	say([NSString stringWithFormat:@"a device for the accelerator port %u (%@): %@", port, self ? @"made" : @"_MTLDevice's init gave nil",
+	    gName]);
 	return self;
 }
 
 static id
 deviceName(__unused id self, __unused SEL _cmd)
 {
-	return @"HakiOS Adreno 642L (Metal: a device that exists, nothing more)";
+	return gName != nil ? gName : @"HakiOS Adreno 640";
 }
 
+/*
+ * -registryID: the accelerator's IORegistry entry ID, as Apple's devices answer, read at -initWithAcceleratorPort: -- Metal
+ * lets go of the port it passed afterwards (task 8's first boot: a later lookup failed and the port number came back).
+ */
 static uint64_t
 deviceRegistryID(__unused id self, __unused SEL _cmd)
 {
-	return gPort;
+	return gEntryID != 0 ? gEntryID : gPort;
 }
 
-/* the largest buffer: what the GPU memory could hold, not a promise (nothing allocates a buffer yet) */
+/*
+ * The A640's limits, as the core enforces them (docs/metal-driver-inventory.md, task 3's table) -- not Apple's tables, which
+ * _MTLDevice's own answers read:
+ *   buffers      the kernel's HakiosGPU gives a client buffers of at most 256 MiB each (docs/metal-transport-abi.md)
+ *   threadgroups 1024 invocations, the NDRANGE fields' 10 bits (include/hakios-metal/compute.hpp, kMaxLocalThreads); each
+ *                dimension may take all of them, as on Apple's GPUs, the product being what is checked
+ *   threadgroup  32 KiB, the A640's cs_shared_mem_size (a6xx.hpp, kCsSharedMemSize; Mesa's freedreno_devices.py)
+ *   memory
+ *   samples      1, 2 and 4 (src/texture.cpp: a multisample texture has 2 or 4; A6XX_TEX_CONST_0_SAMPLES has no 8 here)
+ */
 static uint64_t
 deviceMaxBufferLength(__unused id self, __unused SEL _cmd)
 {
 	return 256ull << 20;
 }
 
-/* the largest threadgroup: the Adreno 6xx's (a workgroup of 1024 invocations), as Apple's GPUs answer too */
 static MTLSize
 deviceMaxThreadsPerThreadgroup(__unused id self, __unused SEL _cmd)
 {
 	return MTLSizeMake(1024, 1024, 1024);
 }
+
+static NSUInteger
+deviceMaxThreadgroupMemoryLength(__unused id self, __unused SEL _cmd)
+{
+	return 32 * 1024;
+}
+
+static BOOL
+deviceSupportsSampleCount(__unused id self, __unused SEL _cmd, NSUInteger count)
+{
+	return count == 1 || count == 2 || count == 4;
+}
+
+/*
+ * The families. Common1 is what any Metal GPU is. Of Apple's, only what the core does on this GPU and tasks 6 and 7 saw
+ * on the phone (docs/metal-render-results.md): Apple1 (ETC2/EAC, MSAA, depth/stencil, framebuffer fetch as programmable
+ * blending) and Apple2 (ASTC). Not Apple3: its base-vertex/base-instance and indirect draws are in the core but were not
+ * run on the A640 yet (task 9). Not Apple4 and later: no imageblocks, tile shaders or raster order groups. Not Common2/3,
+ * Mac or Metal3. The public render/compute encoders are not wired yet (task 9): a family says what the hardware path is.
+ */
+static BOOL
+deviceSupportsFamily(__unused id self, __unused SEL _cmd, NSInteger family)
+{
+	return family == MTLGPUFamilyCommon1 || family == MTLGPUFamilyApple1 || family == MTLGPUFamilyApple2;
+}
+
+/* the older question, the same answer: the iOS feature sets of GPU families 1 and 2, every version; not 3 and later */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+static BOOL
+deviceSupportsFeatureSet(__unused id self, __unused SEL _cmd, NSUInteger set)
+{
+	switch (set) {
+	case MTLFeatureSet_iOS_GPUFamily1_v1: case MTLFeatureSet_iOS_GPUFamily1_v2: case MTLFeatureSet_iOS_GPUFamily1_v3:
+	case MTLFeatureSet_iOS_GPUFamily1_v4: case MTLFeatureSet_iOS_GPUFamily1_v5:
+	case MTLFeatureSet_iOS_GPUFamily2_v1: case MTLFeatureSet_iOS_GPUFamily2_v2: case MTLFeatureSet_iOS_GPUFamily2_v3:
+	case MTLFeatureSet_iOS_GPUFamily2_v4: case MTLFeatureSet_iOS_GPUFamily2_v5:
+		return YES;
+	default:
+		return NO;
+	}
+}
+#pragma clang diagnostic pop
 
 /*
  * The command queue: the first thing the window server wants after the device (the second run's log: "[Metal] Failed to create
@@ -992,13 +1089,6 @@ deviceNo(__unused id self, __unused SEL _cmd)
 	return NO;
 }
 
-/* no legacy feature set is claimed: _MTLDevice's own answer reads tables of Apple's GPUs */
-static BOOL
-deviceNoFeatureSet(__unused id self, __unused SEL _cmd, __unused unsigned long set)
-{
-	return NO;
-}
-
 /*
  * The public protocol and Metal's private one of the same name (MTLBufferSPI ...), where this system has it: not every protocol
  * whose name begins the same, as for the stub objects, because MTLFunction begins a dozen others (MTLFunctionStitchingNode ...)
@@ -1099,7 +1189,10 @@ registerObjectClasses(Class device)
 	class_addMethod(device, sel_registerName("isLowPower"), (IMP)deviceNo, "B@:");
 	class_addMethod(device, sel_registerName("isRemovable"), (IMP)deviceNo, "B@:");
 	class_addMethod(device, sel_registerName("isHeadless"), (IMP)deviceNo, "B@:");
-	class_addMethod(device, sel_registerName("supportsFeatureSet:"), (IMP)deviceNoFeatureSet, "B@:Q");
+	class_addMethod(device, sel_registerName("supportsFeatureSet:"), (IMP)deviceSupportsFeatureSet, "B@:Q");
+	class_addMethod(device, sel_registerName("supportsFamily:"), (IMP)deviceSupportsFamily, "B@:q");
+	class_addMethod(device, sel_registerName("supportsTextureSampleCount:"), (IMP)deviceSupportsSampleCount, "B@:Q");
+	class_addMethod(device, sel_registerName("maxThreadgroupMemoryLength"), (IMP)deviceMaxThreadgroupMemoryLength, "Q@:");
 }
 
 /* Declares `protocol` and every private protocol whose name begins with it on `cls`, and keeps them for the stub's signatures. */

@@ -273,6 +273,16 @@ flash_root(const char *dev)
 	    bind_dir(in_image("/xpc"), "/flash/System/Library/xpc"), "our launchd jobs, not iOS's");
 	check(bind_dir(in_image("/hal"), "/flash/System/Library/Audio/Plug-Ins/HAL"),
 	    "our audio device, not Apple's plug-ins");
+	if (stat(in_image("/lib/HakiosMetal.bundle/HakiosMetal"), &fw_st) == 0) {
+		/*
+		 * Metal's plug-in where Metal opens it, /System/Library/Extensions/<MetalPluginName>.bundle: a synthetic
+		 * entry and this image's bundle on it, as for the applications below, so Apple's bundles beside it stay.
+		 * Nothing names it without boot-arg metal=N (the kernel's accelerator, MiniIOMobileFramebuffer.cpp).
+		 */
+		check(synthetic_dir("/flash/System/Library/Extensions/HakiosMetal.bundle") &&
+		    bind_dir(in_image("/lib/HakiosMetal.bundle"), "/flash/System/Library/Extensions/HakiosMetal.bundle"),
+		    "the Metal plug-in in /System/Library/Extensions");
+	}
 	bind_applications("/flash/Applications");
 	if (stat("/fw", &fw_st) == 0) {
 		/* the audio DSP's firmware and the speakers' configuration, from the RAM image as in a RAM boot */

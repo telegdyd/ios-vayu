@@ -293,21 +293,114 @@ plugins(void)
 }
 
 /* Step 5, as a program sees it. */
+/* a device made by hand, by `metal_test bundle PATH` (see the_bundles_device): nil for the system's own */
+static id<MTLDevice> given_device;
+
 static void
 the_device(void)
 {
-	id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+	id<MTLDevice> device = given_device != nil ? given_device : MTLCreateSystemDefaultDevice();
 
 	if (device == nil) {
 		printf("metal_test:   MTLCreateSystemDefaultDevice() = nil (and says nothing about why)\n");
 		return;
 	}
-	printf("metal_test:   MTLCreateSystemDefaultDevice() = \"%s\", class %s\n",
+	printf("metal_test:   %s = \"%s\", class %s\n", given_device != nil ? "the bundle's device" : "MTLCreateSystemDefaultDevice()",
 	    [[device name] UTF8String], class_getName([(id)device class]));
-	printf("metal_test:   registry id %llu, unified memory %d, max threads per group %lu, "
-	    "Apple family 1/4 %d/%d\n", (unsigned long long)[device registryID], (int)[device hasUnifiedMemory],
-	    (unsigned long)[device maxThreadsPerThreadgroup].width,
-	    (int)[device supportsFamily:MTLGPUFamilyApple1], (int)[device supportsFamily:MTLGPUFamilyApple4]);
+	{
+		MTLSize t = [device maxThreadsPerThreadgroup];
+
+		printf("metal_test:   registry id %llu, unified memory %d\n", (unsigned long long)[device registryID],
+		    (int)[device hasUnifiedMemory]);
+		printf("metal_test:   limits: max buffer %llu bytes, threads per group %lux%lux%lu, threadgroup memory %lu bytes, "
+		    "sample counts", (unsigned long long)[device maxBufferLength], (unsigned long)t.width, (unsigned long)t.height,
+		    (unsigned long)t.depth, (unsigned long)[device maxThreadgroupMemoryLength]);
+		for (NSUInteger n = 1; n <= 8; n *= 2) {
+			if ([device supportsTextureSampleCount:n]) {
+				printf(" %lu", (unsigned long)n);
+			}
+		}
+		printf("\n");
+	}
+	{
+		static const struct { MTLGPUFamily family; const char *name; } families[] = {
+			{ MTLGPUFamilyCommon1, "Common1" }, { MTLGPUFamilyCommon2, "Common2" }, { MTLGPUFamilyCommon3, "Common3" },
+			{ MTLGPUFamilyApple1, "Apple1" }, { MTLGPUFamilyApple2, "Apple2" }, { MTLGPUFamilyApple3, "Apple3" },
+			{ MTLGPUFamilyApple4, "Apple4" }, { MTLGPUFamilyApple5, "Apple5" }, { MTLGPUFamilyApple6, "Apple6" },
+			{ MTLGPUFamilyApple7, "Apple7" }, { MTLGPUFamilyApple8, "Apple8" }, { MTLGPUFamilyMac2, "Mac2" },
+			{ MTLGPUFamilyMetal3, "Metal3" },
+		};
+
+		printf("metal_test:   families:");
+		for (size_t i = 0; i < sizeof(families) / sizeof(families[0]); i++) {
+			printf(" %s %s", families[i].name, [device supportsFamily:families[i].family] ? "yes" : "no");
+		}
+		printf("\n");
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+		printf("metal_test:   feature sets: iOS GPU family 1 v5 %d, 2 v5 %d, 3 v1 %d, 4 v1 %d\n",
+		    (int)[device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily1_v5],
+		    (int)[device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily2_v5],
+		    (int)[device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1],
+		    (int)[device supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily4_v1]);
+#pragma clang diagnostic pop
+	}
+}
+
+/*
+ * What the device makes: a queue, a buffer, and a blit fill done by the GPU and read back, through the public API only. The
+ * plug-in's blits go to the GPU when hakios-metal opened it (HAKIOS_METAL_GPU). Asked in a process of its own (metal-blit).
+ */
+static void
+the_device_makes(void)
+{
+	id<MTLDevice> device = given_device != nil ? given_device : MTLCreateSystemDefaultDevice();
+	const NSUInteger length = 4u << 20;
+	id<MTLCommandQueue> queue;
+	id<MTLBuffer> buffer;
+	id<MTLCommandBuffer> cb;
+	id<MTLBlitCommandEncoder> blit;
+	__block int handled = 0;
+	const uint8_t *bytes;
+	NSUInteger wrong = 0;
+	uint64_t began, ended;
+
+	if (device == nil) {
+		printf("metal_test:   no device\n");
+		return;
+	}
+	queue = [device newCommandQueue];
+	buffer = [device newBufferWithLength:length options:MTLResourceStorageModeShared];
+	printf("metal_test:   queue %s, buffer %s (%lu bytes, contents %p)\n", queue ? class_getName([(id)queue class]) : "nil",
+	    buffer ? class_getName([(id)buffer class]) : "nil", (unsigned long)[buffer length], [buffer contents]);
+	if (queue == nil || buffer == nil || [buffer contents] == NULL) {
+		return;
+	}
+	memset([buffer contents], 0x11, length);
+	cb = [queue commandBuffer];
+	blit = [cb blitCommandEncoder];
+	printf("metal_test:   command buffer %s, blit encoder %s\n", cb ? class_getName([(id)cb class]) : "nil",
+	    blit ? class_getName([(id)blit class]) : "nil");
+	if (cb == nil || blit == nil) {
+		return;
+	}
+	[blit fillBuffer:buffer range:NSMakeRange(4096, length - 8192) value:0xa5];
+	[blit endEncoding];
+	[cb addCompletedHandler:^(__unused id<MTLCommandBuffer> done) {
+		handled++;
+	}];
+	began = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+	[cb commit];
+	[cb waitUntilCompleted];
+	ended = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+	bytes = [buffer contents];
+	for (NSUInteger i = 0; i < length; i++) {
+		wrong += bytes[i] != (i < 4096 || i >= length - 4096 ? 0x11 : 0xa5);
+	}
+	printf("metal_test:   blit fill of %lu bytes: status %ld, error %s, completed handlers %d, %llu us, %lu bytes wrong: %s\n",
+	    (unsigned long)(length - 8192), (long)[cb status], [cb error] ? [[[cb error] description] UTF8String] : "none", handled,
+	    (unsigned long long)((ended - began) / 1000), (unsigned long)wrong,
+	    wrong == 0 && [cb status] == MTLCommandBufferStatusCompleted ? "PASS" : "FAIL");
 }
 
 /* What iOS publishes about graphics besides: artwork, not rendering (see the note above). */
@@ -501,6 +594,49 @@ coreimage(void)
 	}
 }
 
+/*
+ * `metal_test bundle PATH`: what Metal does with a plug-in, done by hand, for a bundle that is not (yet) where the
+ * accelerator names it -- a new HakiosMetal.bundle tried before an image carries it: the bundle loaded, its class taken
+ * (the one MetalPluginClassName would name, else the principal class), checked as Metal checks it, and sent
+ * -initWithAcceleratorPort: the first IOAcceleratorES service. Then the device's answers and a blit, in this process.
+ */
+static void
+the_bundles_device(const char *path)
+{
+	NSBundle *bundle = [NSBundle bundleWithPath:[NSString stringWithUTF8String:path]];
+	io_iterator_t it = IO_OBJECT_NULL;
+	io_service_t service;
+	Class cls, base = objc_getClass("_MTLDevice");
+	id device;
+
+	if (bundle == nil || ![bundle load]) {
+		printf("metal_test:   %s: no bundle, or it did not load\n", path);
+		return;
+	}
+	cls = [bundle classNamed:@"HakiosMetalDevice"];
+	if (cls == Nil) {
+		cls = [bundle principalClass];
+	}
+	printf("metal_test:   %s: class %s, a _MTLDevice %d, conforms to MTLDevice %d\n", path, cls ? class_getName(cls) : "(none)",
+	    cls != Nil && base != Nil && [cls isSubclassOfClass:base], cls != Nil && [cls conformsToProtocol:@protocol(MTLDevice)]);
+	if (cls == Nil || base == Nil || ![cls isSubclassOfClass:base]) {
+		return;
+	}
+	if (IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOAcceleratorES"), &it) != KERN_SUCCESS ||
+	    (service = IOIteratorNext(it)) == IO_OBJECT_NULL) {
+		printf("metal_test:   no IOAcceleratorES service to give it\n");
+		return;
+	}
+	device = ((id (*)(id, SEL, unsigned int))objc_msgSend)([cls alloc], sel_registerName("initWithAcceleratorPort:"), service);
+	IOObjectRelease(it);
+	given_device = device;
+	printf("metal_test:   -initWithAcceleratorPort: %u gave %s\n", service, device ? class_getName([device class]) : "nil");
+	if (device != nil) {
+		the_device();
+		the_device_makes();
+	}
+}
+
 int
 main(int argc, char **argv)
 {
@@ -532,6 +668,19 @@ main(int argc, char **argv)
 			coreimage();
 		} else if (strcmp(argv[1], "plugins") == 0) {
 			plugins();
+		} else if (strcmp(argv[1], "bundle") == 0 && argc > 2) {
+			the_bundles_device(argv[2]);
+		} else if (strcmp(argv[1], "metal-blit") == 0) {
+			the_device_makes();
+		} else if (strcmp(argv[1], "device") == 0) {
+			/* only the Metal part (accelerators, GPU services, the device, a blit), without CoreImage or Apple's bundles */
+			printf("metal_test: the services Metal looks for (IOAcceleratorES)\n");
+			accelerators();
+			printf("metal_test: what the registry has that is a GPU\n");
+			gpu_services();
+			printf("metal_test: the device a program gets\n");
+			the_device();
+			in_a_new_process("what the device makes (a queue, a buffer, a blit by the GPU)", "metal-blit", 60);
 		} else {
 			printf("metal_test: no such question: %s\n", argv[1]);
 			return 2;
@@ -545,6 +694,7 @@ main(int argc, char **argv)
 	gpu_services();
 	printf("metal_test: the device a program gets\n");
 	the_device();
+	in_a_new_process("what the device makes (a queue, a buffer, a blit by the GPU)", "metal-blit", 60);
 	printf("metal_test: what iOS publishes about graphics (artwork, not rendering)\n");
 	gestalt();
 	printf("metal_test: CoreImage, which has a path without Metal\n");

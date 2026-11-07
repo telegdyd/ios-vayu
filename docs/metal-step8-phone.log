@@ -1,0 +1,24 @@
+metal_test: the services Metal looks for (IOAcceleratorES)
+metal_test:   IOAcceleratorES "sgx": MetalPluginName HakiosMetal, MetalPluginClassName HakiosMetalDevice
+metal_test: what the registry has that is a GPU
+metal_test:   HakiosGPU "HakiosGPU": IOUserClientClass HakiosGPUUserClient
+metal_test: the device a program gets
+hakios-metal: the GPU through the service HakiosGPU
+1970-01-01 01:01:30.-822 metal_test[163:1885] HakiosMetal: the GPU: Adreno 0x6040001, through hakios-metal
+1970-01-01 01:01:30.-822 metal_test[163:1885] HakiosMetal: a device for the accelerator port 5379 (made): HakiOS Adreno 640
+1970-01-01 01:01:30.-820 metal_test[163:1885] HakiosMetal: asked and not implemented: -featureProfile (returns 8 bytes, type Q; answered with zero)
+metal_test:   MTLCreateSystemDefaultDevice() = "HakiOS Adreno 640", class HakiosMetalDevice
+metal_test:   registry id 5379, unified memory 1
+metal_test:   limits: max buffer 268435456 bytes, threads per group 1024x1024x1024, threadgroup memory 32768 bytes, sample counts 1 2 4
+metal_test:   families: Common1 yes Common2 no Common3 no Apple1 yes Apple2 yes Apple3 no Apple4 no Apple5 no Apple6 no Apple7 no Apple8 no Mac2 no Metal3 no
+metal_test:   feature sets: iOS GPU family 1 v5 1, 2 v5 1, 3 v1 0, 4 v1 0
+metal_test: what the device makes (a queue, a buffer, a blit by the GPU) (asked by a process of its own)
+hakios-metal: the GPU through the service HakiosGPU
+1970-01-01 01:01:30.-737 metal_test[164:1888] HakiosMetal: the GPU: Adreno 0x6040001, through hakios-metal
+1970-01-01 01:01:30.-737 metal_test[164:1888] HakiosMetal: a device for the accelerator port 4611 (made): HakiOS Adreno 640
+1970-01-01 01:01:30.-737 metal_test[164:1888] HakiosMetal: asked and not implemented: -featureProfile (returns 8 bytes, type Q; answered with zero)
+1970-01-01 01:01:30.-735 metal_test[164:1888] HakiosMetal: newCommandQueue: a queue of the GPU's
+metal_test:   queue HakiosMetalQueue, buffer HakiosMetalBuffer (4194304 bytes, contents 0x107000000)
+metal_test:   command buffer HakiosMetalCommandBuffer, blit encoder HakiosMetalBlitEncoder
+metal_test:   blit fill of 4186112 bytes: status 4, error none, completed handlers 1, 7502 us, 0 bytes wrong: PASS
+
