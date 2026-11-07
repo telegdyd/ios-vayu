@@ -388,6 +388,8 @@ void CommandBuffer::enqueue() {
     status_.compare_exchange_strong(expected, kEnqueued);
 }
 
+CommandBuffer::CommandBuffer(CommandQueue& queue) : gmem_(queue.gmemDefault_), queue_(queue) {}
+
 void CommandBuffer::commit() {
     if (status_ > kEnqueued) {
         return;  // Metal asserts here; committing twice does nothing at all in this driver
@@ -607,6 +609,10 @@ void CommandQueue::submit(std::shared_ptr<CommandBuffer> cb) {
         return;
     }
     cb->closePass();   // the last pass's tail
+    totalPasses_ += cb->counts_.passes;
+    totalGmemPasses_ += cb->counts_.gmemPasses;
+    totalBinnedPasses_ += cb->counts_.binnedPasses;
+    totalTiles_ += cb->counts_.tiles;
     // every command buffer ends with the GPU idle: what Metal's completion promises, that the work is done
     cb->stream_.waitMemWrites();
     cb->stream_.waitForIdle();

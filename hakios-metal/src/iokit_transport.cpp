@@ -37,8 +37,11 @@ public:
         kern_return_t r = IOConnectCallStructMethod(c_, request, data, size, data, &returned);
         if (audit_) {
             calls_++;
-            if (r != KERN_SUCCESS) errors_++;
-            else if (request == kGemNew) handles_.insert(static_cast<MsmGemNew*>(data)->handle);
+            if (r != KERN_SUCCESS) {
+                errors_++;
+                // (each failed request by name, so that a deliberate refusal a test asks for is told from a fault)
+                fprintf(stderr, "transport-audit: call %u request %u answered %#x\n", calls_, request, unsigned(r));
+            } else if (request == kGemNew) handles_.insert(static_cast<MsmGemNew*>(data)->handle);
             else if (request == kGemClose) handles_.erase(static_cast<DrmGemClose*>(data)->handle);
             else if (request == kSubmitQueueNew) queues_.insert(static_cast<MsmSubmitQueue*>(data)->id);
             else if (request == kSubmitQueueClose) queues_.erase(*static_cast<uint32_t*>(data));

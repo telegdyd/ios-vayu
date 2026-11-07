@@ -1,0 +1,35 @@
+# task 7 fixture generation, 2026-11-07T15:06:13Z
+# upstream worktree ~/hakios-pin at 63fc2b4633bac3af8e57dadab9f5a8d4cb940438; native Mesa 25.0.7 (tools/air/mk-host.sh there)
+592272df3cf01e85e7db300c449df5061092574d099da275d19e97ef0510f8a6  mesa-25.0.7.tar.xz
+$ bash tools/metal-render-fixtures.sh chain_fs tri_arr_vs tri_base_vs tri_cuba_fs tri_cube_fs tri_fb_fs tri_fc_fs tri_fw_fs tri_half_fs tri_hc_fs tri_hcolor_fs tri_hcolor_vs tri_ms_fs tri_null_fs tri_nullfb_fs tri_oldcb_vs tri_olddb_vs tri_pntc_fs tri_pt_vs tri_pvt_fs tri_shadow_fs tri_tex1d_fs tri_tex1da_fs tri_tex2da_fs tri_tex31_fs tri_tex39_fs tri_tex3d_fs tri_vtex_vs 
+FIXTURE PASS chain_fs
+FIXTURE PASS tri_arr_vs
+FIXTURE PASS tri_base_vs
+FIXTURE PASS tri_cuba_fs
+FIXTURE PASS tri_cube_fs
+FIXTURE PASS tri_fb_fs
+FIXTURE PASS tri_fc_fs
+FIXTURE PASS tri_fw_fs
+FIXTURE PASS tri_half_fs
+FIXTURE PASS tri_hc_fs
+FIXTURE PASS tri_hcolor_fs
+FIXTURE PASS tri_hcolor_vs
+FIXTURE PASS tri_ms_fs
+FIXTURE PASS tri_null_fs
+FIXTURE PASS tri_nullfb_fs
+FIXTURE PASS tri_oldcb_vs
+FIXTURE PASS tri_olddb_vs
+FIXTURE PASS tri_pntc_fs
+FIXTURE PASS tri_pt_vs
+FIXTURE PASS tri_pvt_fs
+FIXTURE PASS tri_shadow_fs
+FIXTURE PASS tri_tex1d_fs
+FIXTURE PASS tri_tex1da_fs
+FIXTURE PASS tri_tex2da_fs
+FIXTURE PASS tri_tex31_fs
+FIXTURE PASS tri_tex39_fs
+FIXTURE PASS tri_tex3d_fs
+FIXTURE PASS tri_vtex_vs
+rc=0
+$ bash tools/metal-render-fixtures-control.sh   # the same generator at A635 against git HEAD's committed A635 fixtures
+A635 control: 28 identical, 0 differ

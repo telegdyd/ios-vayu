@@ -192,7 +192,7 @@ Every agent, every task:
   check retains ten softpipe arithmetic mismatches, reproduced with the
   pre-task frontend; comparison is recorded, not claimed green. Task 7 next.
 
-- [ ] **7. Rendering on the phone.**
+- [x] **7. Rendering on the phone.**
   Depends on: 6.
   Do: in order, clear and read back; a flat triangle; attributes; a textured triangle; blending;
   depth; MRT (`tri_mrt*`); framebuffer fetch; a direct-to-memory pass and a GMEM pass of the same
@@ -200,7 +200,25 @@ Every agent, every task:
   disagree.
   Done when: every render fixture matches on the phone, in both GMEM and direct-to-memory modes
   (FACT).
-  Result: —
+  Result: **FACT (2026-11-07, `metal-step7`):** the full probe (stages 1–9)
+  passes four consecutive phone runs with the GL UI live, two default (488 of
+  683 draw passes in GMEM, 7 binned) and two `--sysmem` (669 in sysmem): 253
+  checks / 0 failures each, 175 of them rendering. That covers clear, flat,
+  attributes, textures (incl. cube/array/3D/shadow/ASTC/mips), blending, depth,
+  stencil, MSAA, MRT, framebuffer fetch (raster order and barrier), and
+  1125x2436 GMEM against sysmem (0 pixels differ, also hardware-binned, with a
+  no-load twin control). 28 A635 render fixtures were regenerated for A640 with
+  the pinned upstream frontend as the generator only (our older `tools/mesa/air`
+  could not build 10 of them). Control: at A635 it reproduces all 28 committed
+  fixtures byte for byte. No driver rendering fix was needed. Three A635-written
+  expectations (bicubic, 24 tiles) and five tests that relied on the GMEM default
+  were corrected. Added `--sysmem`, `--render-stop`, pass totals by mode, and named
+  audit failures. The one audit error a run is the deliberate missing-IOSurface
+  control; nothing leaked. 261 host tests pass. No submission disagreed, so no
+  task-4 diff was needed. Open: device-compiled pipelines (9q/9f, no `MESA=1`,
+  task 9); six fixtures used by host tests only; recovery not ported.
+  `docs/metal-render-results.md`, `metal-step7-{phone,fixtures,build}.log`,
+  `metal-step7-summary.json`.
 
 ### Phase C: Metal.framework sees a device
 
@@ -358,5 +376,9 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
   match CPU references on A640; repeated main suite passes with UI stopped/live.
   Argument-buffer regeneration is diagnosed as unsupported frontend metadata,
   explicitly carried to task 9; it is not a passing hardware result.
+- **Answered for rendering (task 7):** every stage-9 fixture matches its CPU
+  rule on A640 in GMEM and sysmem. The pinned frontend's A640 output is what a
+  reconciled `tools/mesa/air` must reproduce (task 9). The remaining
+  differences between the frontends are listed in `docs/metal-render-results.md`.
 - Does QuartzCore switch to Metal on its own once a device is registered? (task 8)
 - Which third-party Metal apps or games matter to the user? (task 12)

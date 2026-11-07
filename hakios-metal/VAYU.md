@@ -128,3 +128,23 @@ or deliberate recovery stage runs in either compute-only mode. Opt-in
 `HAKIOS_METAL_RD` in `Gpu::submit`; ordinary submissions do not capture data.
 The independent `texture-query-probe.cpp` exercises `tex_size_h`, unused by
 upstream's probe. Newer graphics fixtures still require their A640 port/test.
+
+## Render hardware follow-up
+
+Task 7: `../docs/metal-render-results.md`. The full probe (stages 1–9) passes
+on A640 in the default mode (GMEM for every pass that qualifies) and with
+`--sysmem`: 253 checks, 0 failures, four runs, UI live. The 28 render fixtures
+that were still A635 were regenerated for `0x06040001` by the pinned upstream
+revision's own AIR frontend (a separate native build; see
+`../tools/metal-render-fixtures.sh`), not by `tools/mesa/air`. That frontend
+cannot yet compile ten of them and lowers some others differently. At A635 the
+same generator reproduces all 28 committed fixtures byte for byte
+(`../tools/metal-render-fixtures-control.sh`). This does not change the AIR
+frontend decision above: these fixtures are what the reconciled frontend must
+produce (task 9).
+
+Probe options added: `--sysmem` (`CommandQueue::setGmemDefault(false)`),
+`--render-stop SECTION`, and a closing line of draw passes by mode
+(`CommandQueue::passTotals`). With `--transport-audit`, each failed IOKit
+request is printed by number. One A640 difference is deliberate: a bicubic
+sampler is refused (`kHasTexFilterCubic` false) and the probe checks that refusal.

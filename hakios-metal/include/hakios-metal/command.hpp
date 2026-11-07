@@ -179,7 +179,7 @@ public:
 
 private:
     friend class CommandQueue;
-    explicit CommandBuffer(CommandQueue& queue) : queue_(queue) {}
+    explicit CommandBuffer(CommandQueue& queue);
 public:
     ~CommandBuffer();   // (its stamp buffers back to the queue: read until the last reader lets go, which is now)
 private:
@@ -341,6 +341,13 @@ public:
 
     std::shared_ptr<CommandBuffer> commandBuffer();
     Gpu& gpu() { return gpu_; }
+    // the GMEM switch (CommandBuffer::setGmem) a new command buffer of this queue starts with: on by default; off for a
+    // probe run that draws every pass in sysmem, so that the same fixtures are judged in both modes (task 7)
+    void setGmemDefault(bool on) { gmemDefault_ = on; }
+    // what the queue's committed command buffers held, summed as each was submitted: draw passes, those drawn in GMEM
+    // tiles, and those binned (CommandBuffer::Counts), so that a run can say which mode its draws actually took
+    struct PassTotals { uint64_t passes = 0, gmemPasses = 0, binnedPasses = 0, tiles = 0; };
+    PassTotals passTotals() const { return PassTotals{totalPasses_.load(), totalGmemPasses_.load(), totalBinnedPasses_.load(), totalTiles_.load()}; }
     // the buffers kept for command streams, idle (to see that they are given back and used again)
     size_t idleCommandBuffers();
     // What a draw binds at the slot the front end reserves for Metal's null texture (Kernel: KernelTexture::isNull): a
@@ -401,6 +408,8 @@ private:
     std::unique_ptr<Bo> takeCommandBo(size_t bytes, int* error);
 
     Gpu& gpu_;
+    bool gmemDefault_ = true;
+    std::atomic<uint64_t> totalPasses_{0}, totalGmemPasses_{0}, totalBinnedPasses_{0}, totalTiles_{0};
     std::shared_ptr<Texture> null_;   // (under lock_) nullTexture's
     std::shared_ptr<Buffer> vsc_;     // (under lock_) vscBuffer's
     // (under poolLock_, a lock of its own: a command buffer gives its stamps back as it is destroyed, which can be under

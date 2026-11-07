@@ -378,6 +378,8 @@ int main(int argc, char** argv) {
     setvbuf(stdout, nullptr, _IONBF, 0);
     bool recover = false, bisect = false, binTrace = false;
     bool computeOnly = false, computeCoreOnly = false;
+    bool sysmemOnly = false;              // --sysmem: every pass the probe does not put in GMEM itself drawn in sysmem (task 7)
+    const char* renderStop = nullptr;     // --render-stop 9k: end the run as section 9k of stage 9 begins
     const char* threadgroupCapture = nullptr;
     int lastStage = 0;   // --stages N: stop after stage N (1-3 the command processor alone: buffers, submission, CP_MEMCPY/CP_MEM_WRITE)
     compute::Options chosen;   // what the dispatches of stage 5 are encoded with
@@ -385,6 +387,8 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
         computeOnly = computeOnly || strcmp(argv[i], "--compute-only") == 0;
         computeCoreOnly = computeCoreOnly || strcmp(argv[i], "--compute-core-only") == 0;
+        sysmemOnly = sysmemOnly || strcmp(argv[i], "--sysmem") == 0;
+        if (strcmp(argv[i], "--render-stop") == 0 && i + 1 < argc) renderStop = argv[++i];
         if (strcmp(argv[i], "--dump-threadgroup") == 0 && i + 1 < argc) threadgroupCapture = argv[++i];
         recover = recover || strcmp(argv[i], "--recover") == 0;
         bisect = bisect || strcmp(argv[i], "--bisect") == 0;
@@ -440,6 +444,10 @@ int main(int argc, char** argv) {
     if (queue == nullptr) {
         report(false, "a queue: " + why);
         return 1;
+    }
+    if (sysmemOnly) {
+        queue->setGmemDefault(false);
+        std::printf("probe: --sysmem: command buffers start with GMEM off; only the probe's own GMEM comparisons tile\n");
     }
 
     // 1. a copy of a megabyte, checked byte for byte and around its edges
@@ -1811,6 +1819,21 @@ int main(int argc, char** argv) {
         return failures;
     }
 
+    // (task 7) the run's draw passes by the mode they were drawn in, and an end at a chosen section of stage 9
+    auto endRun = [&](const char* where) {
+        const CommandQueue::PassTotals pt = queue->passTotals();
+        std::printf("probe: draw passes %llu: %llu in GMEM (%llu binned, %llu tiles), %llu in sysmem%s\n", (unsigned long long)pt.passes,
+                    (unsigned long long)pt.gmemPasses, (unsigned long long)pt.binnedPasses, (unsigned long long)pt.tiles,
+                    (unsigned long long)(pt.passes - pt.gmemPasses), sysmemOnly ? " (--sysmem)" : "");
+        if (where != nullptr) std::printf("probe: stopped before section %s (--render-stop)\n", where);
+        std::printf("probe: %d failure%s\n", failures, failures == 1 ? "" : "s");
+        return failures;
+    };
+    auto stopBefore = [&](const char* section) {
+        std::printf("probe: section %s\n", section);
+        return renderStop != nullptr && strcmp(renderStop, section) == 0;
+    };
+
     // 9. the first draw: one triangle, then the pair, then per-vertex colours, into a 64x64 RGBA8Unorm target in sysmem
     // mode. The fake GPU held every one of these streams together; only this says whether the GPU draws them, where, and
     // with which bytes. Each line is its own command buffer (gpu_recover=1: a hang in one hides nothing of an earlier
@@ -1943,6 +1966,7 @@ int main(int argc, char** argv) {
         auto lowerLeft = [](uint32_t i, uint32_t j) { return j > i ? 1 : j < i ? -1 : 0; };
         auto upperRight = [](uint32_t i, uint32_t j) { return i > j ? 1 : i < j ? -1 : 0; };
 
+        if (stopBefore("9a")) return endRun("9a");
         // 9a. one triangle
         auto t = makeTarget(kTextureUsageRenderTarget | kTextureUsageRead, "9a");
         if (t) {
@@ -1962,6 +1986,7 @@ int main(int argc, char** argv) {
             report(r.interiorColour == r.interior && r.upperLeftColour == 0, "orientation: " + orientation);
             reportPadding("tri_flat 64x64", compareTexture(*t, PixelRule{[](uint32_t, uint32_t) { return false; }, [](uint32_t, uint32_t, uint32_t) { return 0u; }}, canary));
         }
+        if (stopBefore("9b")) return endRun("9b");
         // 9b. the pair: every pixel the colour, the diagonal's centres each painted by exactly one triangle (a gap would be canary)
         if (t) {
             fillBo(*t, canary);
@@ -1970,6 +1995,7 @@ int main(int argc, char** argv) {
             TexReadback r = compareTexture(*t, all, canary);
             report(completed(*cb) && r.right == 4096, "tri_flat, the pair (vertices 0..6): " + describeTexture(r, "the colour") + status(*cb, gpu));
         }
+        if (stopBefore("9c")) return endRun("9c");
         // 9c. controls. The half viewport (0, 0, 32, 64) puts T1 at window (0,64), (32,64), (0,0): the edge is x = y/2, so the
         // centre (i + .5, j + .5) is inside iff j >= 2i + 1 (no centre lies on it), in columns 0..31 only; columns 32..63 are
         // outside the viewport scissor and stay canary.
@@ -2012,6 +2038,7 @@ int main(int argc, char** argv) {
                        std::string("control, a draw into a texture without MTLTextureUsageRenderTarget: ") + (accepted2 ? "ACCEPTED" : "refused: " + cb2->error()));
             }
         }
+        if (stopBefore("9g")) return endRun("9g");
         // 9g. the first buffer in a draw: tri_cflat_fs returns `constant float4& c [[buffer(0)]]`, a range ir3 pushes into
         // the fragment stage's constant file (64 bytes: the 16-byte float4 padded to 4 vec4) out of the bound buffer. Two
         // draws of T1, each with its own colour in its own buffer -- (0x11, 0x22, 0x33, 0xff) and (0xee, 0xdd, 0xcc, 0x80) as
@@ -2048,6 +2075,7 @@ int main(int argc, char** argv) {
             report(!accepted && cb->error().find("no buffer bound at index 0") != std::string::npos,
                    "control, tri_cflat with nothing bound at [[buffer(0)]]: " + (accepted ? std::string("ACCEPTED") : "refused: " + cb->error()));
         }
+        if (stopBefore("9d")) return endRun("9d");
         // 9d. tri_color, the pair: red at vertices 0 and 3, green at 1 and 4, blue at 2 and 5 (tri_color_vs.ll), so a pixel's
         // bytes are its barycentric weights in the triangle that painted it. T1 (j > i) has A = (0,64) red, B = (64,64) green,
         // C = (0,0) blue: at (x, y) = (i + .5, j + .5), lambda_B = x/64, lambda_A = (y - x)/64, lambda_C = 1 - y/64. T2 (i > j)
@@ -2121,6 +2149,7 @@ int main(int argc, char** argv) {
             report(completed(*cb) && within == counted, label + ": " + line + status(*cb, gpu));
         };
         if (t) colourPair(color, Bindings{}, "tri_color, the pair (vertices 0..6), per-vertex colours interpolated");
+        if (stopBefore("9h")) return endRun("9h");
         // 9h. the first vertex fetch: tri_attr_vs takes position and colour from [[stage_in]] attributes, one interleaved
         // buffer of 12-byte vertices -- Float2 at 0, UChar4Normalized at 8 -- holding the same six positions and colours
         // tri_color_vs computes from vertex_id, so the expectation is 9d's exactly: positions wrong would move the
@@ -2153,6 +2182,7 @@ int main(int argc, char** argv) {
                        "control, tri_attr over 7 vertices of a 6-vertex buffer: " + (accepted ? std::string("ACCEPTED") : "refused: " + cb->error()));
             }
         }
+        if (stopBefore("9h2")) return endRun("9h2");
         // 9h2. the same pair through formats the earlier probes did not fetch: the position as Short2Normalized (+-32767 is
         // +-1.0, so the corners land where 9h's floats put them) and the colour as UChar4Normalized_BGRA with its bytes
         // stored B G R A, then as UShort4Normalized (each channel 0 or 0xffff) at a 16-byte stride. The expectation is 9d's:
@@ -2198,6 +2228,7 @@ int main(int argc, char** argv) {
                 colourPair(fp, vsb, std::string("tri_attr, the pair through ") + c.label);
             }
         }
+        if (stopBefore("9i")) return endRun("9i");
         // 9i. a Clear: the 2D engine's solid fill (CP_BLIT, turnip's sysmem clear), first without a draw, then before one.
         // Each target starts as a canary none of the expected bytes is; inside the target's rectangle every pixel must be
         // the packed colour, everything outside it in the Bo (the row padding past width * cpp, the rows past the height)
@@ -2305,6 +2336,7 @@ int main(int argc, char** argv) {
             report(!accepted && cb2->error().find("only a Clear writes anything then") != std::string::npos,
                    std::string("control, a pass without a draw and with load action Load: ") + (accepted ? "ACCEPTED" : "refused: " + cb2->error()));
         }
+        if (stopBefore("9j")) return endRun("9j");
         // 9j. blending. The target is cleared to D = (0x20, 0x40, 0x80, 0xff) / 255, then tri_cflat's T1 is drawn with the
         // colour S = (0xcc, 0x66, 0x33, 0x80) / 255 from its constant buffer under each blend below. Inside T1 every pixel
         // must be the blend equation's result over the RGBA8 bytes, rounded, within one unit (where the GPU rounds is not
@@ -2415,6 +2447,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (stopBefore("9k")) return endRun("9k");
         // 9k. a texture in the fragment stage: tri_color_vs's colour varying as the coordinate of tri_tex_fs's sample, which
         // ir3 makes a prefetch (SP_FS_PREFETCH_CMD, the FS_TEX tables). The coordinate at a pixel is (lambda_A, lambda_B) of
         // the triangle that painted it (9d's weights); under nearest / clamp-to-edge a 4x4 RGBA8 texture of sixteen
@@ -2513,6 +2546,7 @@ int main(int argc, char** argv) {
                        "control, tri_tex over an R32Uint texture: " + (uints == nullptr ? "no texture: " + uwhy : accepted ? std::string("ACCEPTED") : "refused: " + cb2->error()));
             }
         }
+        if (stopBefore("9j2")) return endRun("9j2");
         // 9j2. ASTC, sampled: an 8x8 ASTC 4x4 texture of four void-extent blocks (the block mode that holds one colour, its
         // RGBA as 16-bit values: byte * 257 decodes to that byte exactly), each block its own colour, sampled by tri_tex at
         // tri_color's (red, green) as 9j does. Every judged pixel is its block's colour; a pitch counted in texels, or the
@@ -2898,7 +2932,16 @@ int main(int argc, char** argv) {
             cubicDesc.minFilter = cubicDesc.magFilter = 2;
             linearDesc.minFilter = linearDesc.magFilter = 1;
             Sampler cubic, linear;
-            if (flat == nullptr || step == nullptr || !flat->replace(0, 0, 4, 4, one, 16, &bwhy) || !step->replace(0, 0, 4, 4, halves, 16, &bwhy) ||
+            if (!a6xx::kHasTexFilterCubic) {
+                // (the A640, a6xx_gen2: no cubic filter in its TP. Metal's answer for such a GPU is a sampler it will not
+                // make, so the check is that the driver refuses it, by name, and still makes the linear one)
+                const bool refused = !makeSampler(cubicDesc, &cubic, &bwhy) && bwhy.find("no cubic filter") != std::string::npos;
+                std::string lwhy;
+                const bool linearMade = makeSampler(linearDesc, &linear, &lwhy);
+                report(refused && linearMade, "bicubic on a chip without the TP's cubic filter: " +
+                                                  (refused ? "refused (" + bwhy + ")" : std::string("NOT refused")) +
+                                                  (linearMade ? ", the linear sampler made" : ", the linear sampler NOT made: " + lwhy));
+            } else if (flat == nullptr || step == nullptr || !flat->replace(0, 0, 4, 4, one, 16, &bwhy) || !step->replace(0, 0, 4, 4, halves, 16, &bwhy) ||
                 !makeSampler(cubicDesc, &cubic, &bwhy) || !makeSampler(linearDesc, &linear, &bwhy)) {
                 report(false, "bicubic: textures and samplers: " + bwhy);
             } else {
@@ -2942,6 +2985,7 @@ int main(int argc, char** argv) {
                            std::to_string(outside) + " with an alpha not ff");
             }
         }
+        if (stopBefore("9k2")) return endRun("9k2");
         // 9k2. a 1D texture (CoreAnimation's gamma tables): four texels of distinct colours, one row under the TP's 1D
         // type, sampled by tri_tex1d_fs at tri_color_vs's red with a nearest sampler -- texel floor(4 r), red being u of
         // 9j's rule (T1 (y - x) / 64, T2 y / 64). Pixels whose 4 r lies within 1/16 of a texel edge are not judged.
@@ -2997,6 +3041,7 @@ int main(int argc, char** argv) {
                                                                                      std::to_string(judged) + " pixels their texel" + first + (ok ? status(*cb, gpu) : ": " + cb->error()));
             }
         }
+        if (stopBefore("9l")) return endRun("9l");
         // 9l. depth. tri_pos_vs takes the whole clip position from its vertex buffer (Float4 at 0, the colour Float4 at 16,
         // stride 32) and tri_color_fs passes the colour on, so a pixel says which triangle's depth test it kept: NEAR is
         // T1 at z 0.25 in red, FAR the pair at z 0.75 in green. Each draw is its own command buffer and so its own pass,
@@ -3435,6 +3480,7 @@ int main(int argc, char** argv) {
                        "control, a depth test with no depth attachment: " + (accepted ? std::string("ACCEPTED") : "refused: " + cb->error()));
             }
         }
+        if (stopBefore("9n")) return endRun("9n");
         // 9n. indexed and instanced draws. (a) tri_attr's four corners as a TRISTRIP of 16-bit indices 0, 1, 2, 0xffff, 1,
         // 3, 2: with Metal's primitive restart the 0xffff ends the first strip, and the two triangles cover every pixel in
         // the vertices' one colour; without it the strip would run through vertex 65535 (past the buffer: zeros). (b)
@@ -3633,6 +3679,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (stopBefore("9o")) return endRun("9o");
         // 9o. vertex pulling from a constant buffer: tri_upos_vs reads pos[vid] from `constant float2*` at [[buffer(0)]],
         // an index ir3 cannot push, so an ldc through UBO descriptor 0. The buffer holds 32 bytes of junk (four vertices
         // far outside the target) and then the pair's six positions, bound at offset 32: every pixel tri_flat's colour.
@@ -3674,6 +3721,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (stopBefore("9o2")) return endRun("9o2");
         // 9o2. a constant buffer bound off a vec4: tri_upos_vs's ldc through UBO descriptor 0 at offsets 4, 8, 16, 64 and
         // 120 (chronod's primitive_gradient binds at 120), the bytes before the positions 9.0 (off the target). A base the
         // hardware rounded down to 16 or 64 would read 9.0 at 4 and 8 and draw no pixel; every pixel tri_flat's colour is
@@ -3770,6 +3818,7 @@ int main(int argc, char** argv) {
             report(ok && completed(*cb) && got == W * H, "textures 3 and 9 with samplers 0 and 1: " + std::to_string(got) + " of 4096 pixels ff 80 00 ff; pixel 0 " + hex8(px0) +
                                                              (ok ? status(*cb, gpu) : ": " + cb->error()));
         }
+        if (stopBefore("9u2")) return endRun("9u2");
         // 9u2. screen-space derivatives (CoreAnimation's rounded-rect coverage is fwidth of a half texcoord): tri_fw_fs
         // returns fwidth(red) * 32 in float and in half, red being tri_color_vs's (y - x) / 64 in T1 and y / 64 in T2, so
         // T1 ff ff 00 ff and T2 80 80 00 ff wherever the 2x2 quad lies inside one triangle. Quads the diagonal crosses
@@ -3833,6 +3882,7 @@ int main(int argc, char** argv) {
             report(ok && completed(*cb) && right == judged, "a half constant in half arithmetic (0.25 x red x 4): " + std::to_string(right) + " of " + std::to_string(judged) +
                                                                 " pixels tri_color's red" + first + (ok ? status(*cb, gpu) : ": " + cb->error()));
         }
+        if (stopBefore("9d2")) return endRun("9d2");
         // 9d2. a half4 varying (CoreAnimation's fixed_vert writes its colour and texcoords as half): tri_hcolor_vs writes
         // tri_color's colours as a half4, tri_hcolor_fs returns the half4 it is given -- tri_color's picture, every
         // off-diagonal pixel within 2 units of the interpolated colour of 9d's rule.
@@ -3942,6 +3992,7 @@ int main(int argc, char** argv) {
             report(ok && completed(*cb) && got == W * H, "halfs from a constant buffer at 64, 66, 70, 68: " + std::to_string(got) + " of 4096 pixels 40 80 bf ff; pixel 0 " +
                                                              hex8(px0) + (ok ? status(*cb, gpu) : ": " + cb->error()));
         }
+        if (stopBefore("9q")) return endRun("9q");
         // 9q. a constexpr sampler: tri_ctex_fs samples the 4x4 texture of 9k with a sampler it declares itself (repeat on s
         // and t, nearest), bound by the driver at the index the front end gave it, at tri_color's (red, green) times 4 --
         // a computed coordinate, so an ordinary sam. Repeat reads texel floor(16 u) mod 4 where clamp to edge would read 3
@@ -4006,6 +4057,7 @@ int main(int argc, char** argv) {
                            " judged pixels the repeat's texel (" + std::to_string(clampLike) + " the clamp's instead)" + first + status(*cb, gpu));
             }
         }
+        if (stopBefore("9r")) return endRun("9r");
         // 9r. draws that share a pass: 200 draws of tri_cflat's pair into one target in ONE command buffer, the colour
         // (1, 1, 1, 1) / 255 under One + One over a clear to 0: the command buffer joins them into one pass (one batch
         // start, one tail), and every pixel must be exactly 200 in each channel -- a draw lost, or done twice, is off by
@@ -4049,6 +4101,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (stopBefore("9s")) return endRun("9s");
         // 9s. the null texture. tri_null_fs samples the slot the front end reserves for it as 2D (ir3 makes that the
         // prefetch) and as 3D (sam.3d), and returns (2D.r, 2D.g, 3D.r, 3D.g); the draw binds the queue's 2D 1x1
         // texture there. Its texel is written first with (0x40, 0xc0, 0x11, 0x22), not zero, so that a sample which
@@ -4103,6 +4156,7 @@ int main(int argc, char** argv) {
                 null->replace(0, 0, 1, 1, &zero, 4, &rwhy);   // (the queue's texture is every later draw's)
             }
         }
+        if (stopBefore("9t")) return endRun("9t");
         // 9t. two colour targets (MRT): tri_mrt_fs writes tri_flat's colour to [[color(0)]] and ff 00 40 bf to
         // [[color(1)]], each into an attachment of its own (RB_MRT[0] and [1]). First the pair over two canary-filled
         // targets with no Clear: every pixel of each its own colour -- the other's colour, a canary or a mix in either
@@ -4196,6 +4250,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (stopBefore("9u")) return endRun("9u");
         // 9u. framebuffer fetch. tri_fb_fs returns its target's (g, b, r, 1) at each pixel, the target read through the
         // texture unit at slot 0 (ir3's isamm). Over a Clear to 40 80 bf ff: one draw leaves 80 bf 40 ff in every pixel;
         // two draws in ONE pass (the second must read what the first wrote, through the barrier before it) bf 40 80 ff;
@@ -4220,6 +4275,7 @@ int main(int argc, char** argv) {
                 o.fbReadBarrier = k.order != 2;
                 o.gmem = k.gmem;
                 auto cb = queue->commandBuffer();
+                cb->setGmem(k.gmem);   // (the kind's mode whatever the queue's default: --sysmem must not turn a GMEM kind into sysmem)
                 RenderPass rp;
                 rp.color0 = t.get();
                 rp.load = LoadAction::kClear;
@@ -4261,6 +4317,7 @@ int main(int argc, char** argv) {
                 if (!completed(*cb)) break;
             }
         }
+        if (stopBefore("9v")) return endRun("9v");
         // 9v. the formats CoreAnimation asks for next (A8Unorm for every glyph mask: some 350 refusals a boot) and three
         // float ones games use. For each, three measurements, each exact in its own terms:
         //   a Clear to (0.25, 0.5, 0.75, 1), the 2D engine's packing read back as bytes (A8: the alpha alone, 0xff;
@@ -4405,6 +4462,7 @@ int main(int argc, char** argv) {
                                                             " of 4096 pixels the colour as the format keeps it" + status(*cb3, gpu));
             }
         }
+        if (stopBefore("9w")) return endRun("9w");
         // 9w. mip levels. A 64 x 64 RGBA8Unorm texture of seven levels, level L filled with its own colour C(L); the TP
         // finds each level from the first one's pitch by fdl6_layout's rule, which texture.cpp follows, so a level at the
         // wrong offset reads another level's colour or none. (1) tri_tex_fs with a sampler whose lod is clamped to L
@@ -4850,7 +4908,18 @@ int main(int argc, char** argv) {
                                    "GMEM binned by the hardware: " + std::to_string(poff) + " pixels differ from sysmem; the VSC wrote " +
                                        std::to_string(sizes[0]) + " and " + std::to_string(sizes[1]) + " bytes of draw stream for pipes 0 and 1");
                         }
-                        report(have && st == 0 && gtl == 24 && off == 0 && twinOff > 100000,
+                        // (the whole screen's tiles by the driver's own plan: 24 on the A635 these lines were written for,
+                        // 12 on the A640, whose GMEM below the CCU's colour cache is twice as tall a bin)
+                        const unsigned fullTiles = [&]() -> unsigned {
+                            RenderPass whole;
+                            whole.color0 = gt.get();
+                            render::GmemPlan pl;
+                            std::string pw;
+                            const uint32_t area[4] = {0, 0, 1125 - 1, 2436 - 1};
+                            return render::gmemPlan(whole, &pl, &pw) && render::gmemTiles(&pl, area) ? pl.tiles() : 0u;
+                        }();
+                        if (fullTiles == 0) report(false, "GMEM: no plan for the 1125x2436 BGRA8 target");
+                        report(have && st == 0 && gtl == fullTiles && fullTiles != 0 && off == 0 && twinOff > 100000,
                                "GMEM: 5 blended triangles over a 1125x2436 BGRA8 pattern in " + std::to_string(gtl) + " tiles: " + std::to_string(off) +
                                    " pixels differ from sysmem; twin without the loads: " + std::to_string(twinOff) + " differ (must be many)");
                         // framebuffer fetch across the tiles: tri_fb (the target's (g, b, r, 1) at each pixel) three times
@@ -4891,11 +4960,11 @@ int main(int argc, char** argv) {
                                                            cgm = runFb(true, &cg, {vps[3], Viewport{500, 1000, 625, 300, 0, 1}});
                                 const bool chave = !csys.empty() && !cgm.empty();
                                 const uint64_t coff = chave ? pixelsDiffer(csys, cgm) : ~0ull, cchanged = chave ? pixelsDiffer(start, cgm) : 0;
-                                report(chave && cs == 0 && cg > 0 && cg < 24 && coff == 0 && cchanged > 300000,
+                                report(chave && cs == 0 && cg > 0 && cg < fullTiles && coff == 0 && cchanged > 300000,
                                        "GMEM: framebuffer fetch over part of the screen in " + std::to_string(cg) + " tiles: " + std::to_string(coff) +
                                            " pixels differ from sysmem; " + std::to_string(cchanged) + " changed");
                             }
-                            report(fhave && fs == 0 && fg == 24 && foff == 0 && changed > 1400000 && changed <= 1500000,
+                            report(fhave && fs == 0 && fg == fullTiles && fullTiles != 0 && foff == 0 && changed > 1400000 && changed <= 1500000,
                                    "GMEM: framebuffer fetch 4 times over a 1125x2436 BGRA8 pattern in " + std::to_string(fg) + " tiles: " + std::to_string(foff) +
                                        " pixels differ from sysmem; " + std::to_string(changed) + " changed from the pattern");
                         }
@@ -5124,6 +5193,7 @@ int main(int argc, char** argv) {
                                 render::Options co;
                                 co.gmem = gm != 0;
                                 auto c = queue->commandBuffer();
+                                c->setGmem(gm != 0);   // (as asked, whatever the queue's default)
                                 if (c->draw(flatc, rp, drawOf(0, 3, vps[1]), Bindings{}, Bindings{}, co)) {
                                     c->commit();
                                     c->waitUntilCompleted();
@@ -5298,6 +5368,7 @@ int main(int argc, char** argv) {
                                                               std::to_string(took / 1000) + " us wall" + status(*cb4, gpu));
             }
         }
+        if (stopBefore("9x")) return endRun("9x");
         // 9x. stencil. One pass over the RGBA8 target (Clear to 40 80 bf ff) and a Depth32Float_Stencil8 texture (depth
         // Clear 1, stencil Clear 0): tri_flat's T1 with the stencil test Always / Replace, reference 1 -- the S8 plane 1
         // under T1 -- then tri_cflat's pair in 00 ff 00 ff with the test Equal 1, Keep. Every pixel with j > i must be
@@ -5376,6 +5447,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (stopBefore("9y")) return endRun("9y");
         // 9y. the VS's driver params. tri_base_vs places the pair by vid - base_vertex and colours it (base_vertex,
         // instance_id) / 255, instance_id being the hardware's zero-based id plus base_instance. Two instances from base
         // instance 7, the second drawn last: (a) vertices 3..8, every pixel 03 08 00 ff; (b) indices 0..5 with base
@@ -5426,6 +5498,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (stopBefore("9l2")) return endRun("9l2");
         // 9l2. lines. tri_flat_vs's vertex 1 is clip (1, -1) and vertex 2 (-1, 1): under Metal's orientation (NDC y up,
         // row 0 at the top) window (64, 64) to (0, 0), the diagonal T1 is bounded by. One pixel wide at 45 degrees, a
         // pixel centre is inside when it lies within half a pixel of the line, |i - j| / sqrt(2) < 0.5: exactly the 64
@@ -5460,6 +5533,7 @@ int main(int argc, char** argv) {
                            std::to_string(off) + " elsewhere, " + std::to_string(canaryLeft) + " canary" + (ok ? status(*cb, gpu) : ": " + cb->error()));
             }
         }
+        if (stopBefore("9z")) return endRun("9z");
         // 9z. private memory. tri_pvt_fs keeps a[128] in private memory (512 bytes a fiber, stp and ldp), fills it with
         // 3i + y + 1 and reads a[x]: pixel (i, j) must be red 3i + j + 1, 00 00 ff. Every pixel a value of its own, which
         // a read of zeros, of another fiber's array or of unmapped memory does not give.
@@ -5490,6 +5564,7 @@ int main(int argc, char** argv) {
                                                               " of 4096 pixels red 3i + j + 1" + (seen ? std::string(firstHex) : std::string()) +
                                                               (ok ? status(*cb, gpu) : ": " + cb->error()));
         }
+        if (stopBefore("9z2")) return endRun("9z2");
         // 9z2. a fragment program longer than the instruction cache: chain_fs is 447 units, of which 127 are preloaded and
         // the rest fetched as it runs, drawn after the dozens of short fragment programs above, so the other register
         // context holds a short SP_FS_INSTRLEN (the context the A6xx fetch bug reads; compute needs Mesa's workaround for
@@ -5552,6 +5627,7 @@ int main(int argc, char** argv) {
                    "tri_tex with no texture and no sampler bound: " + std::to_string(zero) + " of 4096 pixels the null texel 00 00 00 00" +
                        (ok ? status(*cb, gpu) : ": " + cb->error()));
         }
+        if (stopBefore("9q2")) return endRun("9q2");
         // 9q. occlusion queries: the samples a draw lets through, counted by ZPASS_DONE snapshots around it into a word of
         // a buffer (the result += end - begin). tri_flat over the whole target is 4096 samples (one each, no MSAA); T1
         // alone (vertices 0..3) is its interior 2016 and the diagonal's 64 or none; T1 then T2 into the same word without
@@ -5972,6 +6048,7 @@ int main(int argc, char** argv) {
             }
         }
 #if defined(__APPLE__)
+        if (stopBefore("9m")) return endRun("9m");
         // 9m. the path to the screen's memory: a real IOSurface (IOSurfaceCreate, 64x64 'BGRA', 256-byte rows -- what
         // CAMetalLayer's drawables are made of), its memory taken by the kernel's surface request as a buffer
         // (Texture::wrapSurface), cleared and drawn into with tri_flat's T1 in one pass, and read back through the
@@ -6153,6 +6230,7 @@ int main(int argc, char** argv) {
                    "control, a texture over an IOSurface ID nobody made: " + (none != nullptr ? std::string("WRAPPED") : "refused: " + why));
         }
 #endif
+        if (stopBefore("9e")) return endRun("9e");
         // 9e. (--bisect) tri_flat under each group of the stream switched off in turn, and each alternative value on: when the
         // draw hangs or writes nothing, this says which group it needs, one boot for all of it, each hang costing a reset. A
         // variant that completes AND paints the 2016 pixels is the finding; one that completes and paints nothing says the
@@ -6203,6 +6281,7 @@ int main(int argc, char** argv) {
                 report(ok, std::string("bisect: tri_flat ") + v.name + ": " + (completed(*cb) ? "COMPLETED" : "hung") + ", " + describeTriangle(r) + status(*cb, gpu));
             }
         }
+        if (stopBefore("9f")) return endRun("9f");
         // 9f. the four stages compiled on the phone against the host's fixtures (the Kernel part as compareCompiled, then every
         // Stage field), the two programs linked here, and the phone-compiled tri_flat drawn as 9a
         if (!hasCompiler()) {
@@ -6552,6 +6631,5 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::printf("probe: %d failure%s\n", failures, failures == 1 ? "" : "s");
-    return failures;
+    return endRun(nullptr);
 }

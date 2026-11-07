@@ -1,0 +1,84 @@
+{
+ "run": "metal-step7",
+ "date": "2026-11-07",
+ "probe_sha256": "5819ce1b58f1e496af4e5b21c85e3df2ea90b606ccff19e4b690b7ebd1375d4b",
+ "chip": "0x6040001",
+ "ui": "live (SpringBoard 9, backboardd 15)",
+ "fixture_generator": "hakios-xnu-kernel 63fc2b4633bac3af8e57dadab9f5a8d4cb940438 AIR frontend, Mesa 25.0.7, chip 0x06040001",
+ "fixture_control_a635": "28 identical, 0 differ",
+ "host_tests": "261 tests, 0 failed checks",
+ "runs": {
+  "f1-default": {
+   "sha256": "7ab69b27d01f89425174417cc724df258cbe18085ad6d1cef9e5a53ce529d723",
+   "ok": 253,
+   "failures": 0,
+   "passes": 683,
+   "gmem": 488,
+   "binned": 7,
+   "tiles": 1048,
+   "sysmem": 195,
+   "audit": "transport-audit: FAIL handles=0 mappings=0 queues=0 calls=3465 errors=1 close=0 first_iova=0x20f90000",
+   "failed_requests": [
+    [
+     "126",
+     "0xe00002f0"
+    ]
+   ],
+   "temperature_c": 26
+  },
+  "f2-sysmem": {
+   "sha256": "743a7a781c2a155486e5da1dd178552d5bea0f53be5287a5030b615316f8f9e0",
+   "ok": 253,
+   "failures": 0,
+   "passes": 683,
+   "gmem": 14,
+   "binned": 1,
+   "tiles": 130,
+   "sysmem": 669,
+   "audit": "transport-audit: FAIL handles=0 mappings=0 queues=0 calls=3469 errors=1 close=0 first_iova=0x20f90000",
+   "failed_requests": [
+    [
+     "126",
+     "0xe00002f0"
+    ]
+   ],
+   "temperature_c": 26
+  },
+  "f3-default": {
+   "sha256": "5f030323fb8e8b95a70738ce79d7bcf467f39d4d9480afb2f6c799e9212a794d",
+   "ok": 253,
+   "failures": 0,
+   "passes": 683,
+   "gmem": 488,
+   "binned": 7,
+   "tiles": 1048,
+   "sysmem": 195,
+   "audit": "transport-audit: FAIL handles=0 mappings=0 queues=0 calls=3475 errors=1 close=0 first_iova=0x20f90000",
+   "failed_requests": [
+    [
+     "126",
+     "0xe00002f0"
+    ]
+   ],
+   "temperature_c": 26
+  },
+  "f4-sysmem": {
+   "sha256": "0df35dc81f1fb32bd1c46cf3252dc799653efad9a56bccf53f72c748d54e07e1",
+   "ok": 253,
+   "failures": 0,
+   "passes": 683,
+   "gmem": 14,
+   "binned": 1,
+   "tiles": 130,
+   "sysmem": 669,
+   "audit": "transport-audit: FAIL handles=0 mappings=0 queues=0 calls=3469 errors=1 close=0 first_iova=0x20f90000",
+   "failed_requests": [
+    [
+     "126",
+     "0xe00002f0"
+    ]
+   ],
+   "temperature_c": 26
+  }
+ }
+}
