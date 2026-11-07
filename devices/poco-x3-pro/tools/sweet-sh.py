@@ -17,7 +17,7 @@ import os
 import socket
 import sys
 
-HOSTS = ('169.254.7.2', '10.11.0.2')
+HOSTS = ('192.168.7.2', '169.254.7.2', '10.11.0.2')   # 192.168.7.2: the USB link outlives Wi-Fi (W26)
 PORT = 5143
 END = b'__SWEETD_END__'
 TOKEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'userland', 'sweetd.token')

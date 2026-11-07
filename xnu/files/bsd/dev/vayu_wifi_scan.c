@@ -43,6 +43,7 @@
 #include <vm/memory_types.h>
 #include <vm/vm_kern.h>
 #include <pexpert/pexpert.h>
+#include <kern/clock.h>
 #include <kern/locks.h>
 #include <libkern/libkern.h>
 #include <sys/vayu_wifi_net.h>
@@ -160,6 +161,12 @@ struct bss {
 	uint8_t bssid[6];
 	uint8_t chan;
 	uint16_t seen;
+	/* W26: what iOS's scan results carry (bsd/dev/vayu_wifi_net.c hands them to wifid) */
+	uint8_t ssid[32], ssid_len;
+	uint16_t freq, bintval, capab, ie_len;
+	int16_t rssi;
+	uint64_t heard_ms;
+	uint8_t ie[VAYU_SCAN_IE_MAX];
 };
 
 static int (*slog)(const char *format, ...) __printflike(1, 2);
@@ -210,6 +217,105 @@ static uint32_t tx_seq;
 
 static void vayu_scan_htt_tx_compl(const uint8_t *p, uint32_t len);
 int vayu_scan_tx_frame(const uint8_t *f, uint32_t len, bool clear);
+
+/* W26: the list of what was heard is written on the radio's thread (mgmt_rx) and read on the
+ * station's (vayu_scan_heard) */
+static LCK_GRP_DECLARE(bss_lck_grp, "vayu-wifi-bss");
+static LCK_MTX_DECLARE(bss_lock, &bss_lck_grp);
+static const struct vayu_scan_ops *scan_ops;    /* W26: kept by the first scan for vayu_scan_again */
+static uint16_t scan_list[MAX_CHANS];           /* ... with the channels the regulatory rules allow */
+static uint32_t scan_list_n, scan_count;
+static uint32_t rd16(const uint8_t *p);
+static void zero(void *b, uint32_t n);
+
+static uint64_t
+now_ms(void)
+{
+	uint64_t ns = 0;
+
+	absolutetime_to_nanoseconds(mach_absolute_time(), &ns);
+	return ns / 1000000ULL;
+}
+
+static uint16_t
+chan_freq(uint32_t chan)
+{
+	if (chan >= 1 && chan <= 13) {
+		return (uint16_t)(2407 + chan * 5);
+	}
+	if (chan == 14) {
+		return 2484;
+	}
+	return chan >= 32 && chan <= 196 ? (uint16_t)(5000 + chan * 5) : 0;
+}
+
+/* one beacon/probe response into the list: name, channel, signal, the elements as heard (whole ones) */
+static void
+bss_note(struct bss *b, const uint8_t *f, uint32_t flen, uint32_t chan, int32_t rssi)
+{
+	uint32_t o, end = 0;
+
+	lck_mtx_lock(&bss_lock);
+	b->seen++;
+	for (o = 36; o + 2 <= flen && o + 2 + f[o + 1] <= flen; o += 2 + f[o + 1]) {
+		if (f[o] == 0 && f[o + 1] <= 32 && (f[o + 1] != 0 || b->ssid_len == 0)) {
+			b->ssid_len = f[o + 1];
+			memcpy(b->ssid, f + o + 2, b->ssid_len);
+		} else if (f[o] == 61 && f[o + 1] >= 1 && f[o + 2] != 0) {
+			chan = f[o + 2];        /* HT operation: the primary channel (5 GHz has no DS element) */
+		}
+		if (o + 2 + f[o + 1] - 36 <= VAYU_SCAN_IE_MAX) {
+			end = o + 2 + f[o + 1] - 36;
+		}
+	}
+	b->chan = (uint8_t)chan;
+	b->freq = chan_freq(chan);
+	b->rssi = (int16_t)rssi;
+	b->bintval = (uint16_t)rd16(f + 32);
+	b->capab = (uint16_t)rd16(f + 34);
+	memcpy(b->ie, f + 36, end);
+	b->ie_len = (uint16_t)end;
+	b->heard_ms = now_ms();
+	lck_mtx_unlock(&bss_lock);
+}
+
+/* W26: the channels the first scan found allowed (for iOS's channel list) */
+uint32_t
+vayu_scan_channels(uint16_t *out, uint32_t most)
+{
+	uint32_t i;
+
+	for (i = 0; i < scan_list_n && i < most; i++) {
+		out[i] = scan_list[i];
+	}
+	return i;
+}
+
+bool
+vayu_scan_heard(uint32_t index, struct vayu_scan_bss *out)
+{
+	bool there;
+
+	lck_mtx_lock(&bss_lock);
+	there = index < sc.nbss;
+	if (there) {
+		const struct bss *b = &sc.bss[index];
+		uint64_t now = now_ms();
+
+		memcpy(out->bssid, b->bssid, 6);
+		memcpy(out->ssid, b->ssid, b->ssid_len);
+		out->ssid_len = b->ssid_len;
+		out->freq = b->freq;
+		out->bintval = b->bintval;
+		out->capab = b->capab;
+		out->rssi = b->rssi;
+		out->age_ms = now > b->heard_ms ? (uint32_t)(now - b->heard_ms) : 0;
+		out->ie_len = b->ie_len;
+		memcpy(out->ie, b->ie, b->ie_len);
+	}
+	lck_mtx_unlock(&bss_lock);
+	return there;
+}
 
 static uint32_t
 rd16(const uint8_t *p)
@@ -485,18 +591,27 @@ mgmt_rx(const uint8_t *t, uint32_t len)
 			b = &sc.bss[i];
 		}
 	}
-	if (b == NULL && sc.nbss < NBSS) {
-		b = &sc.bss[sc.nbss++];
+	if (b == NULL) {
+		lck_mtx_lock(&bss_lock);
+		if (sc.nbss < NBSS) {
+			b = &sc.bss[sc.nbss++];
+		} else {
+			b = &sc.bss[0];         /* W26: full: the one not heard the longest makes room */
+			for (i = 1; i < NBSS; i++) {
+				if (sc.bss[i].heard_ms < b->heard_ms) {
+					b = &sc.bss[i];
+				}
+			}
+		}
+		zero(b, (uint32_t)sizeof(*b));
 		for (i = 0; i < 6; i++) {
 			b->bssid[i] = f[16 + i];
 		}
+		lck_mtx_unlock(&bss_lock);
 		fresh = true;
 	}
-	if (b != NULL) {
-		b->seen++;
-		b->chan = (uint8_t)chan;
-	}
-	if (fresh || sc.logged < 32) {
+	bss_note(b, f, flen, chan, rssi);
+	if ((fresh && sc.logged < 96) || sc.logged < 32) {
 		sc.logged++;
 		slog("vayu-wifi: w22: %s ch %u rssi %d bssid xx:xx:xx:xx:%02x:%02x ssid '%s' status %#x%s\n",
 		    (f[0] >> 4) == 8 ? "beacon" : "probe_resp", chan, rssi, f[20], f[21], ssid, status,
@@ -1086,6 +1201,73 @@ scan_started(void)
 	return sc.started || sc.done;
 }
 
+/* WMI_START_SCAN on these channels, then wait until it is over: 0 = completed */
+static int
+scan_start(const struct vayu_scan_ops *o, const uint16_t *freqs, uint32_t n, uint32_t dwell)
+{
+	static uint8_t m[1600];
+	uint32_t i;
+	uint8_t *p, *c;
+	int s, w = 0;
+
+	/* WMI_START_SCAN: flame scan_send_start */
+	zero(m, sizeof(m));
+	sc.started = sc.done = false;
+	sc.done_event = sc.done_reason = 0;
+	scan_count++;
+	c = put_tlv(m + 4, TAG_START_SCAN_CMD, 100);
+	c = put32(c, SCAN_ID + scan_count - 1);
+	c = put32(c, SCAN_REQ_ID);
+	c = put32(c, 0);                /* vdev */
+	c = put32(c, 1);                /* priority low */
+	c = put32(c, SCAN_EV_STARTED | SCAN_EV_COMPLETED | SCAN_EV_BSS_CHANNEL | SCAN_EV_FOREIGN |
+	    SCAN_EV_FOREIGN_EXIT | SCAN_EV_DEQUEUED);
+	c = put32(c, DWELL_ACTIVE_MS);
+	c = put32(c, dwell);
+	c = put32(c, 50);               /* min rest */
+	c = put32(c, 500);              /* max rest */
+	c = put32(c, 0);
+	c = put32(c, 0);
+	c = put32(c, 0);
+	c = put32(c, MAX_SCAN_MS);
+	c = put32(c, 5);                /* probe delay */
+	c = put32(c, (SCAN_PASSIVE | SCAN_CHAN_STAT) ^ SCAN_FILTER_PROBE_REQ);
+	c = put32(c, 0);
+	c = put32(c, n);
+	c = put32(c, 1);                /* bssids */
+	c = put32(c, 0);                /* ssids: none, no probe request */
+	c = put32(c, 0);                /* ie_len */
+	c = put32(c, 3);                /* num_probes (unused: passive) */
+	p = c + 16;                     /* mac addr + mask: zero */
+	c = put_tlv(p, TAG_ARRAY_UINT32, n * 4);
+	for (i = 0; i < n; i++) {
+		c = put32(c, freqs[i]);
+	}
+	p = put_tlv(c, TAG_ARRAY_FIXED_STRUCT, 0);
+	c = put_tlv(p, TAG_ARRAY_FIXED_STRUCT, 8);
+	for (i = 0; i < 6; i++) {
+		c[i] = 0xff;            /* bssid filter: broadcast */
+	}
+	p = put_tlv(c + 8, TAG_ARRAY_BYTE, 0);
+	s = wmi_cmd(o, m, CMD_START_SCAN, (uint32_t)(p - m));
+	if (scan_count <= 3 || scan_count % 20 == 0) {
+		o->log("vayu-wifi: w22: start scan #%u passive dwell %u ms, %u channels, max %u ms: %s\n",
+		    scan_count, dwell, n, MAX_SCAN_MS, s != 0 ? "FAILED" : "requested");
+	}
+	if (s == 0) {
+		w = o->wait(scan_started, 2000);
+		if (w > 0 && !sc.done) {
+			w = o->wait(scan_done, SCAN_WAIT_MS);
+		}
+		if (w <= 0 && !sc.done) {
+			o->log("vayu-wifi: w22: scan %s (started %u)\n", w < 0 ? "stopped (CE stage abort)" :
+			    "not completed in time", sc.started ? 1 : 0);
+		}
+		(void)o->wait(NULL, 200);
+	}
+	return s == 0 && sc.done && sc.done_event == SCAN_EV_COMPLETED ? 0 : -1;
+}
+
 /* ---- W25: HTT data TX ------------------------------------------------------------------------- */
 
 /* One native-wifi data frame (see radio.c htt_tx_frame): the message carries the first 50 bytes,
@@ -1262,7 +1444,7 @@ vayu_scan_run(const struct vayu_scan_ops *o)
 	uint8_t *p, *c;
 	char list[3 * MAX_CHANS + 64];
 	uint32_t ll = 0;
-	int a, b, s, w;
+	int a, b;
 
 	if (o == NULL || vayu_scan_mode == 0) {
 		return -1;
@@ -1312,56 +1494,12 @@ vayu_scan_run(const struct vayu_scan_ops *o)
 	b = wmi_cmd(o, m, CMD_VDEV_CREATE, 4 + 4 + 20);
 	o->log("vayu-wifi: w22: vdev create 0 type STA mac xx:xx:xx:xx:%02x:%02x %s\n", o->mac[4], o->mac[5],
 	    b != 0 ? "FAILED" : "ok");
-	/* WMI_START_SCAN: flame scan_send_start */
-	zero(m, sizeof(m));
-	c = put_tlv(m + 4, TAG_START_SCAN_CMD, 100);
-	c = put32(c, SCAN_ID);
-	c = put32(c, SCAN_REQ_ID);
-	c = put32(c, 0);                /* vdev */
-	c = put32(c, 1);                /* priority low */
-	c = put32(c, SCAN_EV_STARTED | SCAN_EV_COMPLETED | SCAN_EV_BSS_CHANNEL | SCAN_EV_FOREIGN |
-	    SCAN_EV_FOREIGN_EXIT | SCAN_EV_DEQUEUED);
-	c = put32(c, DWELL_ACTIVE_MS);
-	c = put32(c, DWELL_PASSIVE_MS);
-	c = put32(c, 50);               /* min rest */
-	c = put32(c, 500);              /* max rest */
-	c = put32(c, 0);
-	c = put32(c, 0);
-	c = put32(c, 0);
-	c = put32(c, MAX_SCAN_MS);
-	c = put32(c, 5);                /* probe delay */
-	c = put32(c, (SCAN_PASSIVE | SCAN_CHAN_STAT) ^ SCAN_FILTER_PROBE_REQ);
-	c = put32(c, 0);
-	c = put32(c, n);
-	c = put32(c, 1);                /* bssids */
-	c = put32(c, 0);                /* ssids: none, no probe request */
-	c = put32(c, 0);                /* ie_len */
-	c = put32(c, 3);                /* num_probes (unused: passive) */
-	p = c + 16;                     /* mac addr + mask: zero */
-	c = put_tlv(p, TAG_ARRAY_UINT32, n * 4);
 	for (i = 0; i < n; i++) {
-		c = put32(c, freqs[i]);
+		scan_list[i] = freqs[i];
 	}
-	p = put_tlv(c, TAG_ARRAY_FIXED_STRUCT, 0);
-	c = put_tlv(p, TAG_ARRAY_FIXED_STRUCT, 8);
-	for (i = 0; i < 6; i++) {
-		c[i] = 0xff;            /* bssid filter: broadcast */
-	}
-	p = put_tlv(c + 8, TAG_ARRAY_BYTE, 0);
-	s = wmi_cmd(o, m, CMD_START_SCAN, (uint32_t)(p - m));
-	o->log("vayu-wifi: w22: start scan passive dwell %u ms, %u channels, max %u ms: %s\n",
-	    DWELL_PASSIVE_MS, n, MAX_SCAN_MS, s != 0 ? "FAILED" : "requested");
-	if (s == 0) {
-		w = o->wait(scan_started, 2000);
-		if (w > 0 && !sc.done) {
-			w = o->wait(scan_done, SCAN_WAIT_MS);
-		}
-		if (w <= 0 && !sc.done) {
-			o->log("vayu-wifi: w22: scan %s (started %u)\n", w < 0 ? "stopped (CE stage abort)" :
-			    "not completed in time", sc.started ? 1 : 0);
-		}
-		(void)o->wait(NULL, 200);
-	}
+	scan_list_n = n;
+	scan_ops = o;
+	(void)scan_start(o, freqs, n, DWELL_PASSIVE_MS);
 	for (i = 0; i < sizeof(sc.chan_seen) && ll + 5 < sizeof(list); i++) {
 		if (sc.chan_seen[i] != 0) {
 			uint32_t v = i, d = v >= 100 ? 3 : v >= 10 ? 2 : 1, k;
@@ -1386,4 +1524,41 @@ vayu_scan_run(const struct vayu_scan_ops *o)
 	    sc.probe_resp, sc.other_mgmt, sc.bad, sc.frames, sc.scan_events, sc.done_event, sc.done_reason,
 	    sc.ring_n, sc.htt_msgs, sc.htt_msdus, sc.htt_reposts);
 	return sc.done && sc.done_event == SCAN_EV_COMPLETED ? 0 : -1;
+}
+
+/*
+ * W26: another passive scan, on the radio's thread (the station service of bsd/dev/vayu_wifi_net.c),
+ * after vayu_scan_run made the vdev: the channels asked for that the rules allow (none: all of
+ * them), dwell_ms on each (0: the default). 0 = completed.
+ */
+int
+vayu_scan_again(const uint16_t *freqs, uint32_t n, uint32_t dwell_ms)
+{
+	uint16_t list[MAX_CHANS];
+	uint32_t k = 0, i, j, dwell = dwell_ms >= 50 && dwell_ms <= 300 ? dwell_ms : DWELL_PASSIVE_MS;
+	uint64_t t0 = now_ms();
+	int rc;
+
+	if (scan_ops == NULL || scan_list_n == 0) {
+		return -1;
+	}
+	for (i = 0; freqs != NULL && i < n; i++) {
+		for (j = 0; j < scan_list_n && k < MAX_CHANS; j++) {
+			if (scan_list[j] == freqs[i]) {
+				list[k++] = freqs[i];
+				break;
+			}
+		}
+	}
+	if (k == 0) {
+		for (k = 0; k < scan_list_n; k++) {
+			list[k] = scan_list[k];
+		}
+	}
+	rc = scan_start(scan_ops, list, k, dwell);
+	if (scan_count <= 3 || scan_count % 20 == 0 || rc != 0) {
+		scan_ops->log("vayu-wifi: W26 scan #%u: %s, %u channels, %u ms, %u BSSIDs known\n", scan_count,
+		    rc == 0 ? "completed" : "NOT completed", k, (uint32_t)(now_ms() - t0), sc.nbss);
+	}
+	return rc;
 }

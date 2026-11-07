@@ -39,6 +39,7 @@
 #include <sys/vayu_wifi_wmi.h>
 #include <sys/vayu_wifi_scan.h>
 #include <sys/vayu_wifi_sta.h>
+#include <sys/vayu_wifi_net.h>
 
 #define HTCC_SR_WR_IDX          0x3cU
 #define HTCC_CUR_SRRI           0x44U
@@ -645,6 +646,7 @@ htcc_scan(void)
 		sops.log("vayu-wifi: W25 S1 scan: ERROR (scan did not complete; see the w22 lines)\n");
 	}
 	(void)vayu_sta_run(&sops);
+	vayu_net_service(&sops);        /* W26 (vayu_wifi_ios=1): iOS's station, until the radio stops */
 }
 
 int

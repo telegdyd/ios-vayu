@@ -51,4 +51,16 @@ void vayu_sta_htt_rx(const uint8_t *p, uint32_t len);
 /* After the scan: join, 3 s RX count, deauth, VDEV_STOP.  0 = assoc status 0 reached. */
 int vayu_sta_run(const struct vayu_scan_ops *ops);
 
+/*
+ * W26 (vayu_wifi_ios=1, vayu_sta_mode 2): the joins iOS asks for, on the radio's thread (the station
+ * service, bsd/dev/vayu_wifi_net.c). join: 0, or ENOENT not heard, ENOTSUP not WPA2-PSK/CCMP or open,
+ * EAUTH key refused, ECONNREFUSED, ETIMEDOUT, EIO. bssid NULL: the best of that name; pmk NULL: pass.
+ */
+int vayu_sta_join_asked(const struct vayu_scan_ops *o, const uint8_t *ssid, uint32_t ssid_len, const uint8_t *bssid,
+    const uint8_t *pmk, const uint8_t *pass, uint32_t pass_len);
+int vayu_sta_leave_asked(const struct vayu_scan_ops *o);
+/* 0 still joined (or not joined), else the network is gone and has been left */
+int vayu_sta_poll_joined(const struct vayu_scan_ops *o);
+bool vayu_sta_joined(void);
+void vayu_sta_joined_bss(uint8_t *bssid, uint8_t *ssid, uint32_t *ssid_len, uint32_t *freq, int32_t *rssi);
 #endif /* _SYS_VAYU_WIFI_STA_H_ */

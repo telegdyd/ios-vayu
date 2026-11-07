@@ -35,5 +35,10 @@ int vayu_net_poll(void);
 /* One received MSDU from the HTT ring (native wifi or Ethernet, as the firmware decaps it). */
 void vayu_net_rx_80211(const uint8_t *frame, uint32_t len, uint32_t decap, uint32_t hdr_len);
 void vayu_net_summary(void);
+/* W26 (vayu_wifi_ios=1): en0 with the link down and the station attached for iOS (after the first scan) */
+void vayu_net_ios_attach(const uint8_t *mac);
+/* W26: the radio's thread serves wifid's scans, joins and leaves here until the radio stops */
+struct vayu_scan_ops;
+void vayu_net_service(const struct vayu_scan_ops *o);
 
 #endif /* _SYS_VAYU_WIFI_NET_H_ */

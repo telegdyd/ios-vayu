@@ -302,7 +302,8 @@ vayu_rsn_reset(int (*log)(const char *format, ...) __printflike(1, 2))
 	}
 	PE_parse_boot_argn("vayu_wifi_pmk_file", &enabled, sizeof(enabled));
 	rsn.pmk_file = enabled != 0;
-	if (!rsn.pmk_file) {
+	enabled = 0;
+	if (!rsn.pmk_file && !PE_parse_boot_argn("vayu_wifi_ios", &enabled, sizeof(enabled))) {
 		rsn.log("vayu-wifi: W25 S0 pmk: ERROR not set (vayu_wifi_pmk_file=1 needed for RSN)\n");
 	}
 }
@@ -373,6 +374,73 @@ bool
 vayu_rsn_keyed(void)
 {
 	return rsn.state == RSN_KEYED;
+}
+
+/*
+ * W26: the key of the network iOS asked for, instead of the file: the PMK itself (wifid's 64 hex
+ * digits) or made of the passphrase and the name, PBKDF2-HMAC-SHA1 with 4096 rounds (IEEE 802.11
+ * M.4.1). Nothing of it is logged. false: no crypto, or not a WPA2 passphrase (8..63 characters).
+ */
+bool
+vayu_rsn_set_key(const uint8_t *pmk, const uint8_t *pass, uint32_t pass_len, const uint8_t *ssid, uint32_t ssid_len)
+{
+	uint8_t salt[32 + 4], u[20], t[20];
+	uint32_t block, round, i;
+	bool ok = true;
+
+	memset(rsn.pmk, 0, sizeof(rsn.pmk));
+	rsn.pmk_set = false;
+	if (pmk != NULL) {
+		memcpy(rsn.pmk, pmk, PMK_LEN);
+		rsn.pmk_set = true;
+		return true;
+	}
+	if (pass == NULL || pass_len < 8 || pass_len > 63 || ssid_len > 32) {
+		return false;
+	}
+	for (block = 1; ok && block <= 2; block++) {    /* 2 x 20 bytes, the first 32 are the PMK */
+		memcpy(salt, ssid, ssid_len);
+		salt[ssid_len] = 0;
+		salt[ssid_len + 1] = 0;
+		salt[ssid_len + 2] = 0;
+		salt[ssid_len + 3] = (uint8_t)block;
+		ok = sha1_hmac(pass, pass_len, salt, ssid_len + 4, u);
+		memcpy(t, u, sizeof(t));
+		for (round = 1; ok && round < 4096; round++) {
+			uint8_t prev[20];
+
+			memcpy(prev, u, sizeof(prev));
+			ok = sha1_hmac(pass, pass_len, prev, sizeof(prev), u);
+			for (i = 0; i < sizeof(t); i++) {
+				t[i] ^= u[i];
+			}
+		}
+		memcpy(rsn.pmk + (block - 1) * 20, t, block == 1 ? 20 : PMK_LEN - 20);
+	}
+	memset(u, 0, sizeof(u));
+	memset(t, 0, sizeof(t));
+	memset(salt, 0, sizeof(salt));
+	if (!ok) {
+		memset(rsn.pmk, 0, sizeof(rsn.pmk));
+		return false;
+	}
+	rsn.pmk_set = true;
+	return true;
+}
+
+void
+vayu_rsn_forget_key(void)
+{
+	memset(rsn.pmk, 0, sizeof(rsn.pmk));
+	rsn.pmk_set = false;
+}
+
+/* W26: message 1/4 came, and was answered, but no 3/4: the access point did not take our MIC -- the
+ * key is wrong (a wrong passphrase) */
+bool
+vayu_rsn_key_refused(void)
+{
+	return rsn.msg1s != 0 && rsn.msg3s == 0;
 }
 
 /* ---- the frames -------------------------------------------------------------------------------- */

@@ -56,6 +56,21 @@ struct vayu_scan_ops {
 	uint32_t tx_ring;               /* W25p: CE4 source ring entries (0: unknown) */
 };
 
+/* W26: one access point as the scans heard it (for iOS's scan results; the elements whole, as received) */
+#define VAYU_SCAN_IE_MAX            768U
+struct vayu_scan_bss {
+	uint8_t bssid[6], ssid[32], ssid_len;
+	uint16_t freq, bintval, capab, ie_len;
+	int16_t rssi;                   /* dBm */
+	uint32_t age_ms;                /* since it was last heard */
+	uint8_t ie[VAYU_SCAN_IE_MAX];
+};
+/* W26: the index-th access point heard so far (any scan, and beacons since): false past the end. */
+bool vayu_scan_heard(uint32_t index, struct vayu_scan_bss *out);
+uint32_t vayu_scan_channels(uint16_t *out, uint32_t most);
+/* W26: another passive scan, on the radio's thread, after vayu_scan_run: the channels asked for that
+ * the rules allow (n 0: all), dwell_ms per channel (0: default). 0 = completed. */
+int vayu_scan_again(const uint16_t *freqs, uint32_t n, uint32_t dwell_ms);
 /* boot-arg vayu_wifi_scan: 0 off (W21h behaviour), 1 = HTT rx ring + passive scan after READY. */
 extern uint32_t vayu_scan_mode;
 

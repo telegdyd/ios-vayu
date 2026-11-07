@@ -49,5 +49,10 @@ void vayu_rsn_eapol_rx(const uint8_t *eapol, uint32_t len);
 int vayu_rsn_poll(void);
 /* The pairwise key is installed (frames may pass). */
 bool vayu_rsn_keyed(void);
+/* W26: the key of the network asked for (iOS): the PMK, or (pmk NULL) made of the passphrase and the name. */
+bool vayu_rsn_set_key(const uint8_t *pmk, const uint8_t *pass, uint32_t pass_len, const uint8_t *ssid, uint32_t ssid_len);
+void vayu_rsn_forget_key(void);
+/* W26: 1/4 answered, no 3/4: the access point refused our key */
+bool vayu_rsn_key_refused(void);
 
 #endif /* _SYS_VAYU_WIFI_RSN_H_ */

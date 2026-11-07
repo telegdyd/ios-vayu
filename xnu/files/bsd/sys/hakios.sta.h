@@ -91,6 +91,8 @@ enum hakios_sta_event {
 	HAKIOS_STA_JOIN_DONE,                  /* status: 0, or the join's errno */
 	HAKIOS_STA_LINK,                       /* status: 1 a network is joined, 0 it has been left when asked,
 	                                         * an errno: it was lost (the access point showed us the door) */
+	HAKIOS_STA_QUALITY,                    /* status: the joined network's signal now (dBm, from state());
+	                                         * said every few seconds while one is joined */
 };
 
 #ifdef KERNEL

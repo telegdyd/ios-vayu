@@ -23,6 +23,9 @@
 #include <stdbool.h>
 #include <mach/mach_types.h>
 #include <kern/clock.h>
+#include <kern/kalloc.h>
+#include <kern/locks.h>
+#include <kern/sched_prim.h>
 #include <libkern/libkern.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -38,6 +41,7 @@
 #include <sys/vayu_wifi_net.h>
 #include <sys/vayu_wifi_rsn.h>
 #include <sys/vayu_wifi_scan.h>
+#include <sys/vayu_wifi_sta.h>
 
 #define ETH_HLEN                14U
 #define ETH_TYPE_IP             0x0800U
@@ -120,7 +124,7 @@ net_send_eth(const uint8_t *frame, uint32_t len)
 	uint8_t f[1600];
 	uint32_t flen;
 
-	if (!net.started || net.tx80211 == NULL || len < ETH_HLEN || len - ETH_HLEN + 32 > sizeof(f)) {
+	if (!net.linked || net.tx80211 == NULL || len < ETH_HLEN || len - ETH_HLEN + 32 > sizeof(f)) {
 		return -1;
 	}
 	/* Ethernet -> native wifi: 24-byte data header, to DS, LLC/SNAP, then the payload */
@@ -508,7 +512,7 @@ vayu_net_rx_80211(const uint8_t *f, uint32_t len, uint32_t decap, uint32_t hdr)
 	const uint8_t *da, *sa, *llc;
 	uint32_t elen;
 
-	if (!net.started || len < 16) {
+	if (!net.linked || len < 16) {
 		net.rx_drop++;
 		return;
 	}
@@ -715,6 +719,374 @@ sta_channels(struct hakios_sta_channel *channels, unsigned most)
 /* version of the station ops: the address is a copy, filled at attach */
 static struct hakios_sta_ops net_sta_ops;
 
+/* ---- W26: the station service (vayu_wifi_ios=1): what iOS's wifid asks for, done on the radio's thread ----
+ *
+ * The radio has no interrupt here: its copy engines are polled by the thread that brought it up
+ * (bsd/dev/vayu_wifi_htc_connect.c), and every WMI command and wait has to be made on that thread.
+ * So wifid's requests, which come on the station thread of bsd/dev/hakios.sta.c, are handed over:
+ * the station thread leaves one request here and sleeps; the radio's thread, between its polls,
+ * takes it, does it (a scan, a join, a leave) and wakes it with the result. The events wifid
+ * gets (scan over, join over, link) are said by bsd/dev/hakios.sta.c, not here; only a network
+ * lost by itself is (hakios_sta_lost).
+ */
+enum { REQ_NONE, REQ_SCAN, REQ_JOIN, REQ_LEAVE };
+
+static LCK_GRP_DECLARE(svc_lck_grp, "vayu-wifi-svc");
+static LCK_MTX_DECLARE(svc_lock, &svc_lck_grp);
+static struct {
+	bool running;                   /* the radio's thread is in vayu_net_service() */
+	int kind;                       /* asked and not answered yet (REQ_NONE: nothing) */
+	bool taken, done;
+	int result;
+	struct hakios_sta_scan scan;
+	struct hakios_sta_join join;
+	uint32_t scans, joins, leaves, lost;
+	int last_error;
+} svc;
+static uint32_t wifi_ios;               /* boot-arg vayu_wifi_ios */
+static struct hakios_net_link wifi_link;
+static struct hakios_sta_bss joined_bss;       /* what state() tells while joined */
+
+static int
+svc_ask(int kind, const struct hakios_sta_scan *scan, const struct hakios_sta_join *join, uint32_t secs)
+{
+	uint64_t deadline;
+	int result;
+
+	lck_mtx_lock(&svc_lock);
+	if (!svc.running) {
+		lck_mtx_unlock(&svc_lock);
+		return ENXIO;
+	}
+	svc.kind = kind;
+	svc.taken = svc.done = false;
+	svc.result = 0;
+	if (scan != NULL) {
+		svc.scan = *scan;
+	}
+	if (join != NULL) {
+		svc.join = *join;
+	}
+	clock_interval_to_deadline(secs, NSEC_PER_SEC, &deadline);
+	while (!svc.done && svc.running) {
+		if (lck_mtx_sleep_deadline(&svc_lock, LCK_SLEEP_DEFAULT, (event_t)&svc.done, THREAD_UNINT, deadline) ==
+		    THREAD_TIMED_OUT) {
+			break;
+		}
+	}
+	result = svc.done ? svc.result : (svc.running ? ETIMEDOUT : ENXIO);
+	svc.kind = REQ_NONE;
+	bzero(&svc.join, sizeof(svc.join));     /* (the key does not stay here) */
+	lck_mtx_unlock(&svc_lock);
+	return result;
+}
+
+static void
+ios_link(bool up)
+{
+	if (up == net.linked) {
+		return;
+	}
+	if (up) {
+		struct vayu_scan_bss *b = kalloc_data(sizeof(*b), Z_WAITOK | Z_ZERO);
+		uint32_t freq = 0, i;
+
+		vayu_sta_joined_bss(net.bssid, net.ssid, &net.ssid_len, &freq, &net.rssi);
+		net.chan = freq < 4000 ? (freq == 2484 ? 14 : (freq - 2407) / 5) : (freq - 5000) / 5;
+		bzero(&joined_bss, sizeof(joined_bss));
+		memcpy(joined_bss.bssid, net.bssid, 6);
+		memcpy(joined_bss.ssid, net.ssid, net.ssid_len);
+		joined_bss.ssid_length = (uint8_t)net.ssid_len;
+		joined_bss.frequency = (uint16_t)freq;
+		joined_bss.rssi = (int16_t)net.rssi;
+		for (i = 0; b != NULL && vayu_scan_heard(i, b); i++) {
+			if (memcmp(b->bssid, net.bssid, 6) == 0) {
+				joined_bss.beacon_interval = b->bintval;
+				joined_bss.capability = b->capab;
+				joined_bss.elements_length = b->ie_len;
+				memcpy(joined_bss.elements, b->ie, b->ie_len);
+				break;
+			}
+		}
+		if (b != NULL) {
+			kfree_data(b, sizeof(*b));
+		}
+		net.linked = true;
+		net.link_ms = now_ms();
+		if (net.dhcp_mode == 2) {
+			net.dhcp_state = DHCP_OFF;
+			net.fallback_armed = true;
+			net.fallback_said = false;
+		}
+		hakios_net_link_state(true);
+		net.log("vayu-wifi: W26 en0: link up (ch %u rssi %d)\n", net.chan, net.rssi);
+	} else {
+		net.linked = false;
+		net.fallback_armed = false;
+		hakios_net_link_state(false);
+		net.log("vayu-wifi: W26 en0: link down\n");
+	}
+}
+
+/* the signal of the joined network now, from its beacons (the scan's list keeps hearing them) */
+static void
+ios_rssi(void)
+{
+	static struct vayu_scan_bss b;
+	uint32_t i;
+
+	for (i = 0; vayu_scan_heard(i, &b); i++) {
+		if (memcmp(b.bssid, net.bssid, 6) == 0) {
+			if (b.age_ms < 10000) {
+				net.rssi = b.rssi;
+			}
+			return;
+		}
+	}
+}
+
+static int
+ios_join(const struct vayu_scan_ops *o, const struct hakios_sta_join *what)
+{
+	bool any = false, psk = what->security == HAKIOS_STA_WPA2_PSK;
+	const uint8_t *pmk = psk && what->passphrase_length == 0 ? what->pmk : NULL;
+	const uint8_t *pass = psk && what->passphrase_length != 0 ? what->passphrase : NULL;
+	int error, i;
+
+	for (i = 0; i < 6; i++) {
+		any |= what->bssid[i] != 0;
+	}
+	ios_link(false);
+	error = vayu_sta_join_asked(o, what->ssid, what->ssid_length, any ? what->bssid : NULL, pmk, pass,
+	    pass != NULL ? what->passphrase_length : 0);
+	if (error == ENOENT) {
+		/* not heard lately: one scan of every channel, then once more */
+		(void)vayu_scan_again(NULL, 0, 0);
+		error = vayu_sta_join_asked(o, what->ssid, what->ssid_length, any ? what->bssid : NULL, pmk, pass,
+		    pass != NULL ? what->passphrase_length : 0);
+	}
+	if (error == 0) {
+		ios_link(true);
+	}
+	return error;
+}
+
+/*
+ * The radio's thread, after the first scan, until the radio stops: wifid's requests, the joined
+ * network watched, the data path's queue and DHCP fallback ticked, the copy engines polled
+ * between. Returns only when the radio has stopped.
+ */
+void
+vayu_net_service(const struct vayu_scan_ops *o)
+{
+	static struct hakios_sta_scan scan;
+	static struct hakios_sta_join join;
+	uint64_t ticks = 0;
+
+	if (o == NULL || wifi_ios == 0) {
+		return;
+	}
+	if (!net.sta_attached) {
+		vayu_net_ios_attach(o->mac);
+	}
+	lck_mtx_lock(&svc_lock);
+	svc.running = true;
+	lck_mtx_unlock(&svc_lock);
+	net.log("vayu-wifi: W26 service: on: wifid asks for scans, joins and leaves (en0 %s)\n",
+	    net.started ? "there" : "NOT there");
+	for (;;) {
+		int kind = REQ_NONE, r = 0;
+
+		lck_mtx_lock(&svc_lock);
+		if (svc.kind != REQ_NONE && !svc.taken) {
+			kind = svc.kind;
+			svc.taken = true;
+			scan = svc.scan;
+			join = svc.join;
+			bzero(&svc.join, sizeof(svc.join));
+		}
+		lck_mtx_unlock(&svc_lock);
+		if (kind == REQ_SCAN) {
+			svc.scans++;
+			r = vayu_scan_again(scan.frequencies, scan.frequency_count, scan.dwell_ms) == 0 ? 0 : EIO;
+		} else if (kind == REQ_JOIN) {
+			svc.joins++;
+			r = ios_join(o, &join);
+			bzero(&join, sizeof(join));
+			svc.last_error = r;
+		} else if (kind == REQ_LEAVE) {
+			svc.leaves++;
+			ios_link(false);
+			r = vayu_sta_leave_asked(o);
+		}
+		if (kind != REQ_NONE) {
+			lck_mtx_lock(&svc_lock);
+			svc.result = r;
+			svc.done = true;
+			lck_mtx_unlock(&svc_lock);
+			thread_wakeup((event_t)&svc.done);
+		}
+		r = vayu_sta_poll_joined(o);
+		if (r != 0) {
+			svc.lost++;
+			svc.last_error = r;
+			ios_link(false);
+			hakios_sta_lost(r);
+		}
+		(void)vayu_net_poll();
+		if (o->wait(NULL, 20) < 0) {
+			break;
+		}
+		ticks++;
+		if (net.linked && ticks % 50 == 0) {
+			ios_rssi();                     /* (each second) */
+		}
+		if (net.linked && ticks % 3000 == 0) {
+			vayu_net_summary();             /* (each minute) */
+		}
+	}
+	lck_mtx_lock(&svc_lock);
+	svc.running = false;
+	if (svc.kind != REQ_NONE && !svc.done) {
+		svc.result = ENXIO;
+		svc.done = true;
+	}
+	lck_mtx_unlock(&svc_lock);
+	thread_wakeup((event_t)&svc.done);
+	ios_link(false);
+	net.log("vayu-wifi: W26 service: ERROR the radio stopped (scans %u, joins %u, leaves %u, lost %u)\n",
+	    svc.scans, svc.joins, svc.leaves, svc.lost);
+}
+
+static int
+ios_power(bool on)
+{
+	if (!on && (net.linked || vayu_sta_joined())) {
+		return svc_ask(REQ_LEAVE, NULL, NULL, 15);
+	}
+	return 0;                       /* (the firmware stays loaded, as jasmine's) */
+}
+
+static int
+ios_scan(const struct hakios_sta_scan *what)
+{
+	if (vayu_sta_joined()) {
+		return 0;               /* joined: what the radio has heard, no scan off the channel */
+	}
+	return svc_ask(REQ_SCAN, what, NULL, 40);
+}
+
+static void
+ios_heard(void (*each)(const struct hakios_sta_bss *bss, void *context), void *context)
+{
+	static struct vayu_scan_bss t;
+	static struct hakios_sta_bss b;
+	uint32_t i;
+
+	for (i = 0; vayu_scan_heard(i, &t); i++) {
+		bool ours = net.linked && memcmp(t.bssid, net.bssid, 6) == 0;
+
+		if ((t.age_ms > 60000 && !ours) || t.ssid_len == 0 || t.ssid[0] == 0 || t.freq == 0) {
+			continue;               /* not heard in the last minute, or a hidden one */
+		}
+		bzero(&b, sizeof(b));
+		memcpy(b.bssid, t.bssid, 6);
+		memcpy(b.ssid, t.ssid, t.ssid_len);
+		b.ssid_length = t.ssid_len;
+		b.frequency = t.freq;
+		b.rssi = t.rssi;
+		b.beacon_interval = t.bintval;
+		b.capability = t.capab;
+		b.age_ms = t.age_ms;
+		b.elements_length = t.ie_len < HAKIOS_STA_ELEMENTS_MOST ? t.ie_len : HAKIOS_STA_ELEMENTS_MOST;
+		memcpy(b.elements, t.ie, b.elements_length);
+		each(&b, context);
+	}
+}
+
+static int
+ios_join_op(const struct hakios_sta_join *what)
+{
+	int error = svc_ask(REQ_JOIN, NULL, what, 60);
+
+	net.log("vayu-wifi: W26 join asked by iOS: %d\n", error);
+	return error;
+}
+
+static int
+ios_leave(void)
+{
+	return svc_ask(REQ_LEAVE, NULL, NULL, 15);
+}
+
+static void
+ios_state(struct hakios_sta_state *state)
+{
+	bzero(state, sizeof(*state));
+	if (net.linked) {
+		state->phase = HAKIOS_STA_JOINED;
+		state->bss = joined_bss;
+		state->bss.rssi = (int16_t)net.rssi;
+	} else if (svc.kind == REQ_JOIN && !svc.done) {
+		state->phase = HAKIOS_STA_JOINING;
+	} else if (svc.kind == REQ_SCAN && !svc.done) {
+		state->phase = HAKIOS_STA_SCANNING;
+	} else {
+		state->phase = HAKIOS_STA_IDLE;
+	}
+	state->last_error = svc.last_error;
+}
+
+static unsigned
+ios_channels(struct hakios_sta_channel *channels, unsigned most)
+{
+	uint16_t f[64];
+	uint32_t n = vayu_scan_channels(f, 64), i;
+
+	for (i = 0; i < n && i < most; i++) {
+		channels[i].frequency = f[i];
+		channels[i].flags = HAKIOS_STA_CHANNEL_PASSIVE |
+		    (f[i] >= 5250 && f[i] <= 5730 ? HAKIOS_STA_CHANNEL_RADAR : 0);
+	}
+	return i;
+}
+
+/* W26: en0 (link down) and the station, once the radio has scanned: wifid finds a Wi-Fi interface */
+void
+vayu_net_ios_attach(const uint8_t *mac)
+{
+	if (net.sta_attached || mac == NULL) {
+		return;
+	}
+	memcpy(net.mac, mac, 6);
+	bzero(&wifi_link, sizeof(wifi_link));
+	wifi_link.name = "vayu-wifi";
+	wifi_link.unit = 0;
+	memcpy(wifi_link.address, net.mac, 6);
+	wifi_link.wireless = true;
+	wifi_link.up = false;
+	wifi_link.transmit = net_transmit;
+	wifi_link.poll = NULL;
+	if (!hakios_net_attach(&wifi_link)) {
+		net.log("vayu-wifi: W26 en0: ERROR not attached\n");
+		return;
+	}
+	net.started = true;
+	bzero(&net_sta_ops, sizeof(net_sta_ops));
+	net_sta_ops.power = ios_power;
+	net_sta_ops.scan = ios_scan;
+	net_sta_ops.heard = ios_heard;
+	net_sta_ops.join = ios_join_op;
+	net_sta_ops.leave = ios_leave;
+	net_sta_ops.state = ios_state;
+	net_sta_ops.channels = ios_channels;
+	memcpy(net_sta_ops.address, net.mac, 6);
+	hakios_sta_attach(&net_sta_ops);        /* (says POWER 1 to wifid itself) */
+	net.sta_attached = true;
+	net.log("vayu-wifi: W26 en0: there (link down), MAC xx:xx:xx:xx:%02x:%02x; the station is iOS's\n",
+	    net.mac[4], net.mac[5]);
+}
+
 /* ---- start / stop ------------------------------------------------------------------------------- */
 
 static uint32_t wifi_a80211;          /* W25q: 0 = attach at S4, no events (the 150920 behaviour: iOS ran DHCP) */
@@ -742,6 +1114,8 @@ vayu_net_reset(int (*log)(const char *format, ...) __printflike(1, 2))
 		net.log("vayu-wifi: keep: %u s (0 = until the run ends)\n", net.keep_secs);
 	}
 	PE_parse_boot_argn("vayu_wifi_a80211", &wifi_a80211, sizeof(wifi_a80211));
+	wifi_ios = 0;
+	PE_parse_boot_argn("vayu_wifi_ios", &wifi_ios, sizeof(wifi_ios));
 }
 
 bool
@@ -774,7 +1148,7 @@ static void sta_attach_now(void);
 void
 vayu_net_sta_attach(const uint8_t *mac)
 {
-	if (wifi_a80211 == 0) {
+	if (wifi_a80211 == 0 || wifi_ios != 0) {
 		if (mac != NULL && net.mac[0] == 0) {
 			memcpy(net.mac, mac, 6);
 		}
@@ -811,7 +1185,6 @@ int
 vayu_net_start(const uint8_t *mac, const uint8_t *bssid, const uint8_t *ssid, uint32_t ssid_len,
     uint32_t chan, int32_t rssi)
 {
-	static struct hakios_net_link wifi_link;
 	int error;
 
 	if (net.started) {

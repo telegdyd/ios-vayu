@@ -13,7 +13,7 @@ connection; prints the phone's answer.
 import socket
 import sys
 
-HOSTS = ('169.254.7.2', '10.11.0.2')
+HOSTS = ('192.168.7.2', '169.254.7.2', '10.11.0.2')   # 192.168.7.2: the USB link outlives Wi-Fi (W26)
 PORT = 5141
 
 

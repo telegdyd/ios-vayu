@@ -3547,11 +3547,50 @@ static int
 vayu_wifi_mac_addr_on(struct qmi_handle *handle, const char *who)
 {
 	/* flame wlfw.c:327: locally administered 02:50:49:58:45:4c; the value is not the point. */
-	static const uint8_t mac[VAYU_WLFW_MAC_ADDR_SIZE_V01] = { 0x02, 0x50, 0x49, 0x58, 0x45, 0x4c };
+	static uint8_t mac[VAYU_WLFW_MAC_ADDR_SIZE_V01] = { 0x02, 0x50, 0x49, 0x58, 0x45, 0x4c };
 	struct vayu_wlfw_mac_addr_req_msg_v01 req;
 	struct vayu_wlfw_mac_addr_resp_msg_v01 resp;
+	bool from_file = false;
 	int ret;
 
+	/*
+	 * W26: this phone's own address, if it is given: wlan_mac.bin beside the firmware
+	 * (/private/var/hakios/fw/wlan_mac.bin), as Android's persist/wlan_mac.bin and jasmine's j0082:
+	 * "Intf0MacAddress=<12 hex digits>". vayu's persist has none (Android's address comes from
+	 * elsewhere), so without the file the fixed locally administered one stays.
+	 */
+	{
+		static const char key[] = "Intf0MacAddress=";
+		uint64_t size = 0;
+		const uint8_t *text = hakios_image_file("fw", "wlan_mac.bin", &size, NULL);
+		uint8_t got[VAYU_WLFW_MAC_ADDR_SIZE_V01];
+		uint64_t i, k;
+
+		for (i = 0; text != NULL && i + sizeof(key) - 1 + 12 <= size; i++) {
+			if (memcmp(text + i, key, sizeof(key) - 1) != 0) {
+				continue;
+			}
+			for (k = 0; k < 12; k++) {
+				uint8_t c = text[i + sizeof(key) - 1 + k];
+				uint8_t v = c >= '0' && c <= '9' ? c - '0' : (c | 0x20) >= 'a' && (c | 0x20) <= 'f' ?
+				    (c | 0x20) - 'a' + 10 : 0xff;
+
+				if (v == 0xff) {
+					break;
+				}
+				got[k / 2] = (uint8_t)(k % 2 == 0 ? v << 4 : got[k / 2] | v);
+			}
+			if (k == 12 && (got[0] & 1) == 0) {     /* (not a group address) */
+				memcpy(mac, got, sizeof(mac));
+				from_file = true;
+			}
+			break;
+		}
+		if (text != NULL && !from_file) {
+			say("vayu-wifi: %s: fw/wlan_mac.bin (%llu bytes) has no usable address; the fixed one stays\n", who,
+			    (unsigned long long)size);
+		}
+	}
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 	req.mac_addr_valid = 1;
@@ -3562,9 +3601,14 @@ vayu_wifi_mac_addr_on(struct qmi_handle *handle, const char *who)
 	if (ret < 0) {
 		return ret;
 	}
-	say("vayu-wifi: %s: mac_addr %02x:%02x:%02x:%02x:%02x:%02x: result %u error %u\n", who,
-	    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-	    (unsigned int)resp.resp.result, (unsigned int)resp.resp.error);
+	if (from_file) {
+		say("vayu-wifi: %s: mac_addr %02x:%02x:%02x:**:**:** (fw/wlan_mac.bin): result %u error %u\n", who,
+		    mac[0], mac[1], mac[2], (unsigned int)resp.resp.result, (unsigned int)resp.resp.error);
+	} else {
+		say("vayu-wifi: %s: mac_addr %02x:%02x:%02x:%02x:%02x:%02x: result %u error %u\n", who,
+		    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+		    (unsigned int)resp.resp.result, (unsigned int)resp.resp.error);
+	}
 	return resp.resp.result == QMI_RESULT_SUCCESS_V01 ? 0 : -1;
 }
 

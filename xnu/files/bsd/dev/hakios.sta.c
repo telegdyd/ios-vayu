@@ -16,7 +16,11 @@
  * again whenever the radio is turned back on (Settings' switch), until somebody asks for
  * another network -- as iOS itself rejoins the networks it knows. If that other network cannot
  * be joined (a wrong passphrase), the standing one is joined again.
+ *
+ * While a network is joined and nothing is asked for, the thread says every few seconds how
+ * strongly it is heard: iOS's status bar draws its bars from that, not from the join.
  */
+#include <kern/clock.h>
 #include <kern/kalloc.h>
 #include <kern/locks.h>
 #include <kern/sched_prim.h>
@@ -32,6 +36,7 @@ extern void thread_set_thread_name(thread_t thread, const char *name);
 
 #define HEARD_MOST      128
 #define CHANNELS_MOST   96
+#define QUALITY_SECONDS 5                       /* (iOS's own drivers say it about as often) */
 
 static LCK_GRP_DECLARE(sta_lock_group, "hakios-sta");
 static LCK_MTX_DECLARE(sta_lock, &sta_lock_group);
@@ -73,16 +78,26 @@ sta_runs(__unused void *parameter, __unused wait_result_t result)
 
 	for (;;) {
 		const struct hakios_sta_ops *ops;
-		bool power = false, power_on = false, leave = false, do_join = false, do_scan = false;
+		bool power = false, power_on = false, leave = false, do_join = false, do_scan = false, quality = false;
 		int error = 0;
 
 		lck_mtx_lock(&sta_lock);
 		while (sta_ops == NULL || !(asked_power || asked_leave || asked_join || asked_scan)) {
-			lck_mtx_sleep(&sta_lock, LCK_SLEEP_DEFAULT, (event_t)&sta_ops, THREAD_UNINT);
+			uint64_t deadline;
+
+			/* nothing asked for in QUALITY_SECONDS: time to say how the joined network is heard */
+			clock_interval_to_deadline(QUALITY_SECONDS, NSEC_PER_SEC, &deadline);
+			if (lck_mtx_sleep_deadline(&sta_lock, LCK_SLEEP_DEFAULT, (event_t)&sta_ops, THREAD_UNINT, deadline) ==
+			    THREAD_TIMED_OUT && sta_ops != NULL && sta_on) {
+				quality = true;
+				break;
+			}
 		}
 		ops = sta_ops;
 		/* one thing at a time, in the order that makes sense when several wait */
-		if (asked_power) {
+		if (quality) {
+			/* (nothing asked for is taken) */
+		} else if (asked_power) {
 			power = true;
 			power_on = asked_power_on;
 			asked_power = false;
@@ -102,7 +117,17 @@ sta_runs(__unused void *parameter, __unused wait_result_t result)
 		sta_calls = true;
 		lck_mtx_unlock(&sta_lock);
 
-		if (power) {
+		if (quality) {
+			struct hakios_sta_state *state = kalloc_data(sizeof(*state), Z_WAITOK | Z_ZERO);
+
+			if (state != NULL) {
+				ops->state(state);
+				if (state->phase == HAKIOS_STA_JOINED && state->bss.rssi != 0) {
+					hakios_apple80211_event(HAKIOS_STA_QUALITY, state->bss.rssi);
+				}
+				kfree_data(state, sizeof(*state));
+			}
+		} else if (power) {
 			struct hakios_sta_state *state = kalloc_data(sizeof(*state), Z_WAITOK | Z_ZERO);
 			bool was_joined = false;
 

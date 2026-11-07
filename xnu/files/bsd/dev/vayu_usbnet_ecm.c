@@ -57,6 +57,8 @@ extern vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
 extern void HakiosEthernetStart(const char *interface, const uint8_t *address);   /* iokit/Kernel/hakios.wlan.cpp */
 extern int rtrequest(int req, struct sockaddr *dst, struct sockaddr *gateway, struct sockaddr *netmask, int flags,
     struct rtentry **ret_nrt);                                                      /* bsd/net/route.c */
+extern int rtrequest_scoped(int req, struct sockaddr *dst, struct sockaddr *gateway, struct sockaddr *netmask,
+    int flags, struct rtentry **ret_nrt, unsigned int ifscope);                    /* bsd/net/route.c */
 
 static int tee_printf(const char *format, ...) __printflike(1, 2);
 
@@ -1287,6 +1289,229 @@ struct in_aliasreq {
 	struct sockaddr_in ifra_mask;
 };
 
+/*
+ * W26, from ios-jasmine (j0087, j0088, j0089): the USB link while Wi-Fi is up. In XNU IPv4 link-local
+ * belongs to one interface: configd gives the unscoped 169.254/16 route to the primary one, and
+ * arp_lookup_route() never scopes a 169.254 lookup. Once en0 has an address from the Wi-Fi network it is
+ * primary, the PC's 169.254 address resolves there, and the log, command and sweetd ports go silent
+ * (run wifi9: the phone looked frozen). So en2 also has 192.168.7.2/24, a subnet that is its alone; a
+ * DHCP server here gives the PC 192.168.7.1/24 (no router, no DNS); en2 gets scoped routes of its own
+ * (XNU makes none for an interface address), and the kernel's listeners are bound to en2 (IP_BOUND_IF:
+ * also off the Wi-Fi network). 169.254.7.2 stays for a PC that has not asked yet.
+ */
+static uint32_t usbnet_ip2 = 0xc0a80702;        /* boot-arg usbnet_ip2; 192.168.7.2 */
+
+static void
+usbnet_scoped_route(uint32_t net, uint32_t mask, uint32_t addr)
+{
+	struct sockaddr_in dst = { .sin_len = sizeof(dst), .sin_family = AF_INET };
+	struct sockaddr_in msk = dst, gw = dst;
+	bool host = mask == 0xffffffffu;
+	int error;
+
+	if (usbnet_ifp == NULL) {
+		return;
+	}
+	dst.sin_addr.s_addr = htonl(net);
+	msk.sin_addr.s_addr = htonl(mask);
+	gw.sin_addr.s_addr = htonl(addr);       /* en2's own address: an interface route, as rtinit's */
+	error = rtrequest_scoped(RTM_ADD, (struct sockaddr *)&dst, (struct sockaddr *)&gw,
+	    host ? NULL : (struct sockaddr *)&msk, RTF_UP | RTF_STATIC | (host ? RTF_HOST : RTF_CLONING), NULL,
+	    ifnet_index(usbnet_ifp));
+	printf("vayu-usbnet: en2 scoped route %u.%u.%u.%u/%u: %d\n", net >> 24, (net >> 16) & 255, (net >> 8) & 255,
+	    net & 255, (unsigned)__builtin_popcount(mask), error);
+}
+
+/* a listening socket bound to en2 before sock_bind(): false while there is no en2 */
+static bool
+usbnet_bind_listener(socket_t ls)
+{
+	int index = usbnet_ifp != NULL ? (int)ifnet_index(usbnet_ifp) : 0;
+
+	return index != 0 && sock_setsockopt(ls, IPPROTO_IP, IP_BOUND_IF, &index, sizeof(index)) == 0;
+}
+
+static uint8_t *
+dhcp_put32(uint8_t *p, uint32_t v)
+{
+	p[0] = (uint8_t)(v >> 24);
+	p[1] = (uint8_t)(v >> 16);
+	p[2] = (uint8_t)(v >> 8);
+	p[3] = (uint8_t)v;
+	return p + 4;
+}
+
+extern void IOSleep(unsigned int milliseconds);
+
+/*
+ * The DHCP server's answer as a whole frame, straight to the driver: Ethernet broadcast, IPv4
+ * usbnet_ip2 -> 255.255.255.255, UDP 67 -> 68 (no UDP checksum: allowed over IPv4). Through the
+ * socket it never went out: sock_send ENETUNREACH (runs usb10, usb11), with the scoped
+ * 255.255.255.255 route there and whichever address came first.
+ */
+static int
+usbnet_dhcp_frame(const uint8_t *payload, size_t length)
+{
+	static uint8_t f[ETHER_HDR_LEN + 20 + 8 + 300];
+	uint8_t *ip = f + ETHER_HDR_LEN, *udp = ip + 20;
+	uint32_t sum = 0, total = (uint32_t)(20 + 8 + length);
+	mbuf_t packet = NULL;
+	size_t n = ETHER_HDR_LEN + total, i;
+
+	if (usbnet_ifp == NULL || length > 300) {
+		return EINVAL;
+	}
+	memset(f, 0xff, 6);
+	memcpy(f + 6, usbnet_address, 6);
+	f[12] = 0x08;
+	f[13] = 0x00;
+	bzero(ip, 20);
+	ip[0] = 0x45;
+	ip[2] = (uint8_t)(total >> 8);
+	ip[3] = (uint8_t)total;
+	ip[8] = 64;
+	ip[9] = 17;
+	(void)dhcp_put32(ip + 12, usbnet_ip2);
+	(void)dhcp_put32(ip + 16, 0xffffffffu);
+	for (i = 0; i < 20; i += 2) {
+		sum += (uint32_t)ip[i] << 8 | ip[i + 1];
+	}
+	while (sum >> 16) {
+		sum = (sum & 0xffff) + (sum >> 16);
+	}
+	sum = ~sum & 0xffff;
+	ip[10] = (uint8_t)(sum >> 8);
+	ip[11] = (uint8_t)sum;
+	udp[0] = 0;
+	udp[1] = 67;
+	udp[2] = 0;
+	udp[3] = 68;
+	udp[4] = (uint8_t)((8 + length) >> 8);
+	udp[5] = (uint8_t)(8 + length);
+	udp[6] = udp[7] = 0;
+	memcpy(udp + 8, payload, length);
+	if (mbuf_gethdr(MBUF_WAITOK, MBUF_TYPE_DATA, &packet) != 0) {
+		return ENOBUFS;
+	}
+	if (mbuf_mclget(MBUF_WAITOK, MBUF_TYPE_DATA, &packet) != 0 || (mbuf_flags(packet) & MBUF_EXT) == 0 ||
+	    mbuf_maxlen(packet) < n) {
+		mbuf_freem(packet);
+		return ENOBUFS;
+	}
+	memcpy(mbuf_data(packet), f, n);
+	mbuf_setlen(packet, n);
+	mbuf_pkthdr_setlen(packet, n);
+	return usbnet_output(usbnet_ifp, packet);       /* (it frees the packet) */
+}
+
+/* jasmine j0088: the PC gets usbnet_ip2's .1, /24, no router, no DNS */
+static void
+usbnet_dhcp_thread(void *arg __unused, wait_result_t wr __unused)
+{
+	static uint8_t q[576], r[300];
+	struct sockaddr_in me = { .sin_len = sizeof(me), .sin_family = AF_INET, .sin_port = htons(67) };
+	uint32_t pc = (usbnet_ip2 & 0xffffff00) | 1;
+	socket_t so = NULL;
+	unsigned answers = 0;
+
+	while (so == NULL) {
+		int on = 1;
+
+		IOSleep(500);
+		if (sock_socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP, NULL, NULL, &so) != 0) {
+			so = NULL;
+			continue;
+		}
+		(void)sock_setsockopt(so, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+		(void)sock_setsockopt(so, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
+		if (!usbnet_bind_listener(so) || sock_bind(so, (struct sockaddr *)&me) != 0) {
+			sock_close(so);
+			so = NULL;
+		}
+	}
+	printf("vayu-usbnet: dhcp server on en2 (the PC gets %u.%u.%u.%u/24)\n", pc >> 24, (pc >> 16) & 255,
+	    (pc >> 8) & 255, pc & 255);
+	for (;;) {
+		struct iovec iov = { .iov_base = q, .iov_len = sizeof(q) };
+		struct msghdr msg = { .msg_iov = &iov, .msg_iovlen = 1 };
+		struct sockaddr_in to = me;
+		struct iovec oiov = { .iov_base = r, .iov_len = sizeof(r) };
+		struct msghdr om = { .msg_name = &to, .msg_namelen = sizeof(to), .msg_iov = &oiov, .msg_iovlen = 1 };
+		uint32_t want = 0, ci;
+		uint8_t type = 0, reply, *p;
+		size_t n = 0, sent = 0, o;
+		int e;
+
+		if (sock_receive(so, &msg, 0, &n) != 0) {
+			IOSleep(100);
+			continue;
+		}
+		/* BOOTREQUEST, Ethernet, the magic cookie */
+		if (n < 240 || q[0] != 1 || q[1] != 1 || q[2] != 6 ||
+		    q[236] != 99 || q[237] != 130 || q[238] != 83 || q[239] != 99) {
+			continue;
+		}
+		ci = (uint32_t)q[12] << 24 | (uint32_t)q[13] << 16 | (uint32_t)q[14] << 8 | q[15];
+		for (o = 240; o < n && q[o] != 255;) {
+			if (q[o] == 0) {
+				o++;
+				continue;
+			}
+			if (o + 2 > n || o + 2 + q[o + 1] > n) {
+				break;
+			}
+			if (q[o] == 53 && q[o + 1] >= 1) {
+				type = q[o + 2];
+			} else if (q[o] == 50 && q[o + 1] == 4) {
+				want = (uint32_t)q[o + 2] << 24 | (uint32_t)q[o + 3] << 16 | (uint32_t)q[o + 4] << 8 | q[o + 5];
+			}
+			o += 2 + (size_t)q[o + 1];
+		}
+		if (type == 1) {
+			reply = 2;                      /* DISCOVER: OFFER */
+		} else if (type == 3) {
+			reply = (want != 0 ? want : ci) == pc ? 5 : 6;  /* REQUEST: ACK, or NAK for another address */
+		} else {
+			continue;
+		}
+		bzero(r, sizeof(r));
+		r[0] = 2;
+		r[1] = 1;
+		r[2] = 6;
+		memcpy(r + 4, q + 4, 4);                /* xid */
+		memcpy(r + 10, q + 10, 2);              /* flags */
+		if (reply != 6) {
+			(void)dhcp_put32(r + 16, pc);   /* yiaddr */
+		}
+		memcpy(r + 24, q + 24, 4 + 16);         /* giaddr, chaddr */
+		memcpy(r + 236, q + 236, 4);            /* the magic cookie */
+		p = r + 240;
+		*p++ = 53;
+		*p++ = 1;
+		*p++ = reply;
+		*p++ = 54;
+		*p++ = 4;
+		p = dhcp_put32(p, usbnet_ip2);          /* server identifier */
+		if (reply != 6) {
+			*p++ = 51;
+			*p++ = 4;
+			p = dhcp_put32(p, 7 * 86400);   /* lease */
+			*p++ = 1;
+			*p++ = 4;
+			p = dhcp_put32(p, 0xffffff00u); /* subnet mask; no router, no DNS */
+		}
+		*p = 255;
+		(void)to;
+		(void)om;
+		(void)sent;
+		e = usbnet_dhcp_frame(r, sizeof(r));
+		if (answers++ < 8) {
+			printf("vayu-usbnet: dhcp %s: %s (send %d)\n", type == 1 ? "discover" : "request",
+			    reply == 2 ? "offer" : reply == 5 ? "ack" : "nak", e);
+		}
+	}
+}
+
 static void
 usbnet_ipv4(void)
 {
@@ -1314,23 +1539,38 @@ usbnet_ipv4(void)
 	error = sock_ioctl(so, SIOCPROTOATTACH, &ifr);
 	printf("vayu-usbnet: SIOCPROTOATTACH en2: %d%s\n", error, error == EEXIST ? " (already attached)" : "");
 
-	bzero(&ifra, sizeof(ifra));
-	strlcpy(ifra.ifra_name, "en2", sizeof(ifra.ifra_name));
-	sin = &ifra.ifra_addr;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl(ip);
-	sin = &ifra.ifra_mask;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl(mask);
-	sin = &ifra.ifra_broadaddr;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl((ip & mask) | ~mask);
-	error = sock_ioctl(so, SIOCAIFADDR, &ifra);
-	printf("vayu-usbnet: SIOCAIFADDR en2 %u.%u.%u.%u/%u: %d\n", (ip >> 24) & 0xff, (ip >> 16) & 0xff,
-	    (ip >> 8) & 0xff, ip & 0xff, link_local ? 16 : 24, error);
+	for (int k = 0; k < 2; k++) {
+		/*
+		 * W26: and 192.168.7.2/24 beside a link-local address (usbnet_ip2, 0: none; jasmine j0088),
+		 * and first: a send to 255.255.255.255 is turned into the broadcast address of the first IPv4
+		 * address there is (in_pcbladdr), and 169.254.255.255 is never looked up scoped (the DHCP
+		 * server's offers: ENETUNREACH, run usb10). jasmine's ue0 had 192.168.7.2 first.
+		 */
+		bool second = link_local && usbnet_ip2 != 0;
+		uint32_t a = second ? (k == 0 ? usbnet_ip2 : ip) : (k == 0 ? ip : 0);
+		uint32_t m = second && k == 0 ? 0xffffff00 : mask;
+
+		if (a == 0) {
+			continue;
+		}
+		bzero(&ifra, sizeof(ifra));
+		strlcpy(ifra.ifra_name, "en2", sizeof(ifra.ifra_name));
+		sin = &ifra.ifra_addr;
+		sin->sin_len = sizeof(*sin);
+		sin->sin_family = AF_INET;
+		sin->sin_addr.s_addr = htonl(a);
+		sin = &ifra.ifra_mask;
+		sin->sin_len = sizeof(*sin);
+		sin->sin_family = AF_INET;
+		sin->sin_addr.s_addr = htonl(m);
+		sin = &ifra.ifra_broadaddr;
+		sin->sin_len = sizeof(*sin);
+		sin->sin_family = AF_INET;
+		sin->sin_addr.s_addr = htonl((a & m) | ~m);
+		error = sock_ioctl(so, SIOCAIFADDR, &ifra);
+		printf("vayu-usbnet: SIOCAIFADDR en2 %u.%u.%u.%u/%u: %d\n", (a >> 24) & 0xff, (a >> 16) & 0xff,
+		    (a >> 8) & 0xff, a & 0xff, m == 0xffff0000 ? 16 : 24, error);
+	}
 
 	bzero(&ifr, sizeof(ifr));
 	strlcpy(ifr.ifr_name, "en2", sizeof(ifr.ifr_name));
@@ -1341,6 +1581,14 @@ usbnet_ipv4(void)
 	}
 	printf("vayu-usbnet: en2 up: %d\n", error);
 	sock_close(so);
+	if (link_local) {
+		/* W26 (jasmine j0087/j0089): en2's own scoped routes, so the USB link outlives Wi-Fi */
+		usbnet_scoped_route(0xa9fe0000, 0xffff0000, ip);
+		if (usbnet_ip2 != 0) {
+			usbnet_scoped_route(usbnet_ip2 & 0xffffff00, 0xffffff00, usbnet_ip2);
+			usbnet_scoped_route(0xffffffffu, 0xffffffffu, usbnet_ip2);
+		}
+	}
 
 	/* the default route through the host (10.11.0.1: the same /24, host part 1); none on link-local */
 	if (!link_local) {
@@ -1472,7 +1720,7 @@ port_listen(uint16_t port)
 	for (;;) {
 		if (sock_socket(PF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, NULL, &ls) == 0) {
 			(void)sock_setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-			if (sock_bind(ls, (struct sockaddr *)&me) == 0 && sock_listen(ls, 2) == 0) {
+			if (usbnet_bind_listener(ls) && sock_bind(ls, (struct sockaddr *)&me) == 0 && sock_listen(ls, 2) == 0) {
 				return ls;
 			}
 			sock_close(ls);
@@ -1652,7 +1900,14 @@ vayu_usbnet_ecm_init(void)
 	 */
 	PE_parse_boot_argn("usbnet_static", &manual, sizeof(manual));
 	if (manual != 0) {
+		thread_t dhcp;
+
+		PE_parse_boot_argn("usbnet_ip2", &usbnet_ip2, sizeof(usbnet_ip2));
 		usbnet_ipv4();
+		if (usbnet_ip2 != 0 && (vayu_usbnet_ip() >> 16) == 0xa9fe &&
+		    kernel_thread_start(usbnet_dhcp_thread, NULL, &dhcp) == KERN_SUCCESS) {
+			thread_deallocate(dhcp);
+		}
 	} else {
 		HakiosEthernetStart("en2", usbnet_address);
 		printf("vayu-usbnet: en2 left to configd (DHCP); usbnet_static=1 would set it here\n");

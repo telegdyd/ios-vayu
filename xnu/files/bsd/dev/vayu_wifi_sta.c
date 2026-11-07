@@ -42,6 +42,8 @@
 #include <vm/memory_types.h>
 #include <vm/vm_kern.h>
 #include <pexpert/pexpert.h>
+#include <libkern/libkern.h>
+#include <sys/errno.h>
 #include <sys/vayu_wifi_htc_connect.h>
 #include <sys/vayu_wifi_net.h>
 #include <sys/vayu_wifi_rsn.h>
@@ -116,8 +118,14 @@ extern uint32_t vayu_net_keep_secs(void);
 #define TARGET_CHAN             64U
 #define TARGET_B4               0xd3U
 #define TARGET_B5               0xa0U
-static const char target_ssid[] = "Gunwest";
-#define TARGET_SSID_LEN         7U
+static const char w23_ssid[] = "Gunwest";
+/* W26: the network being joined: the one iOS asked for (vayu_wifi_ios=1), or W23's fixed one */
+static char target_ssid[33] = "Gunwest";
+static uint32_t target_ssid_len = 7;
+#define TARGET_SSID_LEN         target_ssid_len
+#define PEER_DELETE_WAIT_MS     1000U   /* W26: PEER_DELETE_RESP / HTT PEER_UNMAP (jasmine j0090) */
+#define EV_PEER_DELETE_RESP     0x6007U
+#define HTT_T2H_PEER_UNMAP      0x04U
 
 enum { ST_IDLE, ST_START, ST_AUTH, ST_ASSOC, ST_WINDOW, ST_DONE };
 
@@ -146,6 +154,9 @@ static struct {
 	uint32_t w_mgmt, w_beacons, w_other, w_htt_msgs, w_htt_msdus, w_kickout;
 	uint8_t rsn_ie[22];
 	bool rsn;
+	/* W26: the join iOS asked for, and what of it is set up (for the leave, in jasmine's order) */
+	bool ios, joined, j_started, j_peered, j_authed, j_associated, j_up, peer_deleted, peer_unmapped;
+	uint32_t joins, leaves;
 } st;
 
 static uint32_t
@@ -241,10 +252,23 @@ vayu_sta_reset(int (*log)(const char *format, ...))
 	zero(&st, (uint32_t)sizeof(st));
 	tlog = log;
 	vayu_sta_mode = 0;
+	PE_parse_boot_argn("vayu_wifi_ios", &mode, sizeof(mode));
+	if (mode != 0 && tlog != NULL && vayu_scan_mode != 0) {
+		/* W26: no network of our own; iOS asks (bsd/dev/vayu_wifi_net.c: the station service) */
+		vayu_sta_mode = 2;
+		st.ios = true;
+		target_ssid_len = 0;
+		vayu_rsn_reset(log);
+		vayu_net_reset(log);
+		tlog("vayu-wifi: W26: vayu_wifi_ios=%u: no network of our own, iOS's wifid asks for scans and joins\n", mode);
+		return;
+	}
+	mode = 0;
 	PE_parse_boot_argn("vayu_wifi_join", &mode, sizeof(mode));
 	if (mode == 0 || tlog == NULL) {
 		return;
 	}
+	(void)w23_ssid;
 	vayu_sta_mode = (mode == 1 && vayu_scan_mode != 0) ? 1 : 0;
 	vayu_rsn_reset(log);
 	vayu_net_reset(log);
@@ -263,7 +287,7 @@ capture(const uint8_t *f, uint32_t flen, uint32_t chan, int32_t rssi)
 	const uint8_t *s, *ht;
 	uint32_t i, n;
 
-	if (flen < 36) {
+	if (flen < 36 || st.ios) {
 		return;
 	}
 	s = find_ie(f + 36, flen - 36, 0);
@@ -450,6 +474,9 @@ vayu_sta_wmi_rx(uint32_t id, const uint8_t *p, uint32_t len)
 		}
 		break;
 	}
+	case EV_PEER_DELETE_RESP:
+		st.peer_deleted = true;
+		break;
 	case EV_PEER_STA_KICKOUT:
 		st.w_kickout++;
 		tlog("vayu-wifi: w23: PEER_STA_KICKOUT (state %u)\n", st.state);
@@ -462,6 +489,9 @@ vayu_sta_wmi_rx(uint32_t id, const uint8_t *p, uint32_t len)
 void
 vayu_sta_htt_rx(const uint8_t *p, uint32_t len)
 {
+	if (vayu_sta_mode != 0 && len != 0 && p[0] == HTT_T2H_PEER_UNMAP) {
+		st.peer_unmapped = true;
+	}
 	if (vayu_sta_mode == 0 || st.state != ST_WINDOW || len == 0) {
 		return;
 	}
@@ -489,6 +519,9 @@ mgmt_pool(const struct vayu_scan_ops *o)
 	kern_return_t kr;
 	uint64_t pa;
 
+	if (st.mgmt_va != 0) {
+		return true;                    /* W26: one page for every join */
+	}
 	kr = kmem_alloc_contig(kernel_map, &kva, PAGE_SIZE, PAGE_MASK,
 	    (ppnum_t)((MGMT_POOL_LIMIT >> PAGE_SHIFT) - 1), 0,
 	    KMA_KOBJECT | KMA_ZERO | KMA_DATA, VM_KERN_MEMORY_IOKIT);
@@ -825,7 +858,7 @@ vdev_start(const struct vayu_scan_ops *o)
 	c = put32(c, join_freq());
 	c = put32(c, join_freq());
 	c = put32(c, 0);
-	c = put32(c, 0);                /* MODE_11A */
+	c = put32(c, join_freq() < 4000U ? 1U : 0U);    /* W26: MODE_11G on 2.4 GHz, MODE_11A on 5 */
 	c = put32(c, (40U << 8) | (40U << 16));
 	c = put32(c, 40U << 8);
 	p = put_tlv(c, TAG_ARRAY_STRUCT, 0);
@@ -934,8 +967,8 @@ vayu_sta_run(const struct vayu_scan_ops *o)
 	bool started = false, peered = false, authed = false, associated = false, up = false;
 	int w = 0, rc = -1;
 
-	if (o == NULL || vayu_sta_mode == 0) {
-		return -1;
+	if (o == NULL || vayu_sta_mode != 1) {
+		return -1;                      /* (W26, mode 2: iOS asks, bsd/dev/vayu_wifi_net.c) */
 	}
 	st.mac = o->mac;
 	vayu_net_set_tx(vayu_scan_tx_frame, o->log);
@@ -1131,4 +1164,271 @@ stopped:
 	st.state = ST_DONE;
 	o->log("vayu-wifi: W25 join: ERROR stopped (CE stage abort)\n");
 	return -1;
+}
+
+/* ------------------------------------------------------------ W26: joins iOS asks for */
+
+static bool
+peer_gone(void)
+{
+	return st.peer_deleted || st.peer_unmapped;
+}
+
+/* the leave in jasmine's order (j0090/j0092, ieee80211_set_disassoc's): DEAUTH and the frames out,
+ * PEER_DELETE until PEER_DELETE_RESP or the HTT unmap, only then VDEV_DOWN, then VDEV_STOP until
+ * VDEV_STOPPED. (VDEV_DOWN before PEER_DELETE made jasmine's firmware assert.) */
+static void
+leave_steps(const struct vayu_scan_ops *o, const char *why)
+{
+	uint32_t t;
+
+	st.state = ST_DONE;
+	vayu_rsn_stop();
+	if ((st.j_authed || st.j_associated) && !st.ap_left) {
+		(void)send_deauth(o);
+		(void)o->wait(NULL, 100);       /* (the DEAUTH out before the peer goes) */
+	}
+	if (st.j_peered) {
+		st.peer_deleted = st.peer_unmapped = false;
+		(void)peer(o, false);
+		for (t = 0; t < PEER_DELETE_WAIT_MS && !peer_gone(); t += 50) {
+			if (o->wait(peer_gone, 50) < 0) {
+				break;
+			}
+		}
+	}
+	if (st.j_up) {
+		(void)vdev_simple(o, CMD_VDEV_DOWN, TAG_VDEV_DOWN);
+		(void)o->wait(NULL, 20);
+	}
+	if (st.j_started) {
+		st.stopped = false;
+		(void)vdev_simple(o, CMD_VDEV_STOP, TAG_VDEV_STOP);
+		(void)o->wait(stop_done, 1000);
+	}
+	o->log("vayu-wifi: W26 leave (%s): %s%s%s%s\n", why,
+	    st.j_peered ? (peer_gone() ? "peer deleted, " : "peer delete NOT confirmed, ") : "",
+	    st.j_up ? "vdev down, " : "", st.j_started ? (st.stopped ? "vdev stopped" : "vdev stop NOT confirmed") : "",
+	    st.ap_left ? " (the AP had left)" : "");
+	st.j_started = st.j_peered = st.j_authed = st.j_associated = st.j_up = false;
+	st.joined = false;
+	st.have = false;
+	st.state = ST_IDLE;
+}
+
+bool
+vayu_sta_joined(void)
+{
+	return st.joined;
+}
+
+/* what was joined: bssid (6), ssid (32), frequency, the signal at the join */
+void
+vayu_sta_joined_bss(uint8_t *bssid, uint8_t *ssid, uint32_t *ssid_len, uint32_t *freq, int32_t *rssi)
+{
+	memcpy(bssid, st.bssid, 6);
+	memcpy(ssid, target_ssid, target_ssid_len);
+	*ssid_len = target_ssid_len;
+	*freq = join_freq();
+	*rssi = st.rssi;
+}
+
+/*
+ * One join, on the radio's thread: the access point of that name the scans heard best (or that
+ * BSSID), open or WPA2-PSK/CCMP, until the keys are in. 0, or why not: ENOENT not heard, ENOTSUP its
+ * protection is not ours (WPA3-only, enterprise, TKIP-only), EAUTH the key refused (a wrong
+ * passphrase), ECONNREFUSED the AP said no, ETIMEDOUT it did not answer, EIO a command not sent.
+ */
+int
+vayu_sta_join_asked(const struct vayu_scan_ops *o, const uint8_t *ssid, uint32_t ssid_len, const uint8_t *bssid,
+    const uint8_t *pmk, const uint8_t *pass, uint32_t pass_len)
+{
+	static struct vayu_scan_bss b;
+	static uint8_t assoc[256];
+	uint32_t i, best = 0, alen, tries, waited, chan;
+	int32_t best_rssi = -1000;
+	bool found = false;
+	int w, error = EIO;
+
+	if (o == NULL || !st.ios || ssid_len == 0 || ssid_len > 32) {
+		return EINVAL;
+	}
+	if (st.joined || st.j_started) {
+		leave_steps(o, "another network asked for");
+	}
+	st.joins++;
+	for (i = 0; vayu_scan_heard(i, &b); i++) {
+		if (b.ssid_len != ssid_len || memcmp(b.ssid, ssid, ssid_len) != 0 || b.age_ms > 120000 || b.freq == 0) {
+			continue;
+		}
+		if (bssid != NULL && !same6(bssid, b.bssid)) {
+			continue;
+		}
+		if (!found || b.rssi > best_rssi) {
+			found = true;
+			best = i;
+			best_rssi = b.rssi;
+		}
+	}
+	if (!found || !vayu_scan_heard(best, &b)) {
+		o->log("vayu-wifi: W26 join #%u: ERROR the network asked for was not heard\n", st.joins);
+		return ENOENT;
+	}
+	/* the target, as W23's capture() would have kept it */
+	memcpy(target_ssid, ssid, ssid_len);
+	target_ssid[ssid_len] = 0;
+	target_ssid_len = ssid_len;
+	memcpy(st.bssid, b.bssid, 6);
+	chan = b.freq < 4000 ? (b.freq == 2484 ? 14U : (b.freq - 2407U) / 5U) : (b.freq - 5000U) / 5U;
+	st.chan = chan;
+	st.rssi = b.rssi;
+	st.bintval = b.bintval;
+	st.capab = b.capab;
+	st.ie_len = b.ie_len < IE_MAX ? b.ie_len : IE_MAX;
+	memcpy(st.ie, b.ie, st.ie_len);
+	st.have = true;
+	st.mac = o->mac;
+	st.start_resp = st.stopped = st.auth_reply = st.assoc_reply = st.ap_left = false;
+	st.start_status = 0;
+	st.auth_status = st.assoc_status = st.aid = st.assoc_cap = st.ap_reason = st.ap_fc = 0;
+	st.w_kickout = 0;
+	o->log("vayu-wifi: W26 join #%u: bssid xx:xx:xx:xx:%02x:%02x ch %u rssi %d bcn %u cap %#x ies %u, %s\n",
+	    st.joins, st.bssid[4], st.bssid[5], st.chan, st.rssi, st.bintval, st.capab, st.ie_len,
+	    pmk != NULL ? "a PMK" : pass_len != 0 ? "a passphrase" : "no key");
+	vayu_net_set_tx(vayu_scan_tx_frame, o->log);
+	if (rsn_parse(o) != 0 || (!st.rsn && (st.capab & 0x10U) != 0)) {
+		o->log("vayu-wifi: W26 join #%u: ERROR the network's protection is not WPA2-PSK/CCMP or open\n", st.joins);
+		return ENOTSUP;
+	}
+	if (st.rsn && !vayu_rsn_set_key(pmk, pass, pass_len, (const uint8_t *)target_ssid, target_ssid_len)) {
+		o->log("vayu-wifi: W26 join #%u: ERROR the network is protected and no usable key was given\n", st.joins);
+		return EAUTH;
+	}
+	if (st.rsn && !vayu_rsn_armed()) {
+		o->log("vayu-wifi: W26 join #%u: ERROR no crypto for the handshake\n", st.joins);
+		vayu_rsn_forget_key();
+		return EIO;
+	}
+	if (!mgmt_pool(o)) {
+		vayu_rsn_forget_key();
+		return EIO;
+	}
+	alen = build_assoc(assoc);
+	(void)ps_off(o);
+	st.state = ST_START;
+	if (vdev_start(o) != 0) {
+		goto fail;
+	}
+	st.j_started = true;
+	w = o->wait(start_done, START_WAIT_MS);
+	if (w < 0) {
+		goto fail;
+	}
+	if (!st.start_resp || st.start_status != 0) {
+		o->log("vayu-wifi: W26 join #%u: ERROR vdev start %s (status %d)\n", st.joins,
+		    st.start_resp ? "refused" : "no response", st.start_status);
+		error = st.start_resp ? EIO : ETIMEDOUT;
+		goto fail;
+	}
+	if (peer(o, true) != 0) {
+		goto fail;
+	}
+	st.j_peered = true;
+	st.state = ST_AUTH;
+	for (tries = 1; tries <= TRIES && !st.auth_reply && !st.ap_left; tries++) {
+		(void)send_auth(o);
+		if (o->wait(auth_done, REPLY_WAIT_MS) < 0) {
+			goto fail;
+		}
+	}
+	if (!st.auth_reply || st.auth_status != 0) {
+		o->log("vayu-wifi: W26 join #%u: ERROR auth %s status %u\n", st.joins, st.auth_reply ? "reply" : "none",
+		    st.auth_status);
+		error = st.auth_reply ? ECONNREFUSED : ETIMEDOUT;
+		goto fail;
+	}
+	st.j_authed = true;
+	st.state = ST_ASSOC;
+	for (tries = 1; tries <= TRIES && !st.assoc_reply && !st.ap_left; tries++) {
+		(void)mgmt_tx(o, assoc, alen, "ASSOC_REQ");
+		if (o->wait(assoc_done, REPLY_WAIT_MS) < 0) {
+			goto fail;
+		}
+	}
+	if (!st.assoc_reply || st.assoc_status != 0) {
+		o->log("vayu-wifi: W26 join #%u: ERROR assoc %s status %u\n", st.joins, st.assoc_reply ? "reply" : "none",
+		    st.assoc_status);
+		error = st.assoc_reply ? ECONNREFUSED : ETIMEDOUT;
+		goto fail;
+	}
+	st.j_associated = true;
+	if (peer_assoc(o, st.assoc_cap) != 0 || vdev_up(o) != 0) {
+		goto fail;
+	}
+	st.j_up = true;
+	st.state = ST_WINDOW;           /* (frames from the AP counted, its DEAUTH seen) */
+	if (st.rsn) {
+		static struct vayu_rsn_ops rops;        /* (kept: the group key handshake later uses it) */
+
+		zero(&rops, (uint32_t)sizeof(rops));
+		rops.log = o->log;
+		rops.wmi_send = o->wmi_send;
+		rops.tx_data = vayu_scan_tx_frame;
+		rops.mac = st.mac;
+		rops.bssid = st.bssid;
+		rops.rsn_ie = st.rsn_ie;
+		rops.rsn_ie_len = (uint32_t)sizeof(st.rsn_ie);
+		rops.group_cipher = st.rsn_ie[7] == 2 ? 2U : 4U;
+		vayu_rsn_start(&rops);
+		for (waited = 0; waited < RSN_WAIT_MS && vayu_rsn_poll() > 0 && !st.ap_left; waited += 100) {
+			if (o->wait(NULL, 100) < 0) {
+				goto fail;
+			}
+		}
+		if (!vayu_rsn_keyed()) {
+			bool refused = vayu_rsn_key_refused();
+
+			o->log("vayu-wifi: W26 join #%u: ERROR 4-way: %s\n", st.joins,
+			    refused ? "message 2/4 answered by no 3/4: the key was refused" :
+			    st.ap_left ? "the AP left" : "no keys in time");
+			error = refused ? EAUTH : ETIMEDOUT;
+			goto fail;
+		}
+	}
+	vayu_rsn_forget_key();
+	st.joined = true;
+	o->log("vayu-wifi: W26 join #%u: OK joined (%s), aid %u\n", st.joins, st.rsn ? "WPA2-PSK CCMP" : "open", st.aid);
+	return 0;
+fail:
+	vayu_rsn_forget_key();
+	leave_steps(o, "the join did not come through");
+	return error;
+}
+
+/* asked (Settings, wifid, another network): leave the one joined */
+int
+vayu_sta_leave_asked(const struct vayu_scan_ops *o)
+{
+	if (o == NULL || (!st.joined && !st.j_started)) {
+		return 0;
+	}
+	st.leaves++;
+	leave_steps(o, "asked");
+	return 0;
+}
+
+/* while joined, on the radio's thread: 0 still joined, else the AP has gone (an errno) and it is left */
+int
+vayu_sta_poll_joined(const struct vayu_scan_ops *o)
+{
+	if (!st.joined) {
+		return 0;
+	}
+	if (st.ap_left || st.w_kickout != 0) {
+		o->log("vayu-wifi: W26: the network is gone (%s%u)\n", st.ap_left ? (st.ap_fc == FC_DEAUTH ?
+		    "DEAUTH reason " : "DISASSOC reason ") : "kickout ", st.ap_left ? st.ap_reason : st.w_kickout);
+		leave_steps(o, "lost");
+		return ENETRESET;
+	}
+	return 0;
 }

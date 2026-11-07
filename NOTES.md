@@ -3,7 +3,47 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
-## Active handoff (2026-11-07 ~05:00: Wi-Fi step 2 done -- the radio scans under iOS)
+## Active handoff (2026-11-07 ~05:50: Wi-Fi step 3 -- joined from Settings, internet works; Safari freezes)
+
+- **FACT (run wifi10, logs/wifi10-net.txt, git-ignored):** with `vayu_wifi_ios=1` added to the step 2 args, en0
+  appears after the first scan, wifid's scans run on demand (W26 scan #N, ~2.2 s for 13-26 channels), Settings
+  lists the networks, a 2.4 GHz WPA2-PSK/CCMP network joined from Settings with the typed password (4-way OK, keys
+  in), configd got an address by DHCP. First minute: tx 698 / rx 1841 frames (2.2 MB), 0 dropped; 4 early tx
+  completions status 1. `userland/src/net_test.c` (built by hand with xnu-clang against the SDK, unsigned, pushed
+  to /private/var/tmp): DNS 0.03 s, TCP to Apple's captive host 0.06 s, "HTTP/1.0 200 OK" in 0.15 s.
+- **FACT:** Safari still freezes (its WebContent/Networking/GPU processes start) -- not the network (net_test).
+  Next to look at. HYPOTHESIS: WebKit's GPU process / rendering on this port, not Wi-Fi.
+- **FACT (run wifi9):** a 5 GHz network refused the association with status 18 (rates): our assoc request has no HT
+  IE (the author's W23 path, legacy rates only). iOS says "move closer". Next: HT capabilities in the assoc
+  request and PEER_ASSOC.
+- **FACT (run wifi9):** once en0 had an address, the USB link (169.254.7.2) died -- log, command port, sweetd (XNU
+  keeps IPv4 link-local on the primary interface). The user pointed at jasmine (j0087-j0089). Now (vayu_usbnet_ecm.c,
+  usbnet_static=1): en2 also 192.168.7.2/24 (added first), scoped routes 169.254/16, 192.168.7/24, 255.255.255.255,
+  the kernel's 5140/5141 listeners bound to en2 (IP_BOUND_IF), and a DHCP server giving the PC 192.168.7.1/24 (no
+  router, no DNS). Its replies are whole frames handed to usbnet_output(): through the socket they always failed
+  ENETUNREACH (runs usb10, usb11; address order did not matter). The PC tools try 192.168.7.2 first. Run wifi10:
+  the USB link stayed up while joined.
+- **Code (W26):** hakios.apple80211.c / hakios.sta.c / hakios.sta.h are jasmine's (j0093 LQM event 39 + quality
+  every 5 s, j0095, j0098 RSSI_BOUNDS -100/0/-80, noise -95). vayu_wifi_net.c: the station service -- wifid's
+  requests are handed to the radio's thread (the only one that may poll the CEs / send WMI) and answered from there;
+  ops scan/heard/join/leave/state/channels/power. vayu_wifi_scan.c: the BSS list keeps name, channel, signal,
+  elements (768 B), age; vayu_scan_again(). vayu_wifi_sta.c: vayu_sta_join_asked() (any SSID, best RSSI, open or
+  WPA2-PSK/CCMP; errors ENOENT/ENOTSUP/EAUTH/ECONNREFUSED/ETIMEDOUT), leave in jasmine's order (DEAUTH, PEER_DELETE
+  until PEER_DELETE_RESP 0x6007 / HTT PEER_UNMAP, VDEV_DOWN, VDEV_STOP), MODE_11G on 2.4 GHz. vayu_wifi_rsn.c: the
+  key from wifid (PMK, or PBKDF2-SHA1 of the passphrase), never logged. vayu_wifi.c: MAC from fw/wlan_mac.bin if
+  there (vayu's persist has no wlan_mac.bin; the fixed 02:50:49:58:45:4c otherwise). While joined, scans answer
+  from the list (no off-channel scan).
+- configd: /private/var/preferences/SystemConfiguration/preferences.plist had no services; now jasmine's en0 Wi-Fi
+  service (tools/wifi-root-config.py's configure()), original beside it as preferences.plist.before-wifi.
+- `boot` holds 0c82c913... (kernel 734bff34...; ../backup-vayu/xnu-standalone-wifiios-0c82c913.img), args =
+  the step 2 args + `vayu_wifi_ios=1`. Arming as before (modem.mdt put/rm per boot).
+- **FACT, open:** the loader's USB command mode ("loader" from iOS: flag + restart) came up dead twice after the
+  05:03 flash (Windows sees a fastboot device, serial unreadable, every command times out; gone after a replug);
+  11 earlier transitions worked. Since then flashed from vayu's stock fastboot (volume down + power,
+  `standalone.sh flash`). Cause not known (kernel af1e6779? the power-key restarts before both?). Also: the
+  loader's USB mode shows briefly on EVERY boot -- not a state to flash into.
+
+## Earlier (2026-11-07 ~05:00: Wi-Fi step 2 done -- the radio scans under iOS)
 
 - **FACT (run wifi8, logs/wifi8-net.txt, git-ignored: it has nearby SSIDs):** modem up through TrustZone PAS, WLFW
   (chip 0x30224, fw WLAN.HL.3.0.c2-00417), BDF + MAC + CAL_REPORT, FW_READY, WLAN_CFG + MISSION, CE rings,

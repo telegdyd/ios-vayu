@@ -191,9 +191,33 @@ _Static_assert(sizeof(struct apple80211_scan_result) == 1164 && offsetof(struct 
     offsetof(struct apple80211_scan_result, age_ms) == 0x84 && offsetof(struct apple80211_scan_result, elements) == 0x8c,
     "a scan's result as iOS 16.5 has it");
 
+/*
+ * The link quality event (39), read by IO80211.framework of 16.5 (_dispatchlqmChangedEvent: at least 180 bytes,
+ * each value behind a byte that says it is there) into the dictionary wifid hands on to the status bar.
+ */
+struct apple80211_link_quality {
+	uint8_t rssi_there, unused_0[3];
+	int32_t rssi;                           /* dBm */
+	uint8_t per_core_there;
+	int8_t per_core[2];                     /* (-128: no reading) */
+	uint8_t snr_there;
+	int16_t snr;
+	uint8_t noise_there, unused_1;
+	int16_t noise;
+	uint8_t cca_there, cca;
+	uint8_t rest[180 - 0x14];               /* frame counts, rates, roaming: not told */
+};
+
+_Static_assert(sizeof(struct apple80211_link_quality) == 180 && offsetof(struct apple80211_link_quality, snr) == 0xc &&
+    offsetof(struct apple80211_link_quality, noise) == 0x10 && offsetof(struct apple80211_link_quality, cca_there) == 0x12,
+    "the link quality as iOS 16.5 reads it");
+
 /* Apple80211's events (APPLE80211_M_...) */
 enum { EVENT_POWER_CHANGED = 1, EVENT_SSID_CHANGED = 2, EVENT_BSSID_CHANGED = 3, EVENT_LINK_CHANGED = 4, EVENT_ASSOC_DONE = 9,
-       EVENT_SCAN_DONE = 10 };
+       EVENT_SCAN_DONE = 10, EVENT_LINK_QUALITY = 39 };
+
+/* the noise floor told: no radio here measures one, and Linux's ath10k and ath11k take this for theirs */
+#define NOISE_FLOOR             (-95)
 
 static const char interface_name[16] = "en0";   /* (bsd/dev/hakios.net.c makes one interface, and that is its name) */
 
@@ -321,6 +345,20 @@ get(struct apple80211req *request)
 
 		return give(request, &answer, sizeof(answer));
 	}
+	case 106: {
+		/*
+		 * The signal range and the weakest network worth joining by itself, dBm (IO80211 of 16.5 reads the
+		 * three after the version into RSSI_MIN, RSSI_MAX, RSSI_THRESHOLD). Unanswered, wifid's auto-join
+		 * threshold stays 0 dBm and every known network is refused ("Below minimum RSSI threshold").
+		 * -80: a weak but usable link, our choice; the range is what the radio reports.
+		 */
+		struct {
+			uint32_t version;
+			int32_t min, max, threshold;
+		} answer = { .version = 1, .min = -100, .max = 0, .threshold = -80 };
+
+		return give(request, &answer, sizeof(answer));
+	}
 	case 15:                                /* the mode: a station (APPLE80211_M_STA) */
 		request->req_val = 1;
 		return 0;
@@ -429,6 +467,16 @@ get(struct apple80211req *request)
 			int32_t each[4], all, each_ext[4], all_ext;
 		} answer = { .version = 1, .radios = 1, .each = { state->bss.rssi }, .all = state->bss.rssi,
 			     .each_ext = { state->bss.rssi }, .all_ext = state->bss.rssi };
+
+		error = state->phase != HAKIOS_STA_JOINED ? ENXIO : give(request, &answer, sizeof(answer));
+		break;
+	}
+	case 17: {                              /* the noise there, the same way */
+		struct {
+			uint32_t version, radios, unit;
+			int32_t each[4], all, each_ext[4], all_ext;
+		} answer = { .version = 1, .radios = 1, .each = { NOISE_FLOOR }, .all = NOISE_FLOOR,
+			     .each_ext = { NOISE_FLOOR }, .all_ext = NOISE_FLOOR };
 
 		error = state->phase != HAKIOS_STA_JOINED ? ENXIO : give(request, &answer, sizeof(answer));
 		break;
@@ -613,16 +661,28 @@ post(uint32_t code, const void *data, uint32_t length)
 	kev_post_msg(&message);
 }
 
+/* how the joined network is heard (dBm), as the status bar wants it */
+static void
+post_quality(int rssi)
+{
+	struct apple80211_link_quality quality = { .rssi_there = 1, .rssi = rssi, .per_core_there = 1,
+		                                   .per_core = { (int8_t)rssi, -128 }, .snr_there = 1,
+		                                   .snr = (int16_t)(rssi - NOISE_FLOOR), .noise_there = 1, .noise = NOISE_FLOOR };
+
+	post(EVENT_LINK_QUALITY, &quality, sizeof(quality));
+}
+
 /* What the station side says has happened (bsd/dev/hakios.sta.c calls this, on its thread or the station's). */
 void
 hakios_apple80211_event(enum hakios_sta_event event, int status)
 {
-	static unsigned said;
+	static unsigned said, said_quality;
 
-	if (said < 200) {
-		said++;
+	if (event == HAKIOS_STA_QUALITY ? said_quality++ < 3 : said < 200) {
+		said += event != HAKIOS_STA_QUALITY;
 		printf("apple80211: the station says: %s, %d\n", event == HAKIOS_STA_POWER ? "power" : event == HAKIOS_STA_SCAN_DONE ?
-		    "a scan is over" : event == HAKIOS_STA_JOIN_DONE ? "a join is over" : "the link", status);
+		    "a scan is over" : event == HAKIOS_STA_JOIN_DONE ? "a join is over" : event == HAKIOS_STA_QUALITY ?
+		    "the signal" : "the link", status);
 	}
 	switch (event) {
 	case HAKIOS_STA_POWER:
@@ -650,11 +710,21 @@ hakios_apple80211_event(enum hakios_sta_event event, int status)
 			link.rssi = status == 1 ? state->bss.rssi : 0;
 			kfree_data(state, sizeof(*state));
 		}
+		if (status == 1) {
+			link.noise = (uint16_t)NOISE_FLOOR;
+			link.snr = (uint16_t)(link.rssi - NOISE_FLOOR);
+		}
 		post(EVENT_SSID_CHANGED, NULL, 0);
 		post(EVENT_BSSID_CHANGED, NULL, 0);
 		post(EVENT_LINK_CHANGED, &link, sizeof(link));
+		if (status == 1 && link.rssi != 0) {
+			post_quality(link.rssi);        /* (the bars at once, not after the first quiet seconds: j93) */
+		}
 		break;
 	}
+	case HAKIOS_STA_QUALITY:
+		post_quality(status);
+		break;
 	}
 }
 
