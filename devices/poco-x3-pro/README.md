@@ -35,7 +35,7 @@ user-space sources compile and link, and it has not been booted since. Run it be
 | Touch | Novatek NT36675 on QUP SPI (GPI DMA) | `vayu_nvt.c`, `vayu_qup_spi.c` | hardware: works (`touchscreen=1 nvt_qup=1`); the chip is flashless and XNU downloads its firmware at every start |
 | CPU frequency | Cortex-A55/A76 clusters | `vayu_cpufreq.c` | hardware |
 | Storage | UFS | `hakios.ufs.c` | hardware, read-only survey and reads |
-| Battery, charger, buttons | PM8150B, PM8150 keys | `hakios.battery.c`, `hakios.buttons.c` | hardware: charger state and volume keys follow the phone; the fuel gauge's numbers are not confirmed |
+| Battery, charger, buttons | PM8150B, PM8150 keys | `hakios.battery.c`, `hakios.buttons.c` | hardware: on in the flashed image (`battery=1`): percent, voltage, current, temperature and charger state reach iOS's power source; volume keys follow the phone; the fuel gauge not yet checked against Android, charging from low not yet seen |
 | Backlight, screen off on lock | PM8150L WLED | `vayu_wled.c` | hardware: the screen turns off on lock; the brightness slider is not confirmed |
 | Flashlight | PM8150L | `hakios.torch.c` | hardware |
 | 3D | Adreno 640 | `vayu_adreno.c`, with `hakios.gpu.cpp` and Mesa/freedreno in user space | hardware: SpringBoard drawn on the GPU (`gpu=1 vayu_gpu=1 vayu_keep=1`, needs the GPU firmware and the signed zap shader from your own phone) |

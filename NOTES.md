@@ -3,7 +3,23 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
-## Active handoff (2026-11-07 ~03:10: the test loop is closed -- iOS, loader, flash, iOS with nobody at the phone)
+## Active handoff (2026-11-07: the battery on in `boot`)
+
+- **FACT (2026-11-07):** `boot` holds xnu-standalone.img 88bc4689... = 4b79c0ce plus `battery=1` on the command line (same
+  kernel 87b9c382, loader 4894c295; 4b79c0ce kept in ../backup-vayu/xnu-standalone-usbshell-4b79c0ce.img). Deployed by
+  `phone.sh deploy` alone (1 min 48 s). Before: no `battery=1`, so kern.hakios.battery_soc -1 and iOS's UserEventAgent
+  "Unable to look up battery voltage". `buttons` needs nothing: it is on with touchscreen=1 and maps the SPMI arbiter
+  that hakios.battery.c reads through.
+- **FACT (logs/battery1-net.txt, on the PC's USB port):** fuel gauge 100% (raw 255/255), 4395 mV, -2..-7 mA, 32-33 C
+  (rradc raw 0x20); charger PLUGGED IN, CHARGER_STATUS_1 7 ("disabled"), not charging; limits read only: FCC 1500 mA,
+  USB ICL 1500 mA, AICL ICL 600 then 1050 mA, APSD 0x4 (CDP). USB stayed up with the loader's UEFI charger polls.
+- **FACT:** battery_test: HakiosBattery is the kernel's IOPMPowerSource (CurrentCapacity 100, ExternalConnected,
+  FullyCharged); IOPSGetPercentRemaining 100%, full, "AC Power"; but "powerd lists no power source" (IOPSCopyPowerSourcesList
+  empty). HYPOTHESIS: run as root from sweetd rather than a real empty list; the status bar not looked at yet.
+- **INFERENCE:** status 7 at 4.395 V is UEFI's/the PMIC's stop at full (not 5 "terminated"); whether it charges from a
+  low battery under XNU, and at what current, is not seen yet (needs a run off the cable, then on it).
+
+## Earlier (2026-11-07 ~03:10: the test loop is closed -- iOS, loader, flash, iOS with nobody at the phone)
 
 - **FACT (2026-11-07 02:5x-03:04):** `boot` holds xnu-standalone.img 4b79c0ce... (loader 2.5 4894c295..., kernel
   87b9c382...). Twice without a hand on the phone (looptest + `phone.sh deploy`): iOS -> `sweet-cmd.py loader` -> our
