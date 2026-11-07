@@ -45,8 +45,8 @@ GL window server (`eagl.c`, Mesa FD640) has to composite the drawables.
 rows of 4544 bytes (4500 rounded up to 64), which the driver's 64-byte row rule accepts. Task 5 listed this selector as
 not validated; it is now exercised on hardware.
 
-**Not visually confirmed by a person:** the evidence that the layer is on the panel is the kernel's scanout and
-counters plus the composited read-back, not a photo.
+**FACT (the user, watching the panel through all the runs):** the animation was on the panel with nothing wrong
+(no tearing or corruption reported). The kernel's scanout lines and counters and the composited read-back agree.
 
 ## What it took to get a context on screen (all FACT, phone logs)
 

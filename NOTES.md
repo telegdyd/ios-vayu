@@ -92,7 +92,8 @@ task, in order; each ticks its task there and adds a line to the handoff below.
   - The AMFI stand-in gives user space nobody's entitlements.
   - `tools/macho-sign.py` signs ad hoc with XML entitlements; a DER entitlements blob gets the signature rejected.
   - A signed file overwritten in place counts as unsigned (stale cached signature): remove it first.
-- **Open:** `presentedTime` is never reported; a person has not looked at the panel. **Next:** task 11 (CoreAnimation
+- **FACT (the user):** watched the panel through all the runs; the animation showed, nothing wrong.
+- **Open:** `presentedTime` is never reported. **Next:** task 11 (CoreAnimation
   on Metal; `metal=3` shows backboardd the device).
 
 ## Metal step 9 (2026-11-07; a real Metal program draws and computes)

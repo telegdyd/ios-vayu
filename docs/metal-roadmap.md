@@ -319,8 +319,8 @@ Every agent, every task:
     so a SpringBoard tweak (`MetalLayerHost.dylib`, `/var/jb/usr/lib/TweakInject`, still installed) hosts it.
     `tools/macho-sign.py` signs ad hoc; DER entitlements break the signature, and the AMFI stand-in gives nobody
     entitlements.
-  - Open: `presentedTime` is never reported; nobody has looked at the panel (the evidence is kernel counters and
-    read-backs); only BGRA8 linear; app contexts hosted by FrontBoard are for tasks 11–12.
+  - The user watched the panel through the runs: the animation showed, nothing wrong.
+  - Open: `presentedTime` is never reported; only BGRA8 linear; app contexts hosted by FrontBoard are for tasks 11–12.
 
 ### Phase D: the system on Metal
 
