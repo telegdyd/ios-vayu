@@ -10,9 +10,9 @@
 // Mesa's computerator (src/freedreno/computerator/a6xx.cc) is the reference
 // for which register reads which field, and each field below names it.
 //
-// Register/packet names are the a6xx ones (adreno a6xx.xml); the A635 in this
-// phone is gen 6 with LPAC, so both the HLSQ_CS_* and the SP_CS_CNTL_* copies
-// of the id registers are written, as computerator does for has_lpac.
+// Register/packet names are the a6xx ones (adreno a6xx.xml). A640 is gen2
+// without LPAC: write HLSQ_CS_CNTL_0/1, omitting the gen4 SP_CS_CNTL_0/1
+// and HLSQ_CS_CTRL_REG1 copies, as Mesa does when has_lpac is false.
 
 #pragma once
 

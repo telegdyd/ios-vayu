@@ -3,6 +3,23 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 3 (2026-11-07; Mesa audit and host checks, phone not used)
+
+- **FACT (source):** A640/gen2 table in `docs/metal-driver-inventory.md` compared
+  against pinned Mesa 25.0.7 (archive SHA256 verified). Fixed GMEM framebuffer
+  fetch adding vayu's `0x100000` base (old A635 zero-base assumption), and missing
+  WFM before indirect draws (a630 SQE/gen2 firmware quirk). Fake bounds and host
+  packet/descriptor checks updated. Shader tools now default to A640; GMEM/CCU,
+  magic registers, cache event encodings, LPAC and limited UBWC otherwise match.
+- **FACT (`docs/metal-step3-register-check.log`):** 1879 header constants match;
+  80 marked non-header constants documented. Checker supports integer division;
+  header annotations repaired. **FACT (`docs/metal-step3-build.log`):** WSL
+  `make -C ~/vayu/hakios-metal -j3 vayu-check CXX=clang++`: 261 host tests / zero
+  failed checks, arm64 iOS library/probe built, fake stages 1–4 / zero failures.
+  No phone operations or MESA=1. WSL pull again refused unrelated dirty work;
+  preserved it and synced only driver files. Firmware startup remains kernel-owned.
+  Task 4 is next: reference command-stream captures on the phone.
+
 ## Metal step 2 (2026-11-07; source audit, phone not used)
 
 - **FACT (source at `bc19b43`):** task 2 done in

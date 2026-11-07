@@ -4396,7 +4396,7 @@ TEST(a_draw_that_reads_its_target_gets_the_target_as_a_texture_and_a_barrier_bef
     CHECK(d.size() == 64 && memcmp(d.data(), want.dword, 64) == 0);
     CHECK_EQ(r.fake->stats().faults, 0u);
     // In GMEM the fetch reads the attachment's bin where the draws before it in the tile left it: GMEM's layout
-    // (TILE6_2), the bin's rows (64 pixels of 4 bytes), at the bin's place (0), no swap; and with no barrier, which would
+    // (TILE6_2), the bin's rows (64 pixels of 4 bytes), at A640 GMEM base 0x100000 plus bin offset 0, no swap; no barrier would
     // flush a tile's colour to memory the fetch no longer reads
     auto g = r.queue->commandBuffer();
     CHECK(g->draw(fb, pass, wholeDraw(6), Bindings{}, Bindings{}));
@@ -4412,7 +4412,7 @@ TEST(a_draw_that_reads_its_target_gets_the_target_as_a_texture_and_a_barrier_bef
     CHECK_EQ((gw[0] & A6XX_TEX_CONST_0_TILE_MODE__MASK) >> A6XX_TEX_CONST_0_TILE_MODE__SHIFT, uint32_t(TILE6_2));
     CHECK_EQ(gw[0] & A6XX_TEX_CONST_0_SWAP__MASK, 0u);
     CHECK_EQ((gw[2] & A6XX_TEX_CONST_2_PITCH__MASK) >> A6XX_TEX_CONST_2_PITCH__SHIFT, 64u * 4);
-    CHECK(gw[4] == 0 && (gw[5] & A6XX_TEX_CONST_5_BASE_HI__MASK) == 0);
+    CHECK(gw[4] == 0x100000 && (gw[5] & A6XX_TEX_CONST_5_BASE_HI__MASK) == 0);
     pm4::Stream gb;
     std::string gwhy;
     auto gt = newBuffer(*r.gpu, render::kTableBytes, &gwhy);
@@ -5030,6 +5030,19 @@ TEST(an_indirect_draw_reads_its_arguments_when_it_runs) {
     Draw d = wholeDraw(3);
     d.indirect = args.get();
     d.indirectOffset = 4;
+    // A640's firmware quirk requires the ME to catch up with pending WFI
+    // before either indirect opcode reads its arguments. Check packet order;
+    // the fake does not model the PFP/ME race.
+    for (bool indexed : {false, true}) {
+        Draw packetDraw = d;
+        if (indexed) packetDraw.indexBuffer = args.get();
+        Encoded encoded(r, p, pass, packetDraw);
+        CHECK(encoded.ok);
+        const size_t at = encoded.find(a6xx::CP_DRAW_INDIRECT_MULTI);
+        CHECK(at != size_t(-1) && at > 0);
+        if (at != size_t(-1) && at > 0)
+            CHECK_EQ(encoded.stream.words()[at - 1], pm4::type7(pm4::kWaitForMe, 0));
+    }
     auto cb = r.queue->commandBuffer();
     CHECK(cb->draw(p, pass, d, Bindings{}, Bindings{}));
     if (!cb->error().empty()) std::printf("       %s\n", cb->error().c_str());

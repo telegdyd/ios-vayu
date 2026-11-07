@@ -1246,8 +1246,8 @@ bool makeSampler(const SamplerDesc& d, Sampler* out, std::string* why) {
     if (!a6xx::kHasTexFilterCubic && (d.minFilter == 2 || d.magFilter == 2)) {
         return refuse(why, "a bicubic sampler: this chip's TP has no cubic filter (freedreno_devices.py a6xx_gen2)");
     }
-    // bicubic is the TP's own cubic filter, which this chip has (freedreno_devices.py a6xx_gen4 has_tex_filter_cubic;
-    // turnip's VK_FILTER_CUBIC_EXT, tu6_tex_filter)
+    // The shared encoder can represent cubic (turnip's tu6_tex_filter), but
+    // the A640 capability check above refuses it.
     auto filter = [](uint32_t m) { return m == 2 ? A6XX_TEX_CUBIC : m == 1 ? A6XX_TEX_LINEAR : A6XX_TEX_NEAREST; };
     f.min = filter(d.minFilter);
     f.mag = filter(d.magFilter);

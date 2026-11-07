@@ -108,6 +108,8 @@ def evaluate(expr, env):
         ast.Add: lambda a, b: a + b,
         ast.Sub: lambda a, b: a - b,
         ast.Mult: lambda a, b: a * b,
+        # C++ integer division truncates toward zero (avoid a float conversion).
+        ast.Div: lambda a, b: (abs(a) // abs(b)) * (-1 if (a < 0) != (b < 0) else 1),
     }
 
     def ev(n):

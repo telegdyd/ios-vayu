@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 //
-//   compiler-smoke [--chip-id 0x06030500] kernel.bc
+//   compiler-smoke [--chip-id 0x06040001] kernel.bc
 //
 // It does, in order, what the driver will do: look the chip up in Mesa's
 // device table, create an ir3 compiler for it, translate the bitcode with the
@@ -70,7 +70,7 @@ const char* resourceKind(enum air_resource_kind k)
 
 int main(int argc, char** argv)
 {
-    uint64_t chipId = 0x06030500;
+    uint64_t chipId = 0x06040001;
     const char* path = nullptr;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--chip-id") && i + 1 < argc)

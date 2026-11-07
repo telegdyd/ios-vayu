@@ -659,14 +659,14 @@ bool stageTextures(const Stage& fs, const Bindings& b, const RenderPass& pass, S
             if (gmem != nullptr) {
                 // In a tile the attachment is its bin in GMEM, which the fetch reads where the draws before it in the
                 // tile left it (tu_emit_input_attachments' patch for GMEM): GMEM's layout, the bin's width a row, the bin
-                // at GMEM's base (0 on this chip: the kernel's GMEM_BASE, as Linux answers for the A650 family) plus the
+                // at GMEM's base (0x100000 on A640: vayu's GMEM_BASE) plus the
                 // attachment's place; the TP takes the tile's corner off the coordinates (SP_TP_WINDOW_OFFSET). No
                 // swap: GMEM holds the components in the RB's order, and the store puts the swap back.
                 d.dword[0] &= ~(A6XX_TEX_CONST_0_TILE_MODE__MASK | A6XX_TEX_CONST_0_SWAP__MASK);
                 d.dword[0] |= A6XX_TEX_CONST_0_TILE_MODE(TILE6_2);
                 d.dword[2] = A6XX_TEX_CONST_2_TYPE(A6XX_TEX_2D) | A6XX_TEX_CONST_2_PITCH(gmem->binW * a.texture->info().bytesPerPixel);
                 d.dword[3] = 0;
-                d.dword[4] = gmem->base[kt.fbTarget - 1u];
+                d.dword[4] = kGmemBase + gmem->base[kt.fbTarget - 1u];
                 d.dword[5] &= A6XX_TEX_CONST_5_DEPTH__MASK;
                 for (uint32_t w = 6; w < 16; w++) d.dword[w] = 0;
             }
@@ -2072,6 +2072,10 @@ bool encodeDraw(pm4::Stream& stream, const Program& program, const RenderPass& p
         event(stream, ZPASS_DONE);
     }
     if (indirect) {
+        // A640/gen2 firmware may let an indirect draw overtake a pending WFI.
+        // Mesa's draw_wfm/fd6_memory_barrier adds WFM for this chip. We do not
+        // track pending WFI separately, so conservatively drain the ME here.
+        if (kIndirectDrawWfmQuirk) stream.waitForMe();
         // tu_CmdDrawIndirect / tu_CmdDrawIndexedIndirect (tu_cmd_buffer.cc:6385-6423): one draw, the CP reading its
         // words, setting VFD_INDEX_OFFSET and VFD_INSTANCE_START_OFFSET, and writing the VS's params at DST_OFF
         const uint64_t args = draw.indirect->gpuAddress() + draw.indirectOffset;

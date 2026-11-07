@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 //
-//   ir3-kernel [--chip-id 0x06030500] [--name NAME] [-o fixture.hpp] kernel.asm
+//   ir3-kernel [--chip-id 0x06040001] [--name NAME] [-o fixture.hpp] kernel.asm
 //
 // The assembler is Mesa's own (ir3_parse_asm, the one computerator uses), run
 // against the device table's row for the chip id, so the words and every
@@ -181,7 +181,7 @@ void emitCommentBlock(FILE* out, const std::string& text)
 
 int main(int argc, char** argv)
 {
-    uint64_t chipId = 0x06030500;
+    uint64_t chipId = 0x06040001;
     const char* outPath = nullptr;
     const char* nameArg = nullptr;
     const char* inPath = nullptr;
@@ -211,8 +211,8 @@ int main(int argc, char** argv)
         die("usage: ir3-kernel [--chip-id ID] [--name NAME] [-o fixture.hpp] kernel.asm");
 
     // The device row. gpu_id 0 makes the lookup go by chip id, where the
-    // 0xffff06030500 row matches any fuse id (freedreno_dev_info.c's
-    // WILDCARD_FUSE_ID), which is how 0x06030500 lands on the A635 family.
+    // GPUId(640) row uses chip id 0x060400ff: its wildcard patch level
+    // matches 0x06040001 (freedreno_dev_info.c's dev_id_compare).
     struct fd_dev_id devId = {};
     devId.gpu_id = 0;
     devId.chip_id = chipId;

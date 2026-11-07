@@ -98,7 +98,7 @@ Every agent, every task:
   samplers and pipelines and no render/compute encoders. Tasks 8–10 and 13–17
   now describe these actual gaps. Source audit only; no new hardware/test results.
 
-- [ ] **3. Check the A640 chip facts against Mesa.**
+- [x] **3. Check the A640 chip facts against Mesa.**
   Depends on: 1.
   Do: compare every A640-specific constant and choice in the ported code (GMEM size and layout,
   CCU offsets, gen2 register differences, cache flush/invalidate events, UBWC settings, firmware
@@ -107,7 +107,16 @@ Every agent, every task:
   Do not take constants from A642L/A635 (gen4) or A740.
   Done when: a table of constants and sources is in `docs/metal-driver-inventory.md`; mismatches are
   fixed and committed; host tests still pass.
-  Result: —
+  Result: **FACT (2026-11-07):** A640/gen2 comparison table added to
+  `docs/metal-driver-inventory.md`, using this tree's Mesa 25.0.7 (archive hash
+  verified). Fixed the missing indirect-draw firmware WFM workaround and GMEM
+  framebuffer-fetch base (`0x100000`, previously inherited zero); fixed A635
+  defaults in two shader tools. GMEM/CCU/magic/cache/LPAC/UBWC facts otherwise
+  match. `docs/metal-step3-register-check.log`: 1879 header constants match,
+  80 marked non-header constants. `docs/metal-step3-build.log`: 261 host tests,
+  zero failed checks; iOS library/probe cross-built; fake stages 1–4 pass.
+  No phone used, no MESA=1/live compiler validation. Firmware remains the existing
+  kernel's responsibility. Task 4 is next and requires phone captures.
 
 - [ ] **4. Capture reference command streams from freedreno on the phone.**
   Depends on: nothing (can run alongside 1–3).

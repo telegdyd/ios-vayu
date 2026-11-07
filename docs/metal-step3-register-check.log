@@ -1,0 +1,83 @@
+checked 1879 constants of hakios-metal/include/hakios-metal/a6xx.hpp against /home/teleg/vayu/xnu-deps/build/mesa/build-softpipe-freedreno/src/freedreno/registers/adreno: 1821 values, 36 encoder shifts, 4 encoder multipliers, 18 array strides
+not checkable, and why (80):
+  kChipId = 0x6040001 -- vayu_adreno.c GMU_CHIP_ID; Mesa matches it to GPUId(640)
+  kHasLpac = 0x0 -- freedreno_devices.py a6xx_gen2 (has_lpac only in a6xx_gen4)
+  kIndirectDrawWfmQuirk = 0x1 -- freedreno_devices.py a6xx_gen2.indirect_draw_wfm_quirk
+  kSupportsDoubleThreadsize = 0x1 -- freedreno_devices.py a6xx_base.supports_double_threadsize
+  kInstrCacheSize = 0x40 -- freedreno_devices.py a6xx_gen2.instr_cache_size
+  kRegSizeVec4 = 0x60 -- freedreno_devices.py a6xx_gen2.reg_size_vec4
+  kFibersPerSp = 0x2000 -- freedreno_devices.py, the A640 entry (fibers_per_sp)
+  kNumSpCores = 0x2 -- freedreno_devices.py num_sp_cores = num_ccu for the A640
+  kCsSharedMemSize = 0x8000 -- freedreno_devices.py, the A640 entry (cs_shared_mem_size)
+  kThreadsizeBase = 0x40 -- freedreno_devices.py A6xxGPUInfo default threadsize_base
+  kMaxWaves = 0x10 -- freedreno_devices.py A6xxGPUInfo default max_waves
+  kWaveGranularity = 0x2 -- freedreno_devices.py, the A640 entry (wave_granularity)
+  kRegidNone = 0xfc -- ir3/instr-a3xx.h INVALID_REG = regid(63, 0)
+  kSpCsObjStartAlign = 0x20 -- a6xx.xml SP_CS_OBJ_START align="32"
+  kSpCsPvtMemAddrAlign = 0x20 -- a6xx.xml SP_CS_PVT_MEM_ADDR align="32"
+  kSpCsIboAlign = 0x10 -- a6xx.xml SP_CS_IBO align="16"
+  kSpCsTexConstAlign = 0x40 -- a6xx.xml SP_CS_TEX_CONST align="64"
+  kSpCsTexSampAlign = 0x10 -- a6xx.xml SP_CS_TEX_SAMP align="16"
+  kDelayLoopCycles = 0x10 -- a6xx.cc cache_flush and fd6_emit.h fd6_cache_flush both pass 16
+  kTexConstDwords = 0x10 -- REG_A6XX_TEX_CONST_15 + 1; Mesa's A6XX_TEX_CONST_DWORDS
+  kTexSampDwords = 0x4 -- REG_A6XX_TEX_SAMP_3 + 1; Mesa's A6XX_TEX_SAMP_DWORDS
+  kLodFractionBits = 0x8 -- a6xx.xml.h's A6XX_TEX_SAMP_1_MIN_LOD/MAX_LOD encoders, uint32_t(val * 256.0)
+  kLodMaxFixed = 0xfff -- the 12-bit field's ceiling, 4095/256 (tu_sampler.cc:66-67 clamps to it)
+  kMagicPcPowerCntl = 0x1 -- freedreno_devices.py A640 magic_regs PC_POWER_CNTL
+  kMagicTpl1DbgEcoCntl = 0x8000 -- freedreno_devices.py A640 magic_regs TPL1_DBG_ECO_CNTL
+  kMagicGrasDbgEcoCntl = 0x0 -- freedreno_devices.py A640 magic_regs GRAS_DBG_ECO_CNTL
+  kMagicSpChickenBits = 0x420 -- freedreno_devices.py A640 magic_regs SP_CHICKEN_BITS
+  kMagicUcheClientPf = 0x4 -- freedreno_devices.py A640 magic_regs UCHE_CLIENT_PF
+  kMagicPcModeCntl = 0x1f -- freedreno_devices.py A640 magic_regs PC_MODE_CNTL
+  kMagicSpDbgEcoCntl = 0x0 -- freedreno_devices.py A640 magic_regs SP_DBG_ECO_CNTL
+  kMagicRbDbgEcoCntl = 0x4100000 -- freedreno_devices.py A640 magic_regs RB_DBG_ECO_CNTL
+  kMagicHlsqDbgEcoCntl = 0x0 -- freedreno_devices.py A640 magic_regs HLSQ_DBG_ECO_CNTL
+  kMagicRbUnknown8E01 = 0x1 -- freedreno_devices.py A640 magic_regs RB_UNKNOWN_8E01
+  kMagicVpcDbgEcoCntl = 0x2000000 -- freedreno_devices.py A640 magic_regs VPC_DBG_ECO_CNTL
+  kMagicUcheUnknown0E12 = 0x1 -- freedreno_devices.py A640 magic_regs UCHE_UNKNOWN_0E12
+  kHasGmemFastClear = 0x1 -- freedreno_devices.py a6xx_base has_gmem_fast_clear (gen2 keeps it)
+  kConcurrentResolve = 0x0 -- a6xx_gen2 has no concurrent_resolve
+  kHasEarlyPreamble = 0x0 -- a6xx_gen2 has no has_early_preamble
+  kHasTexFilterCubic = 0x0 -- a6xx_gen2 has no has_tex_filter_cubic (gen3/gen4 only)
+  kNumCcu = 0x2 -- freedreno_devices.py A640 num_ccu
+  kSysmemPerCcuDepthCacheSize = 0x10000 -- a6xx_base sysmem_per_ccu_depth_cache_size (65536)
+  kSysmemPerCcuColorCacheSize = 0x10000 -- a6xx_base sysmem_per_ccu_color_cache_size (65536)
+  kGmemBytes = 0x100000 -- Linux adreno_device.c A640 SZ_1M; vayu_adreno.c GMEM_SIZE 0x100000
+  kGmemBase = 0x100000 -- vayu_adreno.c GMEM_BASE and UCHE_GMEM_RANGE_MIN; tu_emit_input_attachments adds physical_device->gmem_base for TILE6_2
+  kGmemCcuColorCacheFraction = 0x4 -- a6xx_base gmem_ccu_color_cache_fraction QUARTER
+  kTileAlignW = 0x20 -- freedreno_devices.py A640 tile_align_w
+  kTileAlignH = 0x10 -- freedreno_devices.py A640 tile_align_h
+  kGmemAlignW = 0x10 -- A6xxGPUInfo gmem_align_w (event blit granule)
+  kGmemAlignH = 0x4 -- A6xxGPUInfo gmem_align_h (event blit granule)
+  kTileMaxW = 0x400 -- A6xxGPUInfo tile_max_w for CHIP.A6XX
+  kTileMaxH = 0x3f0 -- A6xxGPUInfo tile_max_h for CHIP.A6XX
+  kBorderColorBytes = 0x8000 -- fd6_texture.h FD6_MAX_BORDER_COLORS * FD6_BORDER_COLOR_SIZE
+  kBorderColorAlign = 0x80 -- a6xx.xml SP_TP_BORDER_COLOR_BASE_ADDR align="128"
+  kVfdFetchCount = 0x20 -- a6xx.xml VFD_FETCH length="32"; fd6_emit.cc's loop
+  kPrimAllocThreshold = 0x7 -- freedreno_devices.py a6xx_base prim_alloc_threshold = 0x7 (HLSQ_CONTROL_1_REG)
+  kBranchstackSize = 0x40 -- ir3_compiler.c:150 branchstack_size for gen >= 6, the MIN2 in ir3_shader_branchstack_hw
+  kMaxConstPipeline = 0x200 -- ir3_compiler.c:185-188 max_const_pipeline for gen 6: the VS and FS constlens together, in vec4
+  kVsConstlenFloor = 0x8 -- ir3_compiler_nir.c:6035-6037, every gen >= 6 vertex shader has constlen >= 8
+  kProgramAlign = 0x80 -- tu_shader.cc:1313-1316 asserts binary_iova & 0x7f == 0 (one instruction group); the XML says 32 (a6xx.xml:4835, 4996)
+  kSpXsPvtMemAddrAlign = 0x20 -- a6xx.xml SP_VS/SP_FS_PVT_MEM_ADDR align="32"; tu_shader.cc:1317 asserts it
+  kMrtBaseAlign = 0x40 -- fd6_layout.c:181 base_align of a linear image; the XML gives RB_MRT_BASE align 1 (a6xx.xml:3714-3715)
+  kMrtPitchAlign = 0x40 -- a6xx.xml.h:5816 A6XX_RB_MRT_PITCH asserts !(val & 0x3f) before its >> 6
+  kMrtPitchMax = 0x3fffc0 -- a6xx.xml:3702 RB_MRT_PITCH shr=6 high=15: 65535 units of 64 bytes
+  kLocNone = 0xff -- the "no location" every VPC/PC *LOC field takes (tu_pipeline.cc:994-1007, 1042-1049)
+  kMaxGuardband = 0x1ff -- freedreno_guardband.h:14 MAX_GB, all ones of the 9-bit HORZ/VERT fields
+  kVpcVaryingRegs = 0x8 -- a6xx.xml VPC_VARYING_INTERP and VPC_VARYING_PS_REPL length="8" (fd6_program.cc:1365-1370 writes all)
+  kVpcVarDisableRegs = 0x4 -- a6xx.xml VPC_VAR length="4": 128 components of varyings (tu_shader.cc:1791-1808)
+  kMrtCount = 0x8 -- a6xx.xml RB_MRT length="8"; SP_FS_OUTPUT_REG and SP_FS_MRT_REG have 8 too
+  kViewportWords = 0x6 -- REG_A6XX_GRAS_CL_VPORT__STRIDE: XOFFSET, XSCALE, YOFFSET, YSCALE, ZOFFSET, ZSCALE
+  IJ_PERSP_PIXEL = 0x0 -- ir3_shader.h:123
+  IJ_PERSP_SAMPLE = 0x1 -- ir3_shader.h:124
+  IJ_PERSP_CENTROID = 0x2 -- ir3_shader.h:125
+  IJ_PERSP_CENTER_RHW = 0x3 -- ir3_shader.h:126
+  IJ_LINEAR_PIXEL = 0x4 -- ir3_shader.h:127
+  IJ_LINEAR_CENTROID = 0x5 -- ir3_shader.h:128
+  IJ_LINEAR_SAMPLE = 0x6 -- ir3_shader.h:129
+  IJ_COUNT = 0x7 -- ir3_shader.h:130
+  kGmemCcuColorOffset = 0xf8000 -- tu_device.cc ccu_offset_gmem; fraction here is the divisor, not Mesa's log2 enum
+  kNumVscPipes = 0x20 -- freedreno_devices.py A640 num_vsc_pipes
+  kUboMaxVec4 = 0x7fff -- the 15-bit field's largest size
+ok

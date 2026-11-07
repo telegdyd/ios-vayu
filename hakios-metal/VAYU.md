@@ -41,6 +41,14 @@ The original patches remain in `docs/vayu-patches/` as historical inputs.
 
 ## Build and scope
 
+Task 3 audited these choices against Mesa 25.0.7; see the comparison table in
+`../docs/metal-driver-inventory.md`. Further local fixes: A640's nonzero GMEM
+base in framebuffer-fetch descriptors and fake validation; firmware WFM before
+indirect draws; A640 defaults in `ir3-kernel`/`compiler-smoke`; shared-memory limit
+uses the chip constant. Header annotations/declarations and the register checker
+now allow checking the whole header against Mesa's generated output. Evidence:
+`../docs/metal-step3-register-check.log` and `../docs/metal-step3-build.log`.
+
 From a configured WSL `~/vayu` checkout, including the cross tools installed by
 `xnu-deps/setup.sh` and `~/theos/sdks/iPhoneOS16.5.sdk`, one command builds the
 library, both probes and tests without touching a phone:

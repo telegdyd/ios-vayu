@@ -526,7 +526,7 @@ bool FakeGpu::check2d(const uint32_t* d, const char* what, uint32_t i, bool samp
         const uint32_t ccu = reg(REG_A6XX_RB_CCU_CNTL);
         const uint64_t cache = uint64_t(fieldOf(ccu, A6XX_RB_CCU_CNTL_COLOR_OFFSET__MASK, A6XX_RB_CCU_CNTL_COLOR_OFFSET__SHIFT)) << A6XX_RB_CCU_CNTL_COLOR_OFFSET__SCALE |
                                uint64_t(fieldOf(ccu, A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI__MASK, A6XX_RB_CCU_CNTL_COLOR_OFFSET_HI__SHIFT)) << 21;
-        if (pitch != uint64_t(binW) * bpp || base + uint64_t(binW) * binH * bpp > cache ||
+        if (pitch != uint64_t(binW) * bpp || base < kGmemBase || base + uint64_t(binW) * binH * bpp > kGmemBase + cache ||
             fieldOf(d[2], A6XX_TEX_CONST_2_TYPE__MASK, A6XX_TEX_CONST_2_TYPE__SHIFT) != A6XX_TEX_2D ||
             fieldOf(d[5], A6XX_TEX_CONST_5_DEPTH__MASK, A6XX_TEX_CONST_5_DEPTH__SHIFT) != 1) {
             fault(who + text(": a GMEM read of pitch %llu at %#llx: ", pitch, base) + text("not the %llu-pixel bin's rows, ", binW) +
@@ -2449,7 +2449,7 @@ int FakeGpu::call(uint32_t request, void* data, size_t size) {
         case kParamChipId: p->value = kChipId | kSpeedBin << 32; return 0;
         case kParamMaxFreq: p->value = kMaxFrequencyHz; return 0;
         case kParamTimestamp: p->value = uint64_t(nowNs()); return 0;
-        case kParamGmemBase: p->value = 0x100000; return 0;
+        case kParamGmemBase: p->value = a6xx::kGmemBase; return 0;
         case kParamPriorities: p->value = 1; return 0;
         case kParamPpPgtable: p->value = 0; return 0;
         case kParamFaults: p->value = stats_.recoveries; return 0;
