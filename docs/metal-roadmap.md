@@ -333,7 +333,17 @@ Every agent, every task:
   still apply.
   Done when: SpringBoard, Settings, app switching, Control Centre and blur work on Metal with no
   visible errors; the GL flag still works (FACT, with screenshots or photos and logs).
-  Result: —
+  Result: **FACT on the phone, switched at run time; not yet in an image (2026-11-07, `metal-step11`,
+  `docs/metal-ca-results.md`):**
+  - backboardd draws the home screen, Settings, the app switcher (tap a card to switch), Safari and Control Centre
+    through the A640, with blur and materials matching GL. Screenshots in `docs/metal-step11/`.
+  - `tools/metal-ca-run.sh off` (or a reboot) is GL again, verified.
+  - Two visible defects were traced to upstream's precompiled-variant/stand-in rule for CoreAnimation shaders:
+    Safari's toolbar as a grey band, and a launch-snapshot card in one solid colour. The plug-in now compiles
+    CoreAnimation's own specialised uber shaders (this image ships them; `metal_ca_variants=1` gives the old path).
+  - Task 9's program 24/24 and new ASTC/half-sampling checks 72/72 pass on the same bundle.
+  - **Open:** the persistent form, `metal=3` with this plug-in in the ramdisk, needs a reflash (user's OK). A cold
+    boot straight into Metal is untested. No frame-timing comparison with GL yet (task 13).
 
 - [ ] **12. System frameworks and third-party apps.**
   Depends on: 11.
@@ -445,4 +455,8 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
   not composited: QuartzCore gives the drawable to the framebuffer, which copies it to the panel after the GPU's
   fence. For task 11 this means that when backboardd itself is on Metal, its output still reaches the panel through
   the same framebuffer copy.
+- **Answered (task 11):** shown the device, backboardd switches to Metal by itself and QuartzCore finds its shaders in
+  this image's own `QuartzCore.framework/default.metallib`. The precompiled-variant rule upstream wrote for an image
+  without one is wrong here (visible defects). A plug-in can be tried in the window server without a reflash
+  (`tools/metal-ca-run.sh`).
 - Which third-party Metal apps or games matter to the user? (task 12)

@@ -69,6 +69,28 @@ Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt a
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 11 (2026-11-07; the window server on Metal, switched at run time)
+
+- **FACT (`docs/metal-ca-results.md`, `docs/metal-step11-phone.log`, screenshots `docs/metal-step11/`):** backboardd on
+  this tree's plug-in draws the home screen, Settings, the app switcher (and switching from it), Safari and Control
+  Centre through the A640, with blur and materials matching GL. `tools/metal-ca-run.sh off` is GL again (run gl3).
+  Task 9's 24/24 and the new `metal_test astc` 72/72 pass on the same bundle.
+- **Fixed:** CoreAnimation's uber shaders are now compiled from QuartzCore's own `default.metallib` (this image has
+  one), specialised by CA's constants. Upstream's precompiled variants and stand-ins gave Safari's toolbar a grey
+  band and its launch-snapshot card one solid colour. `metal_ca_variants=1` gives the old path. Shadow-copy surfaces
+  are now written back before events and handlers.
+- **How, no reflash:** `tools/metal-ca-build.sh` (WSL), `tools/metal-ca-run.sh on|off NAME`, `tools/metal-ca-shot.sh`.
+  - `ca.dylib` goes into backboardd via `kern.exec_inject`; it swizzles `+[NSBundle bundleWithPath:]` to load
+    `/private/var/tmp/task11/HakiosMetal.bundle`.
+  - Clients file: `/private/var/tmp/HakiosMetal.clients`. Diagnostic switches: `/private/var/tmp/HakiosMetal.args`.
+  - All of it is gone after a reboot.
+  - bindfs at run time is refused (pid 1 only), and dyld interposing does not reach Metal's IOKit calls in the cache.
+- **Phone state:** left on GL (backboardd 2118). `/private/var/tmp/task11` holds the test files (emptied at boot).
+  `boot` is still 4cb4ccbf; nothing flashed.
+- **Upstream checked:** `main` = our pin 63fc2b46; nothing newer for Metal (mtk drops it, legacy-hackios is GL-era).
+- **Next:** with the user's OK, an image with this plug-in and `metal=3` (backboardd on Metal from boot; `metal=1` is
+  GL). Then task 12, or task 13 to measure Metal against GL.
+
 ## Metal step 10 (2026-11-07; CAMetalLayer on the panel)
 
 - **FACT (`docs/metal-step10-phone.log`, `docs/metal-layer-results.md`):** `tools/metal-layer-run.sh final-full 60` ran

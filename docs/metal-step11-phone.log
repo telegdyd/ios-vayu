@@ -1,0 +1,29 @@
+# Task 11 phone log (excerpts; full logs in ignored logs/metal-step11/). Run IDs: try3 (first switch), final (variant-free default), gl3 (back to GL).
+## try3: backboardd 1166 on Metal (precompiled variants)
+metal_ca_try[1166]: in this process; Metal's plug-in is /private/var/tmp/task11/HakiosMetal.bundle while it is there
+metal_ca_try[1166]: +[NSBundle bundleWithPath:/System/Library/Extensions/HakiosMetal.bundle] answered with /private/var/tmp/task11/HakiosMetal.bundle
+HakiosMetal[backboardd 1166]: backboardd is shown the device: HakiosMetal.clients beside the bundle names it
+HakiosMetal[backboardd 1166]: device: HakiOS Adreno 640 on IOAcceleratorES service 0x8803; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+HakiosMetal[backboardd 1166]: pipeline cache: render fixed_vert_lph_gen+fixed_frag_lph_cpf in 4518.67 ms, 0 stages from the cache, 2 compiled (this process: 0 hits, 2 misses)
+HakiosMetal[backboardd 1166]: pipeline cache: render fixed_vert_lph_gen+fixed_frag_lph_cpf in 1.49 ms, 2 stages from the cache, 0 compiled (this process: 3 hits, 5 misses)
+## final: backboardd 2057, default (own specialised modules)
+HakiosMetal[backboardd 2057]: CoreAnimation's uber shaders: their own modules, specialised (metal_ca_variants=1: the precompiled variants)
+HakiosMetal[backboardd 2057]: backboardd is shown the device: HakiosMetal.clients beside the bundle names it
+HakiosMetal[backboardd 2057]: device: HakiOS Adreno 640 on IOAcceleratorES service 0x9e03; the compiler is in this build; feature profile 1 (Apple1, Apple2 and Common1); pipelines.HakiOSAdreno640 is the precompiled pipeline library Metal will look for and not find
+metal_ca_try[2057]: +[NSBundle bundleWithPath:/System/Library/Extensions/HakiosMetal.bundle] answered with /private/var/tmp/task11/HakiosMetal.bundle
+metal_ca_try[2057]: in this process; Metal's plug-in is /private/var/tmp/task11/HakiosMetal.bundle while it is there
+## final: framebuffer rate lines after the switch (idle 10/s as under GL, more while animating)
+MiniIOMobileFramebuffer: 11 frames in 1000 ms (10 a second), 1465 us each in the driver, after 3 us waiting for the GPU and, 0 of them, 0 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 0 swaps came a refresh late themselves
+MiniIOMobileFramebuffer: 11 frames in 1001 ms (10 a second), 1464 us each in the driver, after 3 us waiting for the GPU and, 0 of them, 0 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 0 swaps came a refresh late themselves
+MiniIOMobileFramebuffer: 11 frames in 1001 ms (10 a second), 1458 us each in the driver, after 3 us waiting for the GPU and, 0 of them, 0 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 0 swaps came a refresh late themselves
+MiniIOMobileFramebuffer: 11 frames in 1001 ms (10 a second), 1475 us each in the driver, after 3 us waiting for the GPU and, 0 of them, 0 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 0 swaps came a refresh late themselves
+MiniIOMobileFramebuffer: 28 frames in 1003 ms (27 a second), 1457 us each in the driver, after 697 us waiting for the GPU and, 4 of them, 4924 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 21 swaps came a refresh late themselves
+MiniIOMobileFramebuffer: 11 frames in 1001 ms (10 a second), 1456 us each in the driver, after 3 us waiting for the GPU and, 0 of them, 0 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 0 swaps came a refresh late themselves
+MiniIOMobileFramebuffer: 11 frames in 1000 ms (10 a second), 1455 us each in the driver, after 3 us waiting for the GPU and, 0 of them, 0 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 0 swaps came a refresh late themselves
+MiniIOMobileFramebuffer: 11 frames in 1001 ms (10 a second), 1461 us each in the driver, after 3 us waiting for the GPU and, 0 of them, 0 us for the next refresh; 0 swaps waited for the frame before, 0 gave up; 0 swaps came a refresh late themselves
+## gl3: back on GL
+hakios-gl: frame 1: 136 GL calls, 4 draws, 8 triangles, 0 clears; 1 textures refilled from IOSurfaces (10962 KB); 0 pictures copied out, 1 drawn in place; 69584 us (7947 handing on, 1009 waiting, 0 copying out), 30348 before it for the IOSurfaces
+hakios-gl: frame 2: 58 GL calls, 4 draws, 8 triangles, 0 clears; 1 textures refilled from IOSurfaces (10809 KB); 0 pictures copied out, 1 drawn in place; 4821 us (189 handing on, 4170 waiting, 1 copying out), 24790 before it for the IOSurfaces
+hakios-gl: frame 1: 135 GL calls, 4 draws, 8 triangles, 0 clears; 1 textures refilled from IOSurfaces (10962 KB); 0 pictures copied out, 1 drawn in place; 38448 us (3067 handing on, 974 waiting, 1 copying out), 39152 before it for the IOSurfaces
+## own-mode cold compile cost (own1, backboardd 1989)
+93 pipelines, 15511 ms total, max 1107 ms, 20 stages compiled, 203 from cache

@@ -452,3 +452,92 @@ metal_app(id<MTLDevice> device, const char *library_path)
 	printf("metal_app: %s\n", app_failures == 0 ? "ALL PASS" : "FAILED");
 	return app_failures != 0;
 }
+
+/*
+ * (task 11) `metal_test astc LIBRARY`: ASTC 4x4 LDR textures made of void-extent blocks alone (one constant colour a
+ * block: what a blank page's snapshot is, SpringBoard's app snapshots being ASTC -- the window server on Metal drew a
+ * white Safari card as one solid wrong colour), sampled by tri_tex_fs over a 64x64 target, at the snapshot's own
+ * 1125x2436 and at sizes beside it. Each pixel must be the block colour.
+ */
+int
+metal_astc(id<MTLDevice> device, const char *library_path)
+{
+	NSError *error = nil;
+	static const struct { uint32_t w, h; } sizes[] = { { 64, 64 }, { 1125, 64 }, { 1125, 2436 } };
+	static const uint16_t colours[][4] = { { 0xffff, 0xffff, 0xffff, 0xffff }, { 0x2020, 0x8080, 0xc0c0, 0xffff } };
+	/* float sample (task 9's), half sample, half sample with alpha set by insertelement (CoreAnimation's _Ixrg shape) */
+	static NSString *const fragments[] = { @"tri_tex_fs", @"tri_texh_fs", @"tri_texhx_fs" };
+
+	app_failures = app_checks = 0;
+	id<MTLCommandQueue> queue = [device newCommandQueue];
+	id<MTLLibrary> library = [device newLibraryWithURL:[NSURL fileURLWithPath:[NSString stringWithUTF8String:library_path]] error:&error];
+	MTLSamplerDescriptor *smd = [[MTLSamplerDescriptor alloc] init];
+	smd.minFilter = smd.magFilter = MTLSamplerMinMagFilterNearest;
+	smd.sAddressMode = smd.tAddressMode = MTLSamplerAddressModeClampToEdge;
+	id<MTLSamplerState> sampler = [device newSamplerStateWithDescriptor:smd];
+	id<MTLTexture> target = app_target(device);
+	uint32_t *pixels = calloc(64 * 64, 4);
+
+	for (size_t f = 0; f < sizeof(fragments) / sizeof(fragments[0]); f++) {
+		MTLRenderPipelineDescriptor *rd = [[MTLRenderPipelineDescriptor alloc] init];
+		rd.vertexFunction = [library newFunctionWithName:@"tri_color_vs"];
+		rd.fragmentFunction = [library newFunctionWithName:fragments[f]];
+		rd.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
+		id<MTLRenderPipelineState> pipe = rd.vertexFunction != nil && rd.fragmentFunction != nil ?
+						  [device newRenderPipelineStateWithDescriptor:rd error:&error] : nil;
+		if (queue == nil || pipe == nil) {
+			app_check(NO, [NSString stringWithFormat:@"pipeline tri_color_vs+%@ (%@)", fragments[f], error != nil ? [error localizedDescription] : @""]);
+			continue;
+		}
+		for (size_t c = 0; c < sizeof(colours) / sizeof(colours[0]); c++) {
+			const uint32_t want = 0xff000000u | (uint32_t)(colours[c][2] >> 8) << 16 | (uint32_t)(colours[c][1] >> 8) << 8 | (colours[c][0] >> 8);
+			for (size_t s = 0; s < sizeof(sizes) / sizeof(sizes[0]); s++) {
+				for (int astc = 0; astc < 2; astc++) {
+					const uint32_t bw = (sizes[s].w + 3) / 4, bh = (sizes[s].h + 3) / 4;
+					const size_t bytes = astc ? (size_t)bw * bh * 16 : (size_t)sizes[s].w * sizes[s].h * 4;
+					uint8_t *data = malloc(bytes);
+
+					if (astc) {
+						for (uint32_t b = 0; b < bw * bh; b++) {
+							static const uint8_t head[8] = { 0xfc, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+							memcpy(data + 16 * b, head, 8);
+							memcpy(data + 16 * b + 8, colours[c], 8);
+						}
+					} else {
+						for (size_t k = 0; k < (size_t)sizes[s].w * sizes[s].h; k++) {
+							memcpy(data + 4 * k, &want, 4);
+						}
+					}
+					MTLTextureDescriptor *td = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:astc ?
+								    MTLPixelFormatASTC_4x4_LDR : MTLPixelFormatRGBA8Unorm width:sizes[s].w height:sizes[s].h mipmapped:NO];
+					td.usage = MTLTextureUsageShaderRead;
+					id<MTLTexture> src = [device newTextureWithDescriptor:td];
+					[src replaceRegion:MTLRegionMake2D(0, 0, sizes[s].w, sizes[s].h) mipmapLevel:0 withBytes:data
+					       bytesPerRow:astc ? bw * 16 : sizes[s].w * 4];
+					free(data);
+					NSString *label = [NSString stringWithFormat:@"%@ over %s %ux%u, colour %08x", fragments[f],
+							   astc ? "ASTC 4x4 void-extent" : "RGBA8", sizes[s].w, sizes[s].h, want];
+					if (src == nil) {
+						app_check(NO, [label stringByAppendingString:@": no texture"]);
+						continue;
+					}
+					if (app_draw(device, queue, pipe, target, MTLClearColorMake(0, 0, 0, 0), src, sampler, pixels, label)) {
+						uint32_t near = 0;
+						for (uint32_t k = 0; k < 64 * 64; k++) {
+							near += abs((int)(pixels[k] & 0xff) - (int)(want & 0xff)) <= 2 &&
+								abs((int)(pixels[k] >> 8 & 0xff) - (int)(want >> 8 & 0xff)) <= 2 &&
+								abs((int)(pixels[k] >> 16 & 0xff) - (int)(want >> 16 & 0xff)) <= 2 &&
+								(pixels[k] >> 24) >= 0xfd;
+						}
+						app_check(near >= 64 * 64 - 64, [NSString stringWithFormat:@"%@: %u of 4096 pixels within 2 of it (first %08x, middle %08x)",
+						    label, near, pixels[0], pixels[32 * 64 + 40]]);
+					}
+				}
+			}
+		}
+	}
+	free(pixels);
+	printf("metal_astc: %d checks, %d failed\n", app_checks, app_failures);
+	return app_failures != 0;
+}

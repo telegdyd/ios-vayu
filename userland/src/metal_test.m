@@ -37,6 +37,7 @@
 #import <CoreImage/CoreImage.h>
 #import <Foundation/Foundation.h>
 #import <IOKit/IOKitLib.h>
+#import <IOSurface/IOSurfaceRef.h>
 #import <Metal/Metal.h>
 #import <OpenGLES/EAGL.h>
 #import <objc/message.h>
@@ -47,7 +48,10 @@
 #import <stdio.h>
 #import <stdlib.h>
 #import <spawn.h>
+#import <errno.h>
+#import <string.h>
 #import <sys/stat.h>
+#import <sys/sysctl.h>
 #import <sys/wait.h>
 #import <time.h>
 #import <unistd.h>
@@ -297,12 +301,14 @@ plugins(void)
 /* Step 5, as a program sees it. */
 /* `metal_test app LIBRARY [BUNDLE]`: the .metallib task 9's program runs (metal_app.m) */
 int metal_app(id<MTLDevice> device, const char *library_path);
+int metal_astc(id<MTLDevice> device, const char *library_path);
 static const char *app_library;
 /* `metal_test layer LIBRARY [SECONDS [DIVISOR [BUNDLE]]]`: task 10's full-screen CAMetalLayer (metal_layer.m) */
 int metal_layer(id<MTLDevice> device, const char *library_path, double seconds, double divisor);
 void metal_layer_take_bootstrap(void);
 static double layer_seconds = 20, layer_divisor = 3;
 static int layer_mode;
+static int astc_mode;   /* task 11: `astc LIBRARY BUNDLE` on the bundle's device */
 
 /* a device made by hand, by `metal_test bundle PATH` (see the_bundles_device): nil for the system's own */
 static id<MTLDevice> given_device;
@@ -643,7 +649,8 @@ the_bundles_device(const char *path)
 	given_device = device;
 	printf("metal_test:   -initWithAcceleratorPort: %u gave %s\n", service, device ? class_getName([device class]) : "nil");
 	if (device != nil && app_library != NULL) {
-		exit(layer_mode ? metal_layer(device, app_library, layer_seconds, layer_divisor) : metal_app(device, app_library));
+		exit(layer_mode ? metal_layer(device, app_library, layer_seconds, layer_divisor) :
+		     astc_mode ? metal_astc(device, app_library) : metal_app(device, app_library));
 	}
 	if (device != nil) {
 		the_device();
@@ -739,6 +746,46 @@ main(int argc, char **argv)
 				return 1;
 			}
 			return metal_layer(MTLCreateSystemDefaultDevice(), app_library, layer_seconds, layer_divisor);
+		} else if (strcmp(argv[1], "astc") == 0 && argc > 2) {
+			/* task 11: void-extent ASTC sampled on the GPU (metal_app.m, metal_astc) */
+			if (argc > 3) {
+				app_library = argv[2];
+				astc_mode = 1;
+				the_bundles_device(argv[3]);
+				printf("metal_test: the bundle gave no device\n");
+				return 1;
+			}
+			return metal_astc(MTLCreateSystemDefaultDevice(), argv[2]);
+		} else if (strcmp(argv[1], "screen") == 0 && argc > 2) {
+			/* task 11: a screenshot -- the IOSurface the framebuffer shows in layer 0 (MiniIOMobileFramebuffer's "surfaces in
+			 * layers" line names it), as u32 width, height, bytes per row and the BGRA rows (tools/metal-layer-png.py) */
+			IOSurfaceRef s = IOSurfaceLookup((IOSurfaceID)strtoul(argv[2], NULL, 0));
+			const char *out = argc > 3 ? argv[3] : "/private/var/tmp/screen.raw";
+			FILE *f;
+
+			if (s == NULL || IOSurfaceLock(s, kIOSurfaceLockReadOnly, NULL) != 0) {
+				printf("metal_test: no IOSurface %s to read\n", argv[2]);
+				return 1;
+			}
+			uint32_t head[3] = { (uint32_t)IOSurfaceGetWidth(s), (uint32_t)IOSurfaceGetHeight(s), (uint32_t)IOSurfaceGetBytesPerRow(s) };
+			if ((f = fopen(out, "wb")) != NULL) {
+				fwrite(head, sizeof(head), 1, f);
+				fwrite(IOSurfaceGetBaseAddress(s), head[2], head[1], f);
+				fclose(f);
+			}
+			IOSurfaceUnlock(s, kIOSurfaceLockReadOnly, NULL);
+			printf("metal_test: IOSurface %s, %ux%u, format %.4s, %u bytes a row%s%s\n", argv[2], head[0], head[1],
+			    (const char *)&(uint32_t){ OSSwapInt32(IOSurfaceGetPixelFormat(s)) }, head[2], f != NULL ? " -> " : ": not written to ",
+			    out);
+			CFRelease(s);
+		} else if (strcmp(argv[1], "sysctl") == 0 && argc > 3) {
+			/* task 11: a string sysctl set (kern.exec_inject: metal_ca_try.dylib into backboardd, tools/metal-ca-run.sh);
+			 * sweetd's own sysctl only reads */
+			if (sysctlbyname(argv[2], NULL, NULL, argv[3], strlen(argv[3]) + 1) != 0) {
+				printf("metal_test: sysctl %s: %s\n", argv[2], strerror(errno));
+				return 1;
+			}
+			printf("metal_test: %s set (%zu bytes)\n", argv[2], strlen(argv[3]));
 		} else if (strcmp(argv[1], "bundle") == 0 && argc > 2) {
 			the_bundles_device(argv[2]);
 		} else if (strcmp(argv[1], "metal-blit") == 0) {
