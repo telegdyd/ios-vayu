@@ -1,6 +1,6 @@
 # ios-vayu notes
 
-## Active handoff (2026-11-06 night: iOS flashed into `boot`, starts by itself, keeps /private/var across shutdowns)
+## Active handoff (2026-11-07 ~01:00: iOS in `boot`, starts by itself, /private/var is HFS Plus on the flash)
 
 HFS Plus for a real writable /private/var (in progress, 2026-11-06 late night):
 - Why: /private/var is a RAM disk (ramfs) restored from / saved to darwin by var_store at Shut Down only; the APFS
@@ -30,6 +30,11 @@ HFS Plus for a real writable /private/var (in progress, 2026-11-06 late night):
   cmdline uses var_hfs=1. Rollback: ../backup-vayu/xnu-standalone-varstore.img (+ images-varstore/).
 - FACT: 2026-11-07 ~00:5x: xnu-standalone.img cd3e34b5... flashed into `boot` (user's OK) and rebooted. Not yet
   seen by the user on the phone (their own change + hard restart test pending).
+- **FACT (user, 2026-11-07):** on the flashed image the user changed something, forced a restart (vol-down+power),
+  and the change stayed. /private/var is a writable HFS Plus volume on the flash, written as iOS writes.
+- Next: USB shell (vayu_usbnet=3 CDC-ECM, never confirmed, + jasmine's sweetd, TCP 5143) so the agent can inspect a
+  standalone-booted phone; ufs_native=1 (kernel's own UFS reads, untested on vayu); the var volume is 8 GiB
+  (hfs_resize can grow it into darwin's free space).
 
 Standalone boot (FACT unless marked):
 - Loader 2.2 (546ac05, loader.efi 103936 B sha256 539ed29f...): a payload entry "resident" is copied to the
