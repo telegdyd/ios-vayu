@@ -1,0 +1,108 @@
+{
+  "run": "metal-step6",
+  "groups": [
+    {
+      "file": "full-first.txt",
+      "runs": 1,
+      "checks": 78,
+      "checks_per_run": 78,
+      "compute_checks": 70,
+      "first_iovas": [
+        "0x20f90000"
+      ]
+    },
+    {
+      "file": "full-paused.txt",
+      "runs": 3,
+      "checks": 234,
+      "checks_per_run": 78,
+      "compute_checks": 210,
+      "first_iovas": [
+        "0x20f90000",
+        "0x20f90000",
+        "0x20f90000"
+      ]
+    },
+    {
+      "file": "full-live.txt",
+      "runs": 3,
+      "checks": 234,
+      "checks_per_run": 78,
+      "compute_checks": 210,
+      "first_iovas": [
+        "0x20f90000",
+        "0x20f90000",
+        "0x20f90000"
+      ]
+    }
+  ],
+  "final_full_runs": 7,
+  "final_compute_checks": 490,
+  "final_transport_checks": 56,
+  "additional_query_checks": 2,
+  "captures": [
+    {
+      "file": "shared-before.rd",
+      "bytes": 360596,
+      "sha256": "8dc825d2ab1f44068d2654813f07d6f9f704a9192f7f0dfed0f27be925f06bb1",
+      "decode_sha256": "dcb0b8d6768b84b591237ba6a8aeedfb56052ba78e2bb103c639193d65e99d43"
+    },
+    {
+      "file": "shared-after.rd",
+      "bytes": 360596,
+      "sha256": "a8aef3e5448fd423dbda192b3621d3ea42f17a15b51cecb03f4db9d2964d1239",
+      "decode_sha256": "1b26c9e14892312f02051c8b3f61f0b90d8b36b61cafa79d709733d8f9535299"
+    }
+  ],
+  "software_regression": {
+    "full_check_exit": 1,
+    "baseline_softpipe_failures": [
+      "air.fast_clamp.f32                 1 of 8 cases differ",
+      "air.fast_clamp.v3f32               1 of 24 cases differ",
+      "air.fast_clamp.v4f32               1 of 32 cases differ",
+      "air.fast_fmax.f32                  1 of 8 cases differ",
+      "air.fast_fmax.v2f32                1 of 16 cases differ",
+      "air.fast_fmax.v3f32                1 of 24 cases differ",
+      "air.fast_fmax.v4f32                1 of 32 cases differ",
+      "air.fast_fmin.f32                  1 of 8 cases differ",
+      "air.fast_fmin.v3f32                1 of 24 cases differ",
+      "air.fmin.f32                       1 of 8 cases differ"
+    ],
+    "current_softpipe_failures": [
+      "air.fast_clamp.f32                 1 of 8 cases differ",
+      "air.fast_clamp.v3f32               1 of 24 cases differ",
+      "air.fast_clamp.v4f32               1 of 32 cases differ",
+      "air.fast_fmax.f32                  1 of 8 cases differ",
+      "air.fast_fmax.v2f32                1 of 16 cases differ",
+      "air.fast_fmax.v3f32                1 of 24 cases differ",
+      "air.fast_fmax.v4f32                1 of 32 cases differ",
+      "air.fast_fmin.f32                  1 of 8 cases differ",
+      "air.fast_fmin.v3f32                1 of 24 cases differ",
+      "air.fmin.f32                       1 of 8 cases differ"
+    ]
+  },
+  "fixtures": [
+    "end_only",
+    "fill_id",
+    "fill_id_air",
+    "tex_copy_air",
+    "tex_fill_air",
+    "tex_sample_gid_air",
+    "chain160_air",
+    "chain220_air",
+    "long_chain_air",
+    "pvt_fill_air",
+    "tg_arg_air",
+    "ptr_phi_air",
+    "tex_fill_h_air",
+    "tex_fill_arr_air",
+    "tex_fill_3d_air",
+    "tex_sample_wide_air",
+    "tex_size_h_air"
+  ],
+  "sha256": {
+    "userland/obj/metal-probe": "e45cf80197d0d3b77239c9e7ca007e3652f3bf1560ad5429561dfc625fa443c1",
+    "userland/obj/metal_transport_run": "66a1e6cbe27e91c43265212a1140947b49071f27356cb414192267c04a390431",
+    "userland/obj/metal-query-probe": "0feddb7104cd9b5d0e9f08526e6346101a287ab2be102aa339e879061354aada"
+  }
+}

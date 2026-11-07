@@ -833,6 +833,20 @@ texture_op(struct air_ctx *c, const struct air_inst *in, const struct air_name *
 
    if (!strcmp(t.op, "write")) {
       nir_def *coord = air_get_ssa(c, in->operands[arg++]);
+      if (t.is_array) {
+         nir_def *layer = air_get_ssa(c, in->operands[arg++]);
+         if (!coord || !layer)
+            return false;
+         if (coord->num_components >= 4 || layer->num_components != 1)
+            return air_error(c, "intrinsic: invalid array-store coordinates");
+         nir_scalar components[4];
+         unsigned count = coord->num_components;
+         for (unsigned i = 0; i < count; i++)
+            components[i] = nir_get_scalar(coord, i);
+         components[count] = nir_get_scalar(layer, 0);
+         coord = nir_vec_scalars(&c->b, components, count + 1);
+      }
+      const struct air_type *value_type = in->operands[arg]->type;
       nir_def *value = air_get_ssa(c, in->operands[arg++]);
       if (!coord || !value)
          return false;
@@ -850,7 +864,7 @@ texture_op(struct air_ctx *c, const struct air_inst *in, const struct air_name *
                       nir_imm_int(&c->b, 0), nir_pad_vector(&c->b, value, 4),
                       nir_imm_int(&c->b, 0),
                       .image_dim = t.dim, .image_array = t.is_array,
-                      .src_type = dest_type);
+                      .src_type = tex_dest_type(c, value_type, n));
       return true;
    }
 

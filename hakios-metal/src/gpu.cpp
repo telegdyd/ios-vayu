@@ -2,6 +2,9 @@
 
 #include <cerrno>
 #include <cstring>
+#include <cstdio>
+#include <cstdlib>
+#include <set>
 
 namespace hakios::metal {
 
@@ -141,6 +144,34 @@ int Gpu::submit(uint32_t queue, const Bo& commands, uint32_t offsetBytes, uint32
                 uint32_t* fence) {
     if (words == 0 || offsetBytes % 4 != 0 || offsetBytes + 4ull * words > commands.size()) {
         return EINVAL;
+    }
+    // Opt-in pre-submit RD capture, compatible with Mesa's redump.h/cffdump.
+    // The diagnostic caller selects one submission; never enabled in normal use.
+    if (const char* path = std::getenv("HAKIOS_METAL_RD")) {
+        FILE* out = std::fopen(path, "wb");
+        if (!out) return errno;
+        bool ok = true;
+        auto section = [&](uint32_t type, const void* data, uint32_t bytes) {
+            uint32_t header[2] = {type, bytes};
+            ok = ok && std::fwrite(header, sizeof(header), 1, out) == 1;
+            ok = ok && std::fwrite(data, 1, bytes, out) == bytes;
+        };
+        const uint64_t chip = chipId();
+        section(14 /* RD_CHIP_ID */, &chip, sizeof(chip));
+        std::set<uint32_t> seen;
+        auto buffer = [&](const Bo& bo) {
+            if (!seen.insert(bo.handle()).second) return;
+            uint32_t addr[3] = {uint32_t(bo.gpuAddress()), uint32_t(bo.size()), uint32_t(bo.gpuAddress() >> 32)};
+            section(3 /* RD_GPUADDR */, addr, sizeof(addr));
+            section(12 /* RD_BUFFER_CONTENTS */, bo.cpu(), uint32_t(bo.size()));
+        };
+        buffer(commands);
+        for (const BoUse& u : uses) buffer(*u.bo);
+        uint64_t address = commands.gpuAddress() + offsetBytes;
+        uint32_t addr[3] = {uint32_t(address), words, uint32_t(address >> 32)};
+        section(6 /* RD_CMDSTREAM_ADDR */, addr, sizeof(addr));
+        if (std::fclose(out) != 0) ok = false;
+        if (!ok) return EIO;
     }
     // the command buffer is the first of the buffers; the others follow it once each, read or written
     std::vector<MsmSubmitBo> bos;

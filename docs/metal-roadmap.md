@@ -166,14 +166,31 @@ Every agent, every task:
   not reset telemetry. 261 host tests and fake stages pass; iOS build passes.
   Phone resumed normally, 33 C / 90%; no reboot or partition command. Task 6 next.
 
-- [ ] **6. Compute on the phone.**
+- [x] **6. Compute on the phone.**
   Depends on: 3, 5.
   Do: run the compute fixtures (`fill_id`, `tex_copy`, `tex_fill`, `tex_sample_gid`, …) on the
   Adreno and compare their results with the CPU reference. When one is wrong, diff its submission
   against the task 4 captures before changing the compiler.
   Done when: every compute fixture matches on the phone (FACT, with run ID); failures that remain
   are listed with a diagnosis.
-  Result: —
+  Result: **FACT (2026-11-07, `metal-step6`):** seven complete phone
+  runs pass (70 compute + eight transport checks each), three UI-stopped,
+  three UI-live and an initial run. Seventeen committed kernel fixtures
+  exercised including a separate `tex_size_h` query test (two sizes, all
+  4,096 pixels each). All eight final process audits pass. Eleven additional
+  fixtures regenerated for A640; fixed AIR pointer-phi offsets, half-store
+  typing, array-store layer decoding and static/dynamic shared-memory overlap.
+  Captured/decoded the shared failure (992/1,024) and fixed submission
+  (1,024/1,024); compared launch/descriptor state with task 4. No kernel fix.
+  Results, explicit coverage and diagnostics: `docs/metal-compute-results.md`,
+  `metal-step6-{phone.log,summary.json,build.log}`. **Diagnosed remainder:**
+  `argbuf_res_air` is still A635 and not submitted: current frontend refuses
+  `air.indirect_buffer`. Carry it and bitcode-only live-compile cases into
+  task 9's compiler/API reconciliation. No MESA=1/device compiler claim.
+  261 host tests / zero failures; fake transport and iOS builds pass. Phone
+  resumed on GL, 27 C / 89%; no reboot or partition write. Full frontend
+  check retains ten softpipe arithmetic mismatches, reproduced with the
+  pre-task frontend; comparison is recorded, not claimed green. Task 7 next.
 
 - [ ] **7. Rendering on the phone.**
   Depends on: 6.
@@ -337,5 +354,9 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
 - **Answered for transport (task 5):** the ported driver passes real A640
   stages 1–4 (CP copies/fills/fences/ordering); shader fixtures are not run by
   those stages. 0043's shader hardware coverage starts at tasks 6–7.
+- **Answered for compute (task 6):** seventeen precompiled kernel fixtures
+  match CPU references on A640; repeated main suite passes with UI stopped/live.
+  Argument-buffer regeneration is diagnosed as unsupported frontend metadata,
+  explicitly carried to task 9; it is not a passing hardware result.
 - Does QuartzCore switch to Metal on its own once a device is registered? (task 8)
 - Which third-party Metal apps or games matter to the user? (task 12)

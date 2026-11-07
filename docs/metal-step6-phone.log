@@ -1,0 +1,696 @@
+# full-first.txt
+probe: compute-only; all A640 fixtures; rendering/recovery disabled
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 126 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 318 us; a draw's 2.5 KB of table 0.24 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1126 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27155 us at best (617 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 102 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 103 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 97 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 339 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 97 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 93 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 98 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 90 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 90 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 91 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 90 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 105 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 103 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 97 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 122 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 103 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 380 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 126 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 125 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 344 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 349 us, FAULTS 0
+probe: (no compiler in this build: nothing compiled on the phone; build with MESA=1 for that)
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 379 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 22396 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 109 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 123 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 117 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 100 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 98 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 96 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 98 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 106 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 110 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 101 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 100 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 122 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 103 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 138 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 108 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 105 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 138 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 106 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 96 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 93 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 93 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 120 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 104 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 100 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 100 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 101 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 97 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 99 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 97 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 95 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 90 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 88 us, FAULTS 0
+probe: (no compiler in this build: the texture kernels were not compiled on the phone)
+probe: compute-only finished; 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=729 errors=0 close=0 first_iova=0x20f90000
+
+# full-paused.txt
+runner: mode=paused repetitions=3
+runner: SpringBoard pid=9 state=4 expected=stopped
+runner: backboardd pid=15 state=4 expected=stopped
+runner: wired_pages=33354 (system-wide observation)
+runner: iteration=1 suite=compute
+probe: compute-only; all A640 fixtures; rendering/recovery disabled
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 126 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 322 us; a draw's 2.5 KB of table 0.24 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1226 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27356 us at best (613 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 121 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 120 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 123 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 378 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 127 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 125 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 126 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 108 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 107 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 108 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 112 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 96 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 105 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 99 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 116 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 119 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 369 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 131 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 115 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 114 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 355 us, FAULTS 0
+probe: (no compiler in this build: nothing compiled on the phone; build with MESA=1 for that)
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 375 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 148 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 110 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 104 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 112 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 105 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 112 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 103 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 103 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 104 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 112 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 122 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 129 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 119 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 115 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 105 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 114 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 115 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 103 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 103 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 102 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 105 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 103 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 101 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 107 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 118 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 118 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 119 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 114 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 99 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 100 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 111 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 112 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 108 us, FAULTS 0
+probe: (no compiler in this build: the texture kernels were not compiled on the phone)
+probe: compute-only finished; 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=722 errors=0 close=0 first_iova=0x20f90000
+runner: wired_pages=33363 (system-wide observation)
+runner: iteration=2 suite=compute
+probe: compute-only; all A640 fixtures; rendering/recovery disabled
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 308 us; a draw's 2.5 KB of table 0.22 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1079 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27790 us at best (603 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 108 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 110 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 132 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 350 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 109 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 102 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 102 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 99 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 97 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 97 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 100 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 97 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 103 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 100 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 103 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 104 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 345 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 126 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 102 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 341 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 340 us, FAULTS 0
+probe: (no compiler in this build: nothing compiled on the phone; build with MESA=1 for that)
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 384 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 112 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 105 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 104 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 104 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 100 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 108 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 96 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 97 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 95 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 98 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 99 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 97 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 96 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 95 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 102 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 92 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 94 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 92 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 94 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 121 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 102 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 92 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 92 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 90 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 89 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 90 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 92 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 90 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 87 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 89 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 88 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 86 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 88 us, FAULTS 0
+probe: (no compiler in this build: the texture kernels were not compiled on the phone)
+probe: compute-only finished; 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=725 errors=0 close=0 first_iova=0x20f90000
+runner: wired_pages=33365 (system-wide observation)
+runner: iteration=3 suite=compute
+probe: compute-only; all A640 fixtures; rendering/recovery disabled
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 109 us to a GPU buffer, 80 to its own; 16 K words read from a GPU buffer in 313 us; a draw's 2.5 KB of table 0.22 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1066 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 28278 us at best (593 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 125 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 121 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 116 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 356 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 115 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 110 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 113 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 92 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 91 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 89 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 89 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 113 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 98 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 107 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 103 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 119 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 358 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 125 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 116 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 119 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 365 us, FAULTS 0
+probe: (no compiler in this build: nothing compiled on the phone; build with MESA=1 for that)
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 386 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 115 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 120 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 118 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 118 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 118 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 130 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 114 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 118 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 117 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 115 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 114 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 119 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 108 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 133 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 129 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 106 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 107 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 117 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 130 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 102 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 124 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 116 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 115 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 117 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 103 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 100 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 116 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 102 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 98 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 98 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 97 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 96 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 96 us, FAULTS 0
+probe: (no compiler in this build: the texture kernels were not compiled on the phone)
+probe: compute-only finished; 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=722 errors=0 close=0 first_iova=0x20f90000
+runner: wired_pages=33365 (system-wide observation)
+runner: SpringBoard pid=9 state=4 expected=stopped
+runner: backboardd pid=15 state=4 expected=stopped
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: PASS failures=0
+
+# full-live.txt
+runner: mode=live repetitions=3
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: wired_pages=33167 (system-wide observation)
+runner: iteration=1 suite=compute
+probe: compute-only; all A640 fixtures; rendering/recovery disabled
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 128 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 326 us; a draw's 2.5 KB of table 0.24 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1212 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27581 us at best (608 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 124 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 118 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 116 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 355 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 127 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 115 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 101 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 98 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 99 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 97 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 104 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 99 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 101 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 102 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 115 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 113 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 353 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 111 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 135 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 131 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 378 us, FAULTS 0
+probe: (no compiler in this build: nothing compiled on the phone; build with MESA=1 for that)
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 396 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 128 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 129 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 127 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 124 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 128 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 117 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 111 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 113 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 113 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 113 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 129 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 125 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 124 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 124 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 125 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 123 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 126 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 125 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 138 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 130 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 114 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 111 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 111 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 112 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 111 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 112 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 115 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 109 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 108 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 106 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 106 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 106 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 106 us, FAULTS 0
+probe: (no compiler in this build: the texture kernels were not compiled on the phone)
+probe: compute-only finished; 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=725 errors=0 close=0 first_iova=0x20f90000
+runner: wired_pages=33171 (system-wide observation)
+runner: iteration=2 suite=compute
+probe: compute-only; all A640 fixtures; rendering/recovery disabled
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 130 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 322 us; a draw's 2.5 KB of table 0.24 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1107 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27503 us at best (610 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 100 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 99 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 96 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 364 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 113 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 102 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 94 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 91 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 94 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 91 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 94 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 92 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 98 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 97 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 97 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 99 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 338 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 100 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 98 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 335 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 341 us, FAULTS 0
+probe: (no compiler in this build: nothing compiled on the phone; build with MESA=1 for that)
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 349 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 95 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 95 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 99 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 97 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 99 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 96 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 93 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 96 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 96 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 98 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 96 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 119 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 118 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 119 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 105 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 100 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 109 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 102 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 103 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 102 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 101 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 100 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 100 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 100 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 101 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 100 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 100 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 97 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 96 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 103 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 98 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 97 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 96 us, FAULTS 0
+probe: (no compiler in this build: the texture kernels were not compiled on the phone)
+probe: compute-only finished; 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=721 errors=0 close=0 first_iova=0x20f90000
+runner: wired_pages=33170 (system-wide observation)
+runner: iteration=3 suite=compute
+probe: compute-only; all A640 fixtures; rendering/recovery disabled
+hakios-metal: the GPU through the service HakiosGPU
+probe: GPU 640, chip id 0x6040001, 499 MHz, FAULTS 0
+probe: (CPU and GPU memory: 1 MB written in 130 us to a GPU buffer, 93 to its own; 16 K words read from a GPU buffer in 319 us; a draw's 2.5 KB of table 0.24 us)
+probe: ok   CP_MEMCPY of 500000 bytes: the bytes are the same, nothing around them touched, 1155 us
+probe: ok   fill of 4 bytes at 16
+probe: ok   fill of 256 bytes at 16
+probe: ok   fill of 260 bytes at 16
+probe: ok   fill of 65540 bytes at 16
+probe: ok   fill of 999996 bytes at 16
+probe: ok   40 command buffers in flight: handlers in order, memory as written
+probe: ok   16 MB by CP_MEMCPY in 27185 us at best (617 MB/s, commit to fence)
+probe: ok   dispatch of chain160_air (103 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 0bb1d30f, want 0bb1d30f), 124 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 119 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units) with 120 preloaded: 1024 of 1024 words the chain (word 0: got 1f2473bc, want 1f2473bc), 117 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units) with 64 preloaded: 1024 of 1024 words the chain (word 0: got b04c36ee, want b04c36ee), 353 us, FAULTS 0
+probe: ok   dispatch of chain220_air before the simple compute tests: 1024 of 1024 words the 220-step chain (word 0: got 1f2473bc, want 1f2473bc), 116 us, FAULTS 0
+probe: ok   dispatch of end_only, 1 group: completed, 1024 of 1024 words untouched, 112 us, FAULTS 0
+probe: ok   dispatch of fill_id, 16 groups of 64, c = 0x1234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 96 us, FAULTS 0
+probe: ok   control, c = 0x2234: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 95 us, FAULTS 0
+probe: ok   control, 8 groups of the same 1024-word buffer: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 92 us, FAULTS 0
+probe: ok   control, end_only over 16 groups: 1024 of 1024 words canary, 91 us, FAULTS 0
+probe: ok   dispatch of fill_id_air (AIR -> NIR -> ir3), 16 groups of 64, c from a constant buffer: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 94 us, FAULTS 0
+probe: ok   control, fill_id_air over 8 groups: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 93 us, FAULTS 0
+probe: ok   indirect dispatch of fill_id_air, counts {16, 1, 1} written after recording: 1024 of 1024 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 95 us, FAULTS 0
+probe: ok   control, indirect dispatch with the counts left at {8, 1, 1}: 512 of 512 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 512 of 512 canary, 94 us, FAULTS 0
+probe: ok   dispatch of chain160_air (103 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 160-step chain, 0 the one a step short, 97 us, FAULTS 0
+probe: ok   dispatch of chain220_air (142 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 220-step chain, 0 the one a step short, 101 us, FAULTS 0
+probe: ok   dispatch of long_chain_air (500 units, 64 preloaded), 16 groups of 64: 1024 of 1024 words the 700-step chain, 0 the one a step short, 352 us, FAULTS 0
+probe: ok   fill_id_air over 64 groups (4096 words): 4096 of 4096 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 113 us, FAULTS 0
+probe: ok   fill_id_air over 256 groups (16384 words): 16384 of 16384 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 108 us, FAULTS 0
+probe: ok   fill_id_air over 1024 groups (65536 words): 65536 of 65536 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 105 us, FAULTS 0
+probe: ok   fill_id_air over 4096 groups (262144 words): 262144 of 262144 words as the kernel computes them, 0 still canary, 0 wrong; beyond them 0 of 0 canary, 349 us, FAULTS 0
+probe: (no compiler in this build: nothing compiled on the phone; build with MESA=1 for that)
+probe: ok   private memory in a dispatch, a[128] a fiber read at gid & 127: 4096 of 4096 words 3 (gid & 127) + (gid >> 7) + 1, 64 of 64 past the grid canary, 396 us, FAULTS 0
+probe: ok   threadgroup argument past s[64], 8 KiB of it: 1024 of 1024 threads read (n + 1000, n + 2000), 64 of 64 past the grid canary, 122 us, FAULTS 0
+probe: ok   pointer phis into one buffer: 256 of 256 branch-chosen words, 256 of 256 loop sums 12g + 46, 64 of 64 past the grid canary, 117 us, FAULTS 0
+probe: ok   tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 116 us, FAULTS 0
+probe: (tex_fill R32Uint 64x32, (8,4,1) groups of (8,8,1), c = 0x5678: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels as computed, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 116 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_fill R32Uint 64x32, c = 0x6789: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 111 us, FAULTS 0
+probe: (control, tex_fill R32Uint 64x32, c = 0x6789: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 112 us, FAULTS 0
+probe: ok   tex_fill R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: 2048 of 2048 pixels as computed, 0 still canary, 0 wrong, 110 us, FAULTS 0
+probe: (tex_fill RGBA32Uint 64x32, (8,4,1) groups of (8,8,1), all four lanes: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: 960 of 960 pixels as computed, 0 still canary, 0 wrong, 113 us, FAULTS 0
+probe: ok   tex_fill RGBA32Uint 48x20, (6,5,1) groups of (8,4,1), 768-byte rows at a pitch of 1024: row padding: 5120 of 5120 bytes untouched
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 64x32 at 0,0 with a stride of 256: 2048 of 2048 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: Texture::read of 55x27 at 5,3 with a stride of 220: 1485 of 1485 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 64x32: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (63, 0) lies outside the 64 x 32 texture
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 48x20 at 0,0 with a stride of 192: 960 of 960 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: Texture::read of 39x15 at 5,3 with a stride of 156: 585 of 585 pixels as the GPU rows
+probe: ok   tex_fill R32Uint 48x20: control, Texture::read of 2 pixels starting at the last column: refused: region 2 x 1 at (47, 0) lies outside the 48 x 20 texture
+probe: ok   tex_fill_h RGBA16Float 64x32, (8,4,1) groups of (8,8,1), the store typed f16: 2048 of 2048 pixels the half bit patterns, 0 still canary, 0 wrong; 0 of 2048 are the halves of the bits read as integers, 115 us, FAULTS 0
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): 2048 of 2048 pixels equal to the input, 0 still canary, 0 wrong, 134 us, FAULTS 0
+probe: (tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   tex_copy R32Uint 64x32, in at texture 1 (isaml), out at texture 0 (IBO slot 0), (8,4,1) groups of (8,8,1): the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: 1024 of 1024 pixels equal to the input, 0 still canary, 0 wrong; outside the grid 1024 of 1024 pixels canary, 130 us, FAULTS 0
+probe: (control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: no padding bytes at this geometry: the rows are the pitch long and fill the Bo)
+probe: ok   control, tex_copy R32Uint 64x32 over the left half, (4,4,1) groups: the input afterwards: 2048 of 2048 pixels still the pattern
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: 960 of 960 pixels equal to the input, 0 still canary, 0 wrong, 114 us, FAULTS 0
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: row padding: 4352 of 4352 bytes untouched
+probe: ok   tex_copy R32Uint 48x20, (6,5,1) groups of (8,4,1), 192-byte rows at a pitch of 256: the input afterwards: 960 of 960 pixels still the pattern
+probe: ok   control, Texture::replace of 2 pixels starting at the last column of 8x8: refused: region 2 x 1 at (7, 0) lies outside the 8 x 8 texture
+probe: ok   control, makeSampler with anisotropy 17: refused: sampler anisotropy 17: MTLSamplerDescriptor.maxAnisotropy is 1 to 16
+probe: ok   control, makeSampler with border colour 3: refused: sampler border colour 3: MTLSamplerBorderColor is 0, 1 or 2
+probe: ok   tex_sample_gid nearest over 8x8 RGBA8Unorm at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000, 119 us, FAULTS 0
+probe: ok   tex_sample_gid linear over 8x8 at the texel centres: 64 of 64 pixels within 1/512 of the texel, 0 still canary, 0 off, max deviation 0.000000; differs from nearest at 0 of 64 pixels (max |linear - nearest| 0.000000), 109 us, FAULTS 0
+probe: ok   control, tex_sample_gid nearest over 4x4 sampled by the 8x8 grid: 64 of 64 pixels within 1/512 of texel (gx/2, gy/2), 0 still canary, 0 off, max deviation 0.000000, 112 us, FAULTS 0
+probe: ok   control, tex_sample_gid linear over 4x4 sampled by the 8x8 grid (quarter positions): 64 of 64 pixels within 1/255 + 1/512 of the bilinear expectation, 0 still canary, 0 off, max deviation 0.000123; differs from nearest at 60 of 64 pixels, expected 60 (max |linear - nearest| 0.070588), 109 us, FAULTS 0
+probe: ok   tex_fill_arr RGBA32Uint 16x6, 4 layers, the grid over all but the last: 288 of 288 texels their own (x, y, layer), 96 of 96 of the last layer canary, 6656 of 6656 words of padding and between layers canary, 109 us, FAULTS 0
+probe: ok   tex_fill_3d RGBA32Uint 16x6x3, the grid over all but the last: 192 of 192 texels their own (x, y, layer), 96 of 96 of the last layer canary, 4992 of 4992 words of padding and between layers canary, 111 us, FAULTS 0
+probe: ok   tex_fill through a view of level 1 of a 2-level R32Uint 64x32 texture: 512 of 512 texels of the viewed part as computed, 2048 of 2048 of the other parts canary, 111 us, FAULTS 0
+probe: ok   tex_fill through a view of slice 2 of a 4-layer R32Uint 32x16 array: 512 of 512 texels of the viewed part as computed, 1536 of 1536 of the other parts canary, 113 us, FAULTS 0
+probe: ok   tex_copy of R8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 112 us, FAULTS 0
+probe: ok   tex_copy of RG8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 119 us, FAULTS 0
+probe: ok   tex_copy of RGBA8Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 120 us, FAULTS 0
+probe: ok   tex_copy of RG16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 98 us, FAULTS 0
+probe: ok   tex_copy of RGBA16Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 114 us, FAULTS 0
+probe: ok   tex_copy of RG32Uint 16x8 into RGBA32Uint, every lane: 128 of 128 pixels each lane as written (absent ones 0, alpha 1), 127 us, FAULTS 0
+probe: ok   address mode ClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 127 us, FAULTS 0
+probe: ok   address mode MirrorClampToEdge over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 124 us, FAULTS 0
+probe: ok   address mode Repeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 400 of them where the nearest other rule differs, 122 us, FAULTS 0
+probe: ok   address mode MirrorRepeat over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 232 of them where the nearest other rule differs, 119 us, FAULTS 0
+probe: ok   address mode ClampToZero over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 122 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueBlack over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 107 us, FAULTS 0
+probe: ok   address mode ClampToBorderColor OpaqueWhite over a 5x3 texture sampled on [-1, 2]: 540 of 540 samples its own rule, 480 of them where the nearest other rule differs, 122 us, FAULTS 0
+probe: (no compiler in this build: the texture kernels were not compiled on the phone)
+probe: compute-only finished; 0 failures
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=725 errors=0 close=0 first_iova=0x20f90000
+runner: wired_pages=33171 (system-wide observation)
+runner: SpringBoard pid=9 state=2 expected=running/sleeping
+runner: backboardd pid=15 state=2 expected=running/sleeping
+runner: PASS failures=0
+
+# Additional texture-size fixture
+hakios-metal: the GPU through the service HakiosGPU
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=31 errors=0 close=0 first_iova=0x20f90000
+query: PASS tex_size_h input=4x4 output=64x64 right=4096/4096 error=
+query: PASS tex_size_h input=8x8 output=64x64 right=4096/4096 error=
+
+
+# Captured pre-fix regression (expected failure)
+hakios-metal: the GPU through the service HakiosGPU
+transport-audit: PASS handles=0 mappings=0 queues=0 calls=19 errors=0 close=0 first_iova=0x20f90000
+shared: gid=31 got=(2001,2032) want=(1032,2032)
+shared: gid=63 got=(2000,2000) want=(1000,2000)
+shared: FAIL right=992/1024 tail=64/64 status=4 error=
+
+
+# Final health
+kern.hakios.battery_temperature_c: 27
+kern.hakios.battery_soc: 89

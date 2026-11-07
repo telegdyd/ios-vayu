@@ -1,0 +1,3 @@
+# Temporary task-6 compute fixtures, with stopped and live GL UI.
+/private/var/tmp/metal_transport_run paused /private/var/tmp/metal-probe-compute 3 compute
+/private/var/tmp/metal_transport_run live /private/var/tmp/metal-probe-compute 3 compute

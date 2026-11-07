@@ -69,6 +69,41 @@ Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt a
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 6 (2026-11-07; compute on A640)
+
+- **FACT (`metal-step6`, `docs/metal-step6-phone.log`):** seven complete
+  compute-only phone runs pass, 70 compute + eight transport checks each;
+  three with UI stopped, three with UI live, plus the initial complete run.
+  An additional half-texture size-query fixture passes at two input sizes,
+  4,096 output pixels each. All eight final resource audits pass. No rendering
+  or live AIR compilation was enabled. Evidence, capture hashes, limitations
+  and reproduction: `docs/metal-compute-results.md`, `metal-step6-summary.json`.
+- **FACT:** regenerated eleven additional fixtures for FD640. Fixed the
+  existing AIR frontend's pointer-phi offsets (refuses different bindings),
+  half store typing, array-store layer argument, and dynamic threadgroup base
+  after static arrays. The last initially gave 992/1,024 correct pairs;
+  captured/decoded before and after, fixed shader adds 256 bytes to dynamic
+  shared accesses and now passes 1,024/1,024. Compared dispatch state with
+  task 4; no kernel or PM4 fix needed. Original capture files remain ignored
+  in `logs/metal-step6/`. The installed iOS Mesa/GL library was not replaced.
+- **FACT / diagnosed remainder for task 9:** `argbuf_res_air` is still an A635
+  fixture, not submitted. Existing frontend refuses `air.indirect_buffer`;
+  this and the bitcode-only/live-compile cases need task 9's AIR API and
+  argument-buffer integration. Do not claim those as hardware passes.
+- **FACT (build):** 261 host tests, zero failed checks; fake transport stages
+  pass; iOS core/probe/helpers built. Targeted pointer-phi regression passes.
+  WSL pull refused unrelated dirty work, which was preserved; only task files
+  synced. Native AIR tooling uses a separate `~/vayu/build/mesa-host` build.
+  Full frontend check returns 1: ten softpipe clamp/fmin/fmax operation
+  mismatches reproduced with the pre-task frontend. 456 readers match LLVM,
+  321 compile (unchanged), 255 comparable CPU/drawn results and 71 folded
+  operations match; atomics/barriers and 35 texture calls pass. Evidence and
+  baseline comparison: `docs/metal-step6-build.log`; no full-CI green claim.
+- **FACT (phone):** original UI PIDs 9/15 resumed, 27 C / 89% at final check.
+  Temporary uploads only; no reboot or partition command. Recovery remains
+  unported; FAULTS remains a stub zero. Task 7 rendering is next: audit/port
+  its newer A635 fixtures before use; stay on GL as the system fallback.
+
 ## Metal step 5 (2026-11-07; transport on the phone)
 
 - **FACT (`metal-step5`, `docs/metal-step5-phone.log`):** 40 repeated hardware

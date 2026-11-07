@@ -109,3 +109,22 @@ fixtures must be checked/regenerated before hardware use in later tasks.
 
 Acceptance evidence: `../docs/metal-step1-build.log` and the task-1 result in
 `../docs/metal-roadmap.md`. No hardware result follows from a fake-GPU pass.
+
+## Compute hardware follow-up
+
+Task 6: `../docs/metal-compute-results.md` records seventeen precompiled
+compute fixtures on A640, including eleven regenerated additions. Seven full
+main-probe runs pass (70 compute checks each), plus two half-query checks;
+original GL UI stopped/resumed/live. The existing AIR frontend now fixes
+pointer-phi offsets, typed half stores, array-store layer operands and static/
+dynamic shared-memory overlap. These are offline fixture-generation fixes;
+no MESA=1 build or replacement of the installed iOS Mesa library is implied.
+`argbuf_res_air` still needs newer indirect-buffer metadata (task 9).
+
+Use `probe --compute-only --transport-audit` for the full compute suite.
+`--compute-core-only` restricts it to the original ported fixtures; no render
+or deliberate recovery stage runs in either compute-only mode. Opt-in
+`--dump-threadgroup FILE` captures that dispatch in Mesa RD format, using
+`HAKIOS_METAL_RD` in `Gpu::submit`; ordinary submissions do not capture data.
+The independent `texture-query-probe.cpp` exercises `tex_size_h`, unused by
+upstream's probe. Newer graphics fixtures still require their A640 port/test.

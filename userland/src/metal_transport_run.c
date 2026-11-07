@@ -56,10 +56,11 @@ static void memory(void) {
 }
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
-    if (argc != 4 || (strcmp(argv[1], "paused") && strcmp(argv[1], "live"))) {
-        fprintf(stderr, "usage: metal_transport_run paused|live PROBE REPETITIONS\n");
+    if ((argc != 4 && argc != 5) || (argc == 5 && strcmp(argv[4], "compute")) || (strcmp(argv[1], "paused") && strcmp(argv[1], "live"))) {
+        fprintf(stderr, "usage: metal_transport_run paused|live PROBE REPETITIONS [compute]\n");
         return 2;
     }
+    int compute = argc == 5;
     int paused = !strcmp(argv[1], "paused"), count = atoi(argv[3]);
     if (count < 1 || count > 20 || find_ui()) return 2;
     printf("runner: mode=%s repetitions=%d\n", argv[1], count);
@@ -81,10 +82,11 @@ int main(int argc, char **argv) {
     int failures = states(paused);
     memory();
     for (int i = 0; i < count && !failures; i++) {
-        printf("runner: iteration=%d stages=1-4\n", i + 1);
+        printf("runner: iteration=%d suite=%s\n", i + 1, compute ? "compute" : "stages=1-4");
         pid_t child = fork();
         if (child == 0) {
-            execl(argv[2], argv[2], "--stages", "4", "--transport-audit", NULL);
+            if (compute) execl(argv[2], argv[2], "--compute-only", "--transport-audit", NULL);
+            else execl(argv[2], argv[2], "--stages", "4", "--transport-audit", NULL);
             _exit(127);
         }
         int status = 0;

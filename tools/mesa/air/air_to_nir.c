@@ -650,9 +650,9 @@ translate_input(struct air_ctx *c, const struct air_md *node, unsigned *next_var
       case 3:
          p.class = AIR_PTR_SHARED;
          rk = AIR_RESOURCE_THREADGROUP_BUFFER;
-         /* a threadgroup argument is sized at dispatch; its base is where the
-          * previous ones end, which only the runtime knows. One is all the
-          * corpus uses, so its base is zero and anything else is refused.
+         /* A dynamic argument is sized at dispatch. Its base is finalized
+          * after plan_globals, beyond the static shared arrays. Only one
+          * dynamic argument (binding zero) is supported by this interface.
           */
          if (index != 0)
             return air_error(c, "interface: a second threadgroup buffer (index %u)",
@@ -1697,6 +1697,46 @@ wrap_library_function(struct air_ctx *c, const struct air_md *out_md)
    return true;
 }
 
+/* A pointer phi may select offsets within one resource, including a loop's
+ * back edge. Keep the resource identity static and put only its byte offset
+ * in the phi register. Never silently merge different buffer bindings. */
+static bool
+phi_pointer_base(struct air_ctx *c, const struct air_value *v,
+                 const struct air_value **path, unsigned depth,
+                 struct air_ptr *base, bool *have)
+{
+   for (unsigned i = 0; i < depth; i++)
+      if (path[i] == v)
+         return true; /* a back edge; another incoming edge must ground it */
+   if (depth == 64)
+      return air_error(c, "instruction: pointer phi provenance is too deep");
+   path[depth++] = v;
+   struct hash_entry *e = _mesa_hash_table_search(c->values, v);
+   if (e && ((struct air_val *)e->data)->kind == AIR_VAL_PTR) {
+      struct air_ptr p = ((struct air_val *)e->data)->ptr;
+      if (p.class != AIR_PTR_SSBO && p.class != AIR_PTR_UBO &&
+          p.class != AIR_PTR_SHARED && p.class != AIR_PTR_SCRATCH)
+         return air_error(c, "instruction: pointer phi of a non-memory handle");
+      if (*have && (base->class != p.class || base->binding != p.binding))
+         return air_error(c, "instruction: pointer phi merges different resources");
+      *base = p;
+      *have = true;
+      return true;
+   }
+   const struct air_inst *in = air_value_as_inst(v);
+   if (!in)
+      return air_error(c, "instruction: pointer phi has unknown provenance");
+   if (in->op == AIR_OP_GEP || in->op == AIR_OP_CAST)
+      return phi_pointer_base(c, in->operands[0], path, depth, base, have);
+   if (in->op == AIR_OP_PHI || in->op == AIR_OP_SELECT) {
+      for (unsigned i = in->op == AIR_OP_SELECT ? 1 : 0; i < in->num_operands; i++)
+         if (!phi_pointer_base(c, in->operands[i], path, depth, base, have))
+            return false;
+      return true;
+   }
+   return air_error(c, "instruction: pointer phi has unsupported provenance");
+}
+
 static bool
 translate_body(struct air_ctx *c)
 {
@@ -1713,8 +1753,9 @@ translate_body(struct air_ctx *c)
          const struct air_inst *in = blk->insts[i];
          if (in->op != AIR_OP_PHI)
             continue;
-         nir_def *reg = nir_decl_reg(&entry, air_nir_components(in->base.type),
-                                     air_nir_bit_size(c, in->base.type), 0);
+         const bool pointer = in->base.type->kind == AIR_TYPE_POINTER;
+         nir_def *reg = nir_decl_reg(&entry, pointer ? 1 : air_nir_components(in->base.type),
+                                     pointer ? 32 : air_nir_bit_size(c, in->base.type), 0);
          _mesa_hash_table_insert(c->phi_regs, in, reg);
       }
    }
@@ -1739,8 +1780,21 @@ translate_body(struct air_ctx *c)
          if (in->op != AIR_OP_PHI)
             continue;
          struct hash_entry *e = _mesa_hash_table_search(c->phi_regs, in);
-         air_set(c, &in->base,
-                 air_val_ssa(c, nir_load_reg(&c->b, e->data)));
+         nir_def *offset = nir_load_reg(&c->b, e->data);
+         if (in->base.type->kind == AIR_TYPE_POINTER) {
+            const struct air_value *path[64];
+            struct air_ptr p = {0};
+            bool have = false;
+            if (!phi_pointer_base(c, &in->base, path, 0, &p, &have))
+               return false;
+            if (!have)
+               return air_error(c, "instruction: pointer phi has no resource base");
+            p.offset = offset;
+            p.pointee = in->base.type->elem;
+            air_set(c, &in->base, air_val_ptr(c, p));
+         } else {
+            air_set(c, &in->base, air_val_ssa(c, offset));
+         }
       }
 
       for (unsigned i = 0; i < blk->num_insts; i++) {
@@ -1813,7 +1867,18 @@ translate_body(struct air_ctx *c)
             if (!ce)
                continue; /* an edge from a block the entry cannot reach */
             c->b.cursor = *(nir_cursor *)ce->data;
-            nir_def *val = air_get_ssa(c, in->operands[k]);
+            nir_def *val;
+            if (in->base.type->kind == AIR_TYPE_POINTER) {
+               struct air_val *p = air_get(c, in->operands[k]);
+               struct air_val *dst = air_get(c, &in->base);
+               if (!p || !dst || p->kind != AIR_VAL_PTR || dst->kind != AIR_VAL_PTR)
+                  return air_error(c, "instruction: pointer phi has a non-pointer input");
+               if (p->ptr.class != dst->ptr.class || p->ptr.binding != dst->ptr.binding)
+                  return air_error(c, "instruction: pointer phi merges different resources");
+               val = ptr_offset(c, p->ptr);
+            } else {
+               val = air_get_ssa(c, in->operands[k]);
+            }
             if (!val)
                return false;
             nir_store_reg(&c->b, val, re->data);
@@ -2120,6 +2185,13 @@ air_to_nir(void *mem_ctx, const void *bitcode, size_t size, const char *entry_po
 
    if (!c.error[0])
       plan_globals(&c);
+   /* Static arrays occupy the beginning of shared memory. The one supported
+    * dynamic threadgroup argument starts after them, not at the same base. */
+   for (unsigned i = 0; i < c.num_params && !c.error[0]; i++) {
+      if (c.params[i] && c.params[i]->kind == AIR_VAL_PTR &&
+          c.params[i]->ptr.class == AIR_PTR_SHARED)
+         c.params[i]->ptr.offset = nir_imm_int(&c.b, ALIGN_POT(c.shared_size, 16));
+   }
    if (!c.error[0])
       materialise_globals(&c);
    if (!c.error[0])

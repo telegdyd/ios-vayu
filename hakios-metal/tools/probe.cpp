@@ -375,11 +375,17 @@ static const char* dimName(uint8_t dim) {
 }
 
 int main(int argc, char** argv) {
+    setvbuf(stdout, nullptr, _IONBF, 0);
     bool recover = false, bisect = false, binTrace = false;
+    bool computeOnly = false, computeCoreOnly = false;
+    const char* threadgroupCapture = nullptr;
     int lastStage = 0;   // --stages N: stop after stage N (1-3 the command processor alone: buffers, submission, CP_MEMCPY/CP_MEM_WRITE)
     compute::Options chosen;   // what the dispatches of stage 5 are encoded with
     std::vector<std::pair<std::string, std::string>> metallibs;   // --metallib FILE FUNCTION: a kernel of the phone's own image
     for (int i = 1; i < argc; i++) {
+        computeOnly = computeOnly || strcmp(argv[i], "--compute-only") == 0;
+        computeCoreOnly = computeCoreOnly || strcmp(argv[i], "--compute-core-only") == 0;
+        if (strcmp(argv[i], "--dump-threadgroup") == 0 && i + 1 < argc) threadgroupCapture = argv[++i];
         recover = recover || strcmp(argv[i], "--recover") == 0;
         bisect = bisect || strcmp(argv[i], "--bisect") == 0;
         binTrace = binTrace || strcmp(argv[i], "--bin-trace") == 0;
@@ -396,6 +402,8 @@ int main(int argc, char** argv) {
             i += 2;
         }
     }
+    const bool portedOnly = computeOnly && computeCoreOnly;
+    if (computeOnly) std::printf("probe: compute-only; %s fixtures; rendering/recovery disabled\n", portedOnly ? "core A640" : "all A640");
     std::string why;
     auto transport = openKernelGpu(&why);
     if (transport == nullptr) {
@@ -579,7 +587,7 @@ int main(int argc, char** argv) {
             // 5a00. chain160_air (96 units) with its preload cut to 64 units: the control is the same kernel fully
             // preloaded (5d2). Right here means the GPU fetches past a preload as it should and only the 127-unit edge
             // is wrong; wrong here means no fetch past a preload works as this driver sets it up.
-            {
+            if (!portedOnly) {
                 const uint32_t local[3] = {64, 1, 1};
                 const uint32_t g3[3] = {16, 1, 1};
                 static_cast<uint32_t*>(cbuf->contents())[0] = c;
@@ -617,7 +625,7 @@ int main(int argc, char** argv) {
             // 5a0. chain220_air (134 units, 127 preloaded) before any other shader has run in this boot: no earlier program
             // can have left lines in the SP's instruction cache. Compared with its run in 5d2, after a dozen other
             // kernels, it tells a fetch past the preload that reads stale cache from one that reads the wrong memory.
-            {
+            if (!portedOnly) {
                 const uint32_t local[3] = {64, 1, 1};
                 static_cast<uint32_t*>(cbuf->contents())[0] = c;
                 prefill();
@@ -628,7 +636,7 @@ int main(int argc, char** argv) {
                 char text[96];
                 snprintf(text, sizeof text, " (word 0: got %08x, want %08x)", got[0], long_chain_reference(0, c, 220));
                 report(cb->status() == CommandBuffer::kCompleted && right == words,
-                       "dispatch of chain220_air as the boot's first shader: " + std::to_string(right) + " of " + std::to_string(words) +
+                       "dispatch of chain220_air before the simple compute tests: " + std::to_string(right) + " of " + std::to_string(words) +
                            " words the 220-step chain" + text + status(*cb, gpu));
             }
             // 5a. a kernel of one `end`: the smallest CP_EXEC_CS there is. The fence must pass and nothing may be written.
@@ -733,7 +741,7 @@ int main(int argc, char** argv) {
             // preload (the control, first), chain220 just passes it, long_chain is four times it. Every word must be the
             // processor's chain of its own gid; the twin, the chain one step short, must disagree almost everywhere,
             // which says the last steps ran. A length that hangs is reported, and the kernel's reset lets the rest run.
-            {
+            if (!portedOnly) {
                 struct ChainCase {
                     const Kernel* k;
                     unsigned steps;
@@ -898,7 +906,7 @@ int main(int argc, char** argv) {
 
     // 6z. private memory in a dispatch: pvt_fill keeps a[128] a fiber (512 bytes, stp/ldp), each thread's own values,
     // and writes a[gid & 127]; 4096 threads, every word 3 (gid & 127) + (gid >> 7) + 1, and the canary past the grid
-    {
+    if (!portedOnly) {
         auto out = newBuffer(gpu, 4 * 4096 + 256, &why);
         if (out == nullptr) {
             report(false, "private memory in a dispatch: the buffer: " + why);
@@ -924,7 +932,7 @@ int main(int argc, char** argv) {
     // 64 words lie 128 bytes apart, 8 KiB of it, so the dispatch is given 256 + 8192 (Bindings::sharedBytes). Each
     // thread reads its neighbour's s and t: every pair (n + 1000, n + 2000) for n = (lid + 1) & 63, which an argument
     // aliasing s (n + 2000 twice) or a group given only the 2 KiB floor (the far t words lost) does not give
-    {
+    if (!portedOnly) {
         auto out = newBuffer(gpu, 8 * 1024 + 256, &why);
         if (out == nullptr) {
             report(false, "threadgroup argument: the buffer: " + why);
@@ -937,8 +945,10 @@ int main(int argc, char** argv) {
             b.sharedBytes = kernels::tg_arg_air.sharedSize + 8192;
             auto cb = queue->commandBuffer();
             if (cb->dispatch(kernels::tg_arg_air, groups, local, b)) {
+                if (threadgroupCapture) setenv("HAKIOS_METAL_RD", threadgroupCapture, 1);
                 cb->commit();
                 cb->waitUntilCompleted();
+                if (threadgroupCapture) unsetenv("HAKIOS_METAL_RD");
             }
             uint32_t right = 0, tail = 0;
             for (uint32_t g = 0; g < 1024; g++) {
@@ -955,7 +965,7 @@ int main(int argc, char** argv) {
     // 6x. pointer phis into one buffer: ptr_phi reads in + gid or in + gid + 64 by gid's parity (a phi of two GEPs) and
     // sums in[gid .. gid + 3] through a pointer stepped round a loop. With in[w] = 3w + 7: out[2g] = in[g] for odd g and
     // in[g + 64] for even g, out[2g + 1] = 12g + 46 -- an offset register stuck at one edge's value moves either
-    {
+    if (!portedOnly) {
         auto in = newBuffer(gpu, 4 * 1024, &why);
         auto out = in ? newBuffer(gpu, 8 * 256 + 256, &why) : nullptr;
         if (out == nullptr) {
@@ -1172,7 +1182,7 @@ int main(int argc, char** argv) {
             // With the store typed by its value (f16) the halves land: 2048 of 2048 on 29 October (logs/012127-run.log).
             // A typed store converts its source as its type says, so a u16 store of half bits would land half(float(bits))
             // -- 1.0h = 0x3c00 read as 15360 -> 0x7380; the second count is of pixels matching that rule, and must be 0.
-            {
+            if (!portedOnly) {
                 auto halfBits = [](float f) -> uint32_t {   // IEEE binary16 of a float, round to nearest even
                     uint32_t u = 0;
                     memcpy(&u, &f, 4);
@@ -1492,7 +1502,7 @@ int main(int argc, char** argv) {
             // it): every texel of the layers the grid covers holds its own (x, y, layer, 0xdead); the last layer, which the
             // grid leaves out, and the bytes between one layer's rows and the next layer are still canary. A store that
             // ignored z would leave layers 1.. canary and write layer 0 last-wins; a wrong pitch would put texels in the gap
-            for (const bool is3d : {false, true}) {
+            if (!portedOnly) for (const bool is3d : {false, true}) {
                 // 6 rows: at 16 bytes a pixel a row is 1024 bytes (64 << log2(cpp)), so 6 of them leave 2 KiB of the 8 KiB
                 // slice past the last row -- with 8 the slice is exactly full, and a wrong pitch would have nowhere to show
                 const uint32_t W = 16, H = 6, D = is3d ? 3 : 4;
@@ -1668,7 +1678,7 @@ int main(int argc, char** argv) {
             // into a texel and two thirds of them outside it. Every sample has to be the texel (or the border colour) the
             // mode's own rule names; and each mode is told apart from the rule nearest it -- mirror-clamp from clamp-to-edge
             // and from mirrored repeat, each border colour from the others -- by the samples where those rules disagree
-            {
+            if (!portedOnly) {
                 const uint32_t TW = 5, TH = 3, GW = 30, GH = 18;
                 TextureDesc td;
                 td.format = PixelFormat::kRGBA8Unorm;
@@ -1793,6 +1803,12 @@ int main(int argc, char** argv) {
                 }
             }
         }
+    }
+
+    if (computeOnly) {
+        if (portedOnly) std::printf("probe: SKIP additional fixtures (--compute-core-only): chain160, chain220, long_chain, pvt_fill, tg_arg, ptr_phi, tex_fill_h, tex_fill_arr, tex_fill_3d, tex_sample_wide\n");
+        std::printf("probe: compute-only finished; %d failure%s\n", failures, failures == 1 ? "" : "s");
+        return failures;
     }
 
     // 9. the first draw: one triangle, then the pair, then per-vertex colours, into a 64x64 RGBA8Unorm target in sysmem
