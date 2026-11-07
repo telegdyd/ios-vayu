@@ -9,7 +9,7 @@ task, in order; each ticks its task there and adds a line to the handoff below.
   ../backup-vayu/xnu-standalone-battery-88bc4689.img). Before it the backlight stayed lit with the screen "off": iOS did
   send DisplayBrightnessFactor(WithFade) 0/1 on lock/wake, but no backlight driver ran. Now (logs/wled2-net.txt):
   WLED control channel 334 and sink 335 written by system 0 (us), strings 0-3 on modulator A, brightness 491/4095,
-  "writes allowed", "backlight on". Lock/wake and the slider: to be checked on the screen.
+  "writes allowed", "backlight on". FACT (user, on the screen): dark on lock, back on wake, the brightness slider works.
 - **FACT (logs/wled-net.txt):** with the screen off SpringBoard sets digitizerEnabled NO + WakeOnTapEnabled; vayu_nvt.c
   has no hook for it, so every touch is a normal touch and the screen wakes at once (pocket touches). Next for touch.
 
