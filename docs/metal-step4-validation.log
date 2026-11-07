@@ -1,0 +1,39 @@
+FACT: phone FD640 reference cases, 2026-11-07, run metal-step4.
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (No such file or directory)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+case=clear renderer=FD640 version=OpenGL ES 3.2 Mesa 25.0.7
+attachment 0: all 1024 pixels match [0,0,255,255] (+/-1)
+gl_reference: PASS clear
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (No such file or directory)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+case=texture renderer=FD640 version=OpenGL ES 3.2 Mesa 25.0.7
+attachment 0: all 1024 pixels match [51,102,153,255] (+/-1)
+gl_reference: PASS texture
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (No such file or directory)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+case=mrt renderer=FD640 version=OpenGL ES 3.2 Mesa 25.0.7
+attachment 0: all 1024 pixels match [255,0,0,255] (+/-1)
+attachment 1: all 1024 pixels match [0,255,0,255] (+/-1)
+gl_reference: PASS mrt
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (No such file or directory)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+case=blend renderer=FD640 version=OpenGL ES 3.2 Mesa 25.0.7
+attachment 0: all 1024 pixels match [128,0,128,255] (+/-1)
+gl_reference: PASS blend
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (No such file or directory)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+case=compute renderer=FD640 version=OpenGL ES 3.2 Mesa 25.0.7
+compute: all 64 uints match i*3+7
+gl_reference: PASS compute
+FACT: native Mesa 25.0.7 cffdump, full decode, all chip_id 0x6040001; all stderr empty.
+metal4_clear_gl_reference_04155.rd {'CP_DRAW_INDX_OFFSET': 0, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 19, 'CP_WAIT_FOR_IDLE': 7}
+metal4_clear_gl_reference_04156.rd {'CP_DRAW_INDX_OFFSET': 0, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 16, 'CP_WAIT_FOR_IDLE': 7}
+metal4_texture_gl_reference_04157.rd {'CP_DRAW_INDX_OFFSET': 1, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 19, 'CP_WAIT_FOR_IDLE': 7}
+metal4_texture_gl_reference_04158.rd {'CP_DRAW_INDX_OFFSET': 0, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 16, 'CP_WAIT_FOR_IDLE': 7}
+metal4_mrt_gl_reference_04159.rd {'CP_DRAW_INDX_OFFSET': 1, 'CP_EXEC_CS': 0, 'CP_BLIT': 2, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 25, 'CP_WAIT_FOR_IDLE': 10}
+metal4_mrt_gl_reference_04160.rd {'CP_DRAW_INDX_OFFSET': 0, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 16, 'CP_WAIT_FOR_IDLE': 7}
+metal4_mrt_gl_reference_04161.rd {'CP_DRAW_INDX_OFFSET': 0, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 16, 'CP_WAIT_FOR_IDLE': 7}
+metal4_blend_gl_reference_04162.rd {'CP_DRAW_INDX_OFFSET': 1, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 19, 'CP_WAIT_FOR_IDLE': 7}
+metal4_blend_gl_reference_04163.rd {'CP_DRAW_INDX_OFFSET': 0, 'CP_EXEC_CS': 0, 'CP_BLIT': 1, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 16, 'CP_WAIT_FOR_IDLE': 7}
+metal4_compute_gl_reference_04164.rd {'CP_DRAW_INDX_OFFSET': 0, 'CP_EXEC_CS': 1, 'CP_BLIT': 0, 'CP_SET_BIN_DATA5': 0, 'CP_EVENT_WRITE': 9, 'CP_WAIT_FOR_IDLE': 4}
+Post-run: kern.hakios.battery_temperature_c: 34; battery_soc: 90; command port pong.

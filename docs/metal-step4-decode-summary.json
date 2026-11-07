@@ -1,0 +1,152 @@
+[
+  {
+    "file": "metal4_clear_gl_reference_04155.rd",
+    "case": "clear",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 0,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 19,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "735c71210607a32586d310f8d8a930150fb17b7926d50426f9440c05aa97ab8a",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_clear_gl_reference_04156.rd",
+    "case": "clear",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 0,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 16,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "38ec5a9f08436fcc2ede34115bf10584db192ef2f3d1bc2bdf25fb865b184db5",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_texture_gl_reference_04157.rd",
+    "case": "texture",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 1,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 19,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "db20bc5449c754e37ce1566b1d3bb107e8d6b8ea6772ba4f1e77b2907c425ab6",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_texture_gl_reference_04158.rd",
+    "case": "texture",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 0,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 16,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "00dba9fb1a8e3d6d877899c94534ecff247916005c7944e0b2c256fdf1c492bd",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_mrt_gl_reference_04159.rd",
+    "case": "mrt",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 1,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 2,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 25,
+      "CP_WAIT_FOR_IDLE": 10
+    },
+    "decode_sha256": "894f028c2224adc510ea571722c17c35c80cae340011c5363c4f8be3e70edd49",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_mrt_gl_reference_04160.rd",
+    "case": "mrt",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 0,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 16,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "c47ca8d7a40e8cafedd3b69882a2faea43938d67eb722ad4dd8180e2a9bd4ae6",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_mrt_gl_reference_04161.rd",
+    "case": "mrt",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 0,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 16,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "e88a71365407c17c9461b101a30c935d51cb8a6b09ad78d0515da55a43dc36c5",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_blend_gl_reference_04162.rd",
+    "case": "blend",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 1,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 19,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "744a47a3e1315ddffe0d5d17fd946aa8b1dc3d9160ce969913afa175953de199",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_blend_gl_reference_04163.rd",
+    "case": "blend",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 0,
+      "CP_EXEC_CS": 0,
+      "CP_BLIT": 1,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 16,
+      "CP_WAIT_FOR_IDLE": 7
+    },
+    "decode_sha256": "f8cf95078be494e81533b70941f150adaae3a2e1dc22b91b15733b6e2352835b",
+    "stderr_bytes": 0
+  },
+  {
+    "file": "metal4_compute_gl_reference_04164.rd",
+    "case": "compute",
+    "decoder_exit": 0,
+    "packets": {
+      "CP_DRAW_INDX_OFFSET": 0,
+      "CP_EXEC_CS": 1,
+      "CP_BLIT": 0,
+      "CP_SET_BIN_DATA5": 0,
+      "CP_EVENT_WRITE": 9,
+      "CP_WAIT_FOR_IDLE": 4
+    },
+    "decode_sha256": "9494bb15c5c3f155ff9544b4a08cc6103d15fe96bc8cf435620d3688d54ef21b",
+    "stderr_bytes": 0
+  }
+]

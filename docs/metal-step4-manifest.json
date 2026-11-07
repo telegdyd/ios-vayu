@@ -1,0 +1,72 @@
+[
+  {
+    "case": "clear",
+    "file": "metal4_clear_gl_reference_04155.rd",
+    "bytes": 13722,
+    "uncompressed_bytes": 12615876,
+    "sha256": "c6c8da9302a8bd14158671cbaae21ac5bb9a1e1989dbb505b538e233475d09ac"
+  },
+  {
+    "case": "clear",
+    "file": "metal4_clear_gl_reference_04156.rd",
+    "bytes": 13953,
+    "uncompressed_bytes": 12632288,
+    "sha256": "5400f0c7fc4de653f41832a796bc4e67f025eb4aa71bb3827eafd5a5c1542454"
+  },
+  {
+    "case": "texture",
+    "file": "metal4_texture_gl_reference_04157.rd",
+    "bytes": 15047,
+    "uncompressed_bytes": 12747172,
+    "sha256": "7e72defec070a58fd5f50e4cb5716800d8acdde77c55fd144a767229e02a0820"
+  },
+  {
+    "case": "texture",
+    "file": "metal4_texture_gl_reference_04158.rd",
+    "bytes": 14705,
+    "uncompressed_bytes": 12632288,
+    "sha256": "f3e1765b40e66577ec0ff66f3ea4105ec5ba2e67ccd6b26226c0b4d71960ae38"
+  },
+  {
+    "case": "mrt",
+    "file": "metal4_mrt_gl_reference_04159.rd",
+    "bytes": 15040,
+    "uncompressed_bytes": 12763584,
+    "sha256": "260d40da0ed4965e6f5608ab6ac955d7d64c907fa3d5bbdc1223c6d54fd904db"
+  },
+  {
+    "case": "mrt",
+    "file": "metal4_mrt_gl_reference_04160.rd",
+    "bytes": 14692,
+    "uncompressed_bytes": 12632288,
+    "sha256": "9a5b5e2c7332325f2fc20adc72dfcb27359ba15fe10087b363b2093f31e0a959"
+  },
+  {
+    "case": "mrt",
+    "file": "metal4_mrt_gl_reference_04161.rd",
+    "bytes": 14688,
+    "uncompressed_bytes": 12632288,
+    "sha256": "702e05b5973a9b40505b44761cac3b17526f52fa1b4187510d99ac3749470c1f"
+  },
+  {
+    "case": "blend",
+    "file": "metal4_blend_gl_reference_04162.rd",
+    "bytes": 14874,
+    "uncompressed_bytes": 12747172,
+    "sha256": "f9c12fdd71073e10c6eb90a38514ade394082d088ad44ae565834e84a2f20f3e"
+  },
+  {
+    "case": "blend",
+    "file": "metal4_blend_gl_reference_04163.rd",
+    "bytes": 14623,
+    "uncompressed_bytes": 12632288,
+    "sha256": "19a45936695628fe830279e4bf454b0baf183d0cd2e2698ab5ae741c62ee9af4"
+  },
+  {
+    "case": "compute",
+    "file": "metal4_compute_gl_reference_04164.rd",
+    "bytes": 13671,
+    "uncompressed_bytes": 12632288,
+    "sha256": "023ba465786fc2531927e48b15f98c597264fa399e2d69d31d9aac79a9dcc75d"
+  }
+]

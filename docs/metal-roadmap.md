@@ -118,7 +118,7 @@ Every agent, every task:
   No phone used, no MESA=1/live compiler validation. Firmware remains the existing
   kernel's responsibility. Task 4 is next and requires phone captures.
 
-- [ ] **4. Capture reference command streams from freedreno on the phone.**
+- [x] **4. Capture reference command streams from freedreno on the phone.**
   Depends on: nothing (can run alongside 1–3).
   Do: freedreno already draws correctly on this phone through the GL path. Add a way to dump its
   submissions (Mesa's own cmdstream dump / `FD_RD_DUMP`, or a hook in `hakios-drm`) and capture a
@@ -127,7 +127,16 @@ Every agent, every task:
   large, with an index in `docs/`. These are the A640 "known good" streams that hakios-metal's
   output is diffed against.
   Done when: the captures decode on the PC and the index says which test each one is.
-  Result: —
+  Result: **FACT (2026-11-07, run `metal-step4`):** all five new off-screen
+  `gl_reference` cases pass on FD640 / Mesa 25.0.7: clear, textured triangle,
+  MRT, blending (all pixels checked), compute (all 64 SSBO values checked).
+  Existing `FD_RD_DUMP=enable,full` suffices; no DRM patch needed. Ten submissions
+  retrieved, byte counts/gzip CRCs/hashes verified; native Mesa 25.0.7 `cffdump`
+  decodes all as chip `0x06040001`, exit 0, empty stderr. Raw captures and full
+  decodes: ignored `logs/metal-step4/`; tracked index, manifest, decode summary
+  and validation log: `docs/metal-reference-captures.md`, `docs/metal-step4-*`.
+  Graphics references use GMEM; hardware binning/sysmem not covered. No reboot
+  or partition commands; phone responsive afterward at 34 C. Task 5 is next.
 
 ### Phase B: the driver on the phone's GPU
 

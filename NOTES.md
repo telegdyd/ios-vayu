@@ -69,6 +69,28 @@ Trials L1-L9 in the 2026-11-07 handoff below (logs/loader*-net.txt, logs/*.txt a
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 4 (2026-11-07; freedreno reference captures on the phone)
+
+- **FACT (run `metal-step4`, `docs/metal-step4-validation.log`):** new off-screen
+  `userland/src/gl_reference.c` passes clear, textured triangle, MRT, blending
+  (all pixels) and compute (64 SSBO uints) on FD640 / Mesa 25.0.7. Existing
+  `FD_RD_DUMP=enable,full` generated ten submissions, collected with byte-count,
+  gzip CRC and SHA256 checks in ignored `logs/metal-step4/`. Native Mesa 25.0.7
+  `cffdump` built from the verified archive decodes all ten as chip 0x06040001,
+  exit 0, empty stderr. Index: `docs/metal-reference-captures.md`; tracked
+  manifest/decode summary/validation log alongside it. Preserve the ignored
+  capture directory for later hakios-metal comparisons.
+- **FACT:** all graphics primaries use 32x32 GMEM bins; no visibility-binning
+  packet. This is basic freedreno correctness evidence, not hakios-metal hardware
+  validation or a performance result. Phone stayed in the current iOS/GL session;
+  no reboot, image replacement or partition commands. Temporary executable and
+  filesystem dumps only; command port pong afterward, battery 34 C / 90%.
+- **FACT (build):** WSL pull refused existing unrelated dirty work; preserved it.
+  New build/capture/decode scripts under `tools/metal-reference-*`. Phone job
+  cross-built from Windows source; native decoder in WSL's separate
+  `~/vayu/xnu-deps/build/mesa/metal4-native-*`; normal Mesa not reconfigured.
+  Task 4 complete; task 5 (hakios-metal transport probe) is next.
+
 ## Metal step 3 (2026-11-07; Mesa audit and host checks, phone not used)
 
 - **FACT (source):** A640/gen2 table in `docs/metal-driver-inventory.md` compared
