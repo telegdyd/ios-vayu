@@ -79,7 +79,7 @@ Every agent, every task:
   fixtures, not live AIR compilation or hardware. WSL pull refused existing local
   changes; only the new driver was synced for this build. No phone operations.
 
-- [ ] **2. Inventory what the driver implements.**
+- [x] **2. Inventory what the driver implements.**
   Depends on: 1.
   Do: read the pinned source (not its README) and write `docs/metal-driver-inventory.md`. For each
   Metal feature: implemented, partial, or missing, with file:line. Cover: buffers, textures and
@@ -90,7 +90,13 @@ Every agent, every task:
   picks GMEM versus direct-to-memory, bin sizing, the binning pass/visibility stream, UBWC
   compression, LRZ, load/store elision and resolves, async submission.
   Done when: the document exists and tasks 13–16 below are corrected to match it.
-  Result: —
+  Result: **FACT (2026-11-07, source at `bc19b43`):**
+  `docs/metal-driver-inventory.md` covers core/API/plugin and hardware features with
+  file:line evidence. The core already has restricted GMEM, hardware binning,
+  Mesa-dependent UBWC, timing/counters, async submission and load/store elision;
+  LRZ is disabled. The bundled Objective-C plugin still has placeholder textures,
+  samplers and pipelines and no render/compute encoders. Tasks 8–10 and 13–17
+  now describe these actual gaps. Source audit only; no new hardware/test results.
 
 - [ ] **3. Check the A640 chip facts against Mesa.**
   Depends on: 1.
@@ -157,6 +163,9 @@ Every agent, every task:
   `docs/reference/metal.md`; where it describes redwood, adapt it rather than copy it. Watch for the
   window server starting to use Metal by itself once a device exists: keep it on GL behind a flag
   until task 11.
+  The bundled plugin still advertises A642L and fixed/stub capabilities: correct
+  the name and implement truthful A640 limits/private capability answers using the
+  inventory. Audit both `metal=` and `HakiosMetal.clients` so backboardd stays on GL.
   Done when: `metal_test` on the phone prints a non-nil device with the expected name, family and
   limits; SpringBoard still comes up on GL.
   Result: —
@@ -167,6 +176,12 @@ Every agent, every task:
   textures, a `.metallib` built on the PC, a render pipeline, a compute pipeline, blits, completion
   handlers, `waitUntilCompleted`. Pipelines compile at creation (`docs/air.md` section 7, item 1),
   and the shader cache persists across runs.
+  Replace the bundled plugin's placeholder textures, samplers, depth/stencil and
+  render/compute pipeline objects; add real render/compute encoders, resource
+  binding, function constants and argument encoders as the test needs. The C++/C
+  implementations are present but those public Objective-C paths are not wired.
+  Reuse the graphics-stage disk cache and add compute cache coverage: persistent
+  compute compilation is not supplied by `compileAir` today (inventory).
   Before enabling `MESA=1`, reconcile our older `tools/mesa/air` API with the pinned
   driver's newer metadata requirements (task 1 findings in `hakios-metal/VAYU.md`),
   and validate the compiler-enabled host/iOS builds and A640 shader fixtures.
@@ -180,6 +195,9 @@ Every agent, every task:
   ownership and fences between the GPU and the display. Present through `CAMetalLayer`
   `nextDrawable`/`presentDrawable:` in a full-screen test app, with the layer composited by the GL
   window server.
+  Wire the existing core surface import to the plugin's IOSurface texture selector
+  and implement drawable lifetime/presentation; these are absent from the bundled
+  plugin. Verify the vayu surface-import ABI instead of assuming upstream support.
   Done when: an animated Metal app is visible on the panel with no tearing or corruption, and the
   frame intervals are logged (FACT).
   Result: —
@@ -214,33 +232,62 @@ encode time. Keep each one behind a flag until it's shown to be correct and fast
 
 - [ ] **13. Instrumentation.**
   Depends on: 9.
-  Do: GPU timestamps per pass, CPU encode and submit time, fence waits, allocations and copied
-  bytes, logged in the style of `MiniIOMobileFramebuffer`'s five-second lines. A fixed benchmark
+  Do: reuse the core's pass/draw timestamps, operation/allocation counters and C
+  profiling queries (`docs/metal-driver-inventory.md`). Validate timer register
+  0x0980 and the assumed 19.2 MHz conversion on A640, and account for serialized
+  per-draw profiling overhead. Wire real plugin GPU times (currently zero). Add CPU
+  encode/submit time, fence waits and copied-byte/traffic accounting where measurable,
+  logged in the style of `MiniIOMobileFramebuffer`'s five-second lines. A fixed benchmark
   scene set: a UI-like compositing scene, a fill-bound scene, a geometry-heavy scene, a compute
   workload.
   Done when: one command runs the set on the phone and prints a comparable summary.
   Result: —
 
 - [ ] **14. GMEM: choosing it, bin sizes, the binning pass.**
-  Depends on: 7, 13.
-  Do: render each pass in GMEM or direct to memory by the same kind of rules freedreno and Turnip
-  use; size the bins for the A640's GMEM; add the binning pass/visibility stream if it's missing.
+  Depends on: 3, 4, 7, 13.
+  Do: validate and tune the existing color-only GMEM planner, bin sizes, draw-count
+  threshold/timing tuner and optional hardware VSC binning path on A640. Compare
+  streams with task 4 and Mesa's gen2 behavior, including fixed VSC pitches and
+  overflow recovery. Keep explicit sysmem fallback for depth/stencil, MSAA,
+  compressed targets, queries and non-replayable draws; extend eligibility only
+  with pixel and timing evidence. These paths already exist; see the inventory.
+  Done when: eligible scenes match sysmem, exclusions fall back correctly, VSC
+  stress/overflow is safe, and controlled measurements justify each enabled path.
   Result: —
 
 - [ ] **15. UBWC compression for render targets and textures.**
-  Depends on: 7, 13. Includes IOSurfaces only where the display and other users can read the
-  compressed layout; otherwise resolve explicitly and measure what that costs.
+  Depends on: 3, 7, 9, 13.
+  Do: validate the existing Mesa-dependent single-level, single-sample 2D
+  RGBA8/BGRA8 UBWC layout, sampled staging uploads and compressed render-target
+  writes on A640. Add missing compressed clears and GMEM load/store support only
+  with layout/command-stream evidence; expand formats/mips/MSAA separately.
+  Includes IOSurfaces only where the display and other users can read the compressed
+  layout; otherwise resolve explicitly and measure what that costs. Current surface
+  import is linear, and the no-Mesa baseline cannot allocate UBWC textures.
+  Done when: supported paths pass readback/aliasing tests and show measured traffic
+  or frame-time gains, with unsupported layouts refused or resolved explicitly.
   Result: —
 
 - [ ] **16. LRZ, load/store elision, and fewer flushes.**
-  Depends on: 14. Use Metal's load and store actions so attachments don't make needless round trips
-  to memory; only flush and invalidate caches where the hazard really exists.
+  Depends on: 14.
+  Do: implement LRZ (currently disabled), including allocation/layout, clear,
+  direction tracking and invalidation rules; keep ordinary depth tests correct
+  and extend beyond the current color-only GMEM path only after validation.
+  Reuse existing touched-attachment masks, tile clears, render-area shrinking,
+  DontCare load elision and StoreDontCare suppression. Extend resolve/store-action
+  coverage and reduce conservative flushes only with a resource-hazard argument
+  and A640 readback evidence; do not remove required framebuffer-fetch barriers.
+  Done when: LRZ and each elision/flush change pass correctness comparisons across
+  depth direction changes, clears, partial tiles and dependent passes, and improve
+  controlled measurements behind individual flags.
   Result: —
 
 - [ ] **17. CPU side: async submission, pooling, deferred encoding.**
-  Depends on: 13. Asynchronous commits, resource and texture pools, bounded constant uploads, state
-  reuse, persistent pipeline caches (lessons in Chlorophyll's `docs/FIXES.md` and upstream's
-  `metal-measurements.md`).
+  Depends on: 13. Measure the existing asynchronous commits/waiter, BO/slab and
+  program pools, optional deferred recorder, constant uploads and register-state
+  reuse first. Fix plugin scheduling semantics, bound memory growth and add texture
+  pooling or broader persistent pipeline caches where measurements justify them
+  (lessons in Chlorophyll's `docs/FIXES.md` and upstream's `metal-measurements.md`).
   Result: —
 
 - [ ] **18. Presentation without the CPU copy.**

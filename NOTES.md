@@ -3,6 +3,21 @@
 **Metal:** the plan is `docs/metal-roadmap.md` (direct hakios-metal driver, user decision 2026-11-07): one agent per
 task, in order; each ticks its task there and adds a line to the handoff below.
 
+## Metal step 2 (2026-11-07; source audit, phone not used)
+
+- **FACT (source at `bc19b43`):** task 2 done in
+  `docs/metal-driver-inventory.md`: Metal feature/core/plugin coverage and hardware
+  paths, each with file:line evidence. The bundled Objective-C plugin has real
+  buffer/library/buffer-blit paths but placeholder textures/samplers/pipelines and
+  no render/compute encoders; its device name still says A642L. These gaps are now
+  explicit in roadmap tasks 8–10.
+- **FACT (source):** restricted GMEM, VSC hardware binning, Mesa-dependent UBWC,
+  profiling, async submission/pools/deferred recording and load/store elision
+  already exist in the core; LRZ is disabled. Tasks 13–17 now reuse/validate those
+  paths before extending them. No driver code changed, no new runtime validation
+  claimed; step 1's no-Mesa/fake results still apply. Task 3 (A640 constants versus
+  our Mesa, with fixes and host checks) is next; no phone needed for that audit.
+
 ## Metal step 1 (2026-11-07; phone not used)
 
 - **FACT (`docs/metal-step1-build.log`):** task 1 done: `hakios-metal/` vendored from
